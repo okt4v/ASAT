@@ -121,7 +121,7 @@ fn run_app(
                 }
                 PluginOutput::Command(cmd) => {
                     handle_ex_command(&cmd, &mut workbook, &mut input_state,
-                                      &mut undo_stack, &mut status_message, &mut config);
+                                      &mut undo_stack, &mut status_message, &mut config, &mut plugins);
                 }
                 PluginOutput::SetCell { sheet, row, col, value } => {
                     // sentinel usize::MAX means "active sheet"
@@ -184,6 +184,7 @@ fn run_app(
 
         let ev = event::read()?;
         if let Event::Key(key) = ev {
+            let mode_before = input_state.mode.name().to_string();
             let actions = input_state.handle_key(key, &workbook);
             let mut should_quit = false;
             let mut force_quit = false;
@@ -205,6 +206,12 @@ fn run_app(
                     ActionResult::Quit => should_quit = true,
                     ActionResult::ForceQuit => force_quit = true,
                 }
+            }
+
+            // Fire ModeChange event when the mode has changed
+            let mode_after = input_state.mode.name().to_string();
+            if mode_after != mode_before {
+                plugins.push_event(PluginEvent::ModeChange { mode: mode_after });
             }
 
             // Keep sub-command completions fresh after every key event
@@ -521,7 +528,7 @@ fn process_action(
 
         // ── Command execution ──
         AppAction::ExecuteCommand2(cmd_str) => {
-            return handle_ex_command(&cmd_str, workbook, input, undo, status, config);
+            return handle_ex_command(&cmd_str, workbook, input, undo, status, config, plugins);
         }
 
         // ── Sheet navigation ──
@@ -1572,6 +1579,7 @@ fn handle_ex_command(
     undo: &mut UndoStack,
     status: &mut Option<(String, std::time::Instant)>,
     config: &mut Config,
+    plugins: &mut PluginManager,
 ) -> ActionResult {
     let parts: Vec<&str> = cmd.trim().splitn(2, ' ').collect();
     let verb = parts[0];
@@ -1927,6 +1935,22 @@ fn handle_ex_command(
                 set_status(status, "Usage: :set <option>=<value>".to_string());
             } else {
                 set_status(status, format!("Unknown option: {}", arg));
+            }
+        }
+        // ── Plugin management ──
+        "plugin" | "plug" => {
+            match arg {
+                "reload" | "r" => {
+                    plugins.reload();
+                    set_status(status, "Plugin init.py reloaded".to_string());
+                }
+                "list" | "l" | "" => {
+                    let info = plugins.info();
+                    set_status(status, info);
+                }
+                _ => {
+                    set_status(status, "Usage: :plugin [reload|list]".to_string());
+                }
             }
         }
         // ── Sort ──

@@ -93,6 +93,35 @@ impl PluginManager {
         { self.initialized = python::init(); }
     }
 
+    /// Reload init.py without restarting ASAT.
+    pub fn reload(&mut self) {
+        #[cfg(feature = "python")]
+        {
+            python::reset();
+            self.initialized = python::init();
+        }
+    }
+
+    /// Human-readable status line for `:plugin list`.
+    pub fn info(&self) -> String {
+        #[cfg(feature = "python")]
+        {
+            let handler_count = python::handler_count();
+            let fn_count = asat_core::list_custom_fns().len();
+            if self.initialized {
+                return format!(
+                    "Plugin engine: active — {} event handler(s), {} custom function(s)  \
+                     [init.py: ~/.config/asat/init.py]",
+                    handler_count, fn_count
+                );
+            } else {
+                return "Plugin engine: disabled (no init.py or load error)".to_string();
+            }
+        }
+        #[cfg(not(feature = "python"))]
+        "Plugin engine: not compiled in (rebuild with --features asat-plugins/python)".to_string()
+    }
+
     pub fn drain(&mut self, workbook: &Workbook) -> Vec<PluginOutput> {
         let events = std::mem::take(&mut self.pending_events);
         #[cfg(feature = "python")]
@@ -267,15 +296,65 @@ class _Asat:
         _command(str(cmd))
 
     def get_cell(self, row, col):
-        """Read a cell value from the active sheet (0-indexed)."""
+        """Read a cell value from the active sheet (0-indexed row, col)."""
         return _get_cell(row, col)
 
     def set_cell(self, row, col, value):
-        """Set a cell value in the active sheet."""
+        """Set a cell value in the active sheet (0-indexed row, col)."""
         _set_cell(row, col, value)
+
+    def read(self, address):
+        """Read a cell by Excel-style address e.g. asat.read('B3')."""
+        row, col = self._parse_address(address)
+        return _get_cell(row, col)
+
+    def write(self, address, value):
+        """Write a cell by Excel-style address e.g. asat.write('B3', 42)."""
+        row, col = self._parse_address(address)
+        _set_cell(row, col, value)
+
+    def _parse_address(self, address):
+        """Convert 'B3' → (row=2, col=1) (0-indexed)."""
+        addr = address.strip().upper()
+        col_str = ''
+        row_str = ''
+        for ch in addr:
+            if ch.isalpha():
+                col_str += ch
+            else:
+                row_str += ch
+        if not col_str or not row_str:
+            raise ValueError(f"Invalid cell address: {address!r}")
+        col = 0
+        for ch in col_str:
+            col = col * 26 + (ord(ch) - ord('A') + 1)
+        col -= 1  # 0-indexed
+        row = int(row_str) - 1  # 0-indexed
+        return row, col
 
 asat = _Asat()
 "#;
+
+    // ── Reset (for reload) ────────────────────────────────────────────────────
+
+    /// Clear all registered handlers and custom functions, ready for re-init.
+    pub fn reset() {
+        if let Ok(mut s) = state().lock() {
+            s.handlers.clear();
+            s.outputs.clear();
+        }
+        // Clear plugin-registered custom formula functions
+        for name in asat_core::list_custom_fns() {
+            asat_core::unregister_custom_fn(&name);
+        }
+    }
+
+    /// Count total registered event handlers (for :plugin list).
+    pub fn handler_count() -> usize {
+        state().lock()
+            .map(|s| s.handlers.values().map(|v| v.len()).sum())
+            .unwrap_or(0)
+    }
 
     // ── Init ─────────────────────────────────────────────────────────────────
 

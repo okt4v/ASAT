@@ -38,6 +38,9 @@ pub const EX_COMMANDS: &[(&str, &str)] = &[
     ("cs",                   "Clear all styles from cell / selection"),
     ("theme",         "Open theme picker (or :theme <name> to apply)"),
     ("set",           "Set an option"),
+    ("sort",          "Sort rows by cursor column (:sort asc / :sort desc)"),
+    ("s /pat/repl/",  "Find & replace in text cells (:s/pat/repl/g)"),
+    ("plugin",        "Plugin engine: :plugin reload | :plugin list"),
 ];
 
 /// Return completions whose command word starts with `prefix` (case-insensitive).
