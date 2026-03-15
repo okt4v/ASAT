@@ -394,7 +394,64 @@
       border-bottom: 1px solid var(--border);
     }
 
-    .install-steps { display: flex; flex-direction: column; gap: 1.25rem; max-width: 680px; }
+    .install-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2.5rem;
+      align-items: start;
+    }
+    @media (max-width: 720px) {
+      .install-layout { grid-template-columns: 1fr; }
+    }
+
+    .install-methods { display: flex; flex-direction: column; gap: 0; }
+
+    .install-tab-bar {
+      display: flex; gap: 0;
+      border: 1px solid var(--border2);
+      border-radius: var(--radius) var(--radius) 0 0;
+      overflow: hidden;
+      background: var(--surface3);
+    }
+    .install-tab {
+      flex: 1;
+      background: none; border: none;
+      border-right: 1px solid var(--border2);
+      color: var(--text-muted);
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.55rem 0.5rem;
+      cursor: pointer;
+      transition: color 0.2s, background 0.2s;
+      text-align: center;
+      white-space: nowrap;
+    }
+    .install-tab:last-child { border-right: none; }
+    .install-tab:hover { color: var(--text); background: var(--surface2); }
+    .install-tab.active {
+      color: var(--amber);
+      background: var(--surface2);
+      border-bottom: 2px solid var(--amber);
+    }
+
+    .install-panels {
+      border: 1px solid var(--border2);
+      border-top: none;
+      border-radius: 0 0 var(--radius) var(--radius);
+      background: var(--surface2);
+      padding: 1.25rem;
+    }
+    .install-panel { display: none; flex-direction: column; gap: 0.6rem; }
+    .install-panel.active { display: flex; }
+
+    .install-panel-label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 0.25rem;
+    }
+
+    .install-steps { display: flex; flex-direction: column; gap: 1.25rem; }
 
     .step {
       display: flex; gap: 1.25rem; align-items: flex-start;
@@ -900,51 +957,114 @@
   <div class="container">
     <div class="section-head">
       <p class="section-label">// getting started</p>
-      <h2 class="section-title">Up and running<br>in three steps.</h2>
+      <h2 class="section-title">Install in seconds.</h2>
+      <p class="section-sub">Pick your platform — pre-built binaries, package managers, or build from source.</p>
     </div>
-    <div class="install-steps">
-      <div class="step">
-        <div class="step-num">1</div>
-        <div class="step-body">
-          <div class="step-title">Clone the repository</div>
-          <div class="step-desc">You'll need Rust 1.75+ with Cargo installed.</div>
-          <div class="code-block">
-            <div><span class="prompt">$</span><span>git clone https://github.com/okt4v/ASAT && cd ASAT</span></div>
-            <button class="copy-btn" onclick="copyCode(this)">copy</button>
+
+    <div class="install-layout">
+
+      <!-- Left: install method tabs -->
+      <div class="install-methods">
+        <div class="install-tab-bar">
+          <button class="install-tab active" data-panel="aur">AUR</button>
+          <button class="install-tab" data-panel="brew">Homebrew</button>
+          <button class="install-tab" data-panel="deb">.deb</button>
+          <button class="install-tab" data-panel="src">Source</button>
+        </div>
+        <div class="install-panels">
+
+          <!-- AUR -->
+          <div class="install-panel active" id="ipanel-aur">
+            <div class="install-panel-label">Arch Linux — via AUR helper</div>
+            <div class="code-block">
+              <div><span class="prompt">$</span><span>yay -S asat-bin</span></div>
+              <button class="copy-btn" onclick="copyCode(this)">copy</button>
+            </div>
+            <div class="install-panel-label" style="margin-top:0.5rem">or with paru</div>
+            <div class="code-block">
+              <div><span class="prompt">$</span><span>paru -S asat-bin</span></div>
+              <button class="copy-btn" onclick="copyCode(this)">copy</button>
+            </div>
+          </div>
+
+          <!-- Homebrew -->
+          <div class="install-panel" id="ipanel-brew">
+            <div class="install-panel-label">macOS &amp; Linux — via Homebrew</div>
+            <div class="code-block">
+              <div><span class="prompt">$</span><span>brew tap okt4v/tap</span></div>
+              <button class="copy-btn" onclick="copyCode(this)">copy</button>
+            </div>
+            <div class="code-block" style="margin-top:0.5rem">
+              <div><span class="prompt">$</span><span>brew install asat</span></div>
+              <button class="copy-btn" onclick="copyCode(this)">copy</button>
+            </div>
+          </div>
+
+          <!-- .deb -->
+          <div class="install-panel" id="ipanel-deb">
+            <div class="install-panel-label">Debian / Ubuntu — .deb package</div>
+            <div class="code-block">
+              <div><span class="prompt">$</span><span>wget https://github.com/okt4v/ASAT/releases/download/v0.1.3/asat_0.1.0-1_amd64.deb</span></div>
+              <button class="copy-btn" onclick="copyCode(this)">copy</button>
+            </div>
+            <div class="code-block" style="margin-top:0.5rem">
+              <div><span class="prompt">$</span><span>sudo dpkg -i asat_0.1.0-1_amd64.deb</span></div>
+              <button class="copy-btn" onclick="copyCode(this)">copy</button>
+            </div>
+          </div>
+
+          <!-- Build from source -->
+          <div class="install-panel" id="ipanel-src">
+            <div class="install-panel-label">Requires Rust 1.75+ with Cargo</div>
+            <div class="code-block">
+              <div><span class="prompt">$</span><span>git clone https://github.com/okt4v/ASAT &amp;&amp; cd ASAT</span></div>
+              <button class="copy-btn" onclick="copyCode(this)">copy</button>
+            </div>
+            <div class="code-block" style="margin-top:0.5rem">
+              <div><span class="prompt">$</span><span>bash install.sh</span></div>
+              <button class="copy-btn" onclick="copyCode(this)">copy</button>
+            </div>
+            <div class="install-panel-label" style="margin-top:0.75rem">or manually</div>
+            <div class="code-block">
+              <div><span class="prompt">$</span><span>cargo build --release</span></div>
+              <button class="copy-btn" onclick="copyCode(this)">copy</button>
+            </div>
+            <p class="step-desc" style="margin-top:0.6rem">The install script copies the binary to <code style="color:var(--teal)">~/.local/bin/asat</code> and warns if it isn't on your <code style="color:var(--teal)">$PATH</code>.</p>
+          </div>
+
+        </div>
+
+        <!-- Pre-built binaries note -->
+        <p class="step-desc" style="margin-top:1rem">
+          Pre-built binaries for Linux x86_64, Linux aarch64, macOS arm64, macOS x86_64, and Windows x86_64 are available on the
+          <a href="https://github.com/okt4v/ASAT/releases/tag/v0.1.3" style="color:var(--amber);text-decoration:none;">v0.1.3 GitHub Release</a>.
+        </p>
+      </div>
+
+      <!-- Right: Run ASAT step -->
+      <div class="install-steps">
+        <div class="step">
+          <div class="step-num">▶</div>
+          <div class="step-body">
+            <div class="step-title">Run ASAT</div>
+            <div class="step-desc">Pass a file to open it, or omit for a blank workbook.</div>
+            <div class="code-block" style="margin-bottom:0.6rem">
+              <div><span class="prompt">$</span><span>asat myfile.csv</span></div>
+              <button class="copy-btn" onclick="copyCode(this)">copy</button>
+            </div>
+            <div class="code-block" style="margin-bottom:0.6rem">
+              <div><span class="prompt">$</span><span>asat report.xlsx</span></div>
+              <button class="copy-btn" onclick="copyCode(this)">copy</button>
+            </div>
+            <div class="code-block">
+              <div><span class="prompt">$</span><span>asat spreadsheet.ods</span></div>
+              <button class="copy-btn" onclick="copyCode(this)">copy</button>
+            </div>
+            <div class="step-desc" style="margin-top:0.6rem">Make sure <code style="color:var(--teal)">~/.local/bin</code> is on your <code style="color:var(--teal)">$PATH</code>.</div>
           </div>
         </div>
       </div>
-      <div class="step">
-        <div class="step-num">2</div>
-        <div class="step-body">
-          <div class="step-title">Build &amp; install</div>
-          <div class="step-desc">Builds in release mode and copies the binary to <code style="color:var(--teal)">~/.local/bin/asat</code>.</div>
-          <div class="code-block">
-            <div><span class="prompt">$</span><span>bash install.sh</span></div>
-            <button class="copy-btn" onclick="copyCode(this)">copy</button>
-          </div>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-num">3</div>
-        <div class="step-body">
-          <div class="step-title">Run ASAT</div>
-          <div class="step-desc">Pass a file to open it, or omit for a blank workbook.</div>
-          <div class="code-block" style="margin-bottom:0.6rem">
-            <div><span class="prompt">$</span><span>asat myfile.csv</span></div>
-            <button class="copy-btn" onclick="copyCode(this)">copy</button>
-          </div>
-          <div class="code-block" style="margin-bottom:0.6rem">
-            <div><span class="prompt">$</span><span>asat report.xlsx</span></div>
-            <button class="copy-btn" onclick="copyCode(this)">copy</button>
-          </div>
-          <div class="code-block">
-            <div><span class="prompt">$</span><span>asat spreadsheet.ods</span></div>
-            <button class="copy-btn" onclick="copyCode(this)">copy</button>
-          </div>
-          <div class="step-desc" style="margin-top:0.6rem">Make sure <code style="color:var(--teal)">~/.local/bin</code> is on your <code style="color:var(--teal)">$PATH</code> — the script will warn you if it isn't.</div>
-        </div>
-      </div>
+
     </div>
   </div>
 </section>
@@ -1695,6 +1815,17 @@
 
   // Build All panel eagerly so it's ready
   buildAllPanel();
+
+  // ── Install method tabs ───────────────────────────────────────────────
+  document.querySelectorAll('.install-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const panel = tab.dataset.panel;
+      tab.closest('.install-methods').querySelectorAll('.install-tab').forEach(t => t.classList.remove('active'));
+      tab.closest('.install-methods').querySelectorAll('.install-panel').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('ipanel-' + panel).classList.add('active');
+    });
+  });
 
   // ── Copy code blocks ──────────────────────────────────────────────────
   function copyCode(btn) {

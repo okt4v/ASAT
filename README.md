@@ -41,9 +41,42 @@
 
 ## Installation
 
-### Prerequisites
+### Pre-built binaries (GitHub Releases)
 
-- [Rust](https://rustup.rs/) 1.75 or later
+Download a binary for your platform from the [v0.1.3 release](https://github.com/okt4v/ASAT/releases/tag/v0.1.3):
+
+| Platform | Link |
+|----------|------|
+| Linux x86_64 (glibc) | [asat-x86_64-unknown-linux-gnu.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.3/asat-x86_64-unknown-linux-gnu.tar.gz) |
+| Linux x86_64 (musl)  | [asat-x86_64-unknown-linux-musl.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.3/asat-x86_64-unknown-linux-musl.tar.gz) |
+| Linux aarch64        | [asat-aarch64-unknown-linux-gnu.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.3/asat-aarch64-unknown-linux-gnu.tar.gz) |
+| macOS arm64          | [asat-aarch64-apple-darwin.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.3/asat-aarch64-apple-darwin.tar.gz) |
+| macOS x86_64         | [asat-x86_64-apple-darwin.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.3/asat-x86_64-apple-darwin.tar.gz) |
+| Windows x86_64       | [asat-x86_64-pc-windows-msvc.zip](https://github.com/okt4v/ASAT/releases/download/v0.1.3/asat-x86_64-pc-windows-msvc.zip) |
+
+Extract the archive and place the `asat` binary somewhere on your `$PATH` (e.g. `~/.local/bin/`).
+
+### Arch Linux (AUR)
+
+```bash
+yay -S asat-bin
+# or
+paru -S asat-bin
+```
+
+### Homebrew (macOS / Linux)
+
+```bash
+brew tap okt4v/tap
+brew install asat
+```
+
+### Debian / Ubuntu (.deb)
+
+```bash
+wget https://github.com/okt4v/ASAT/releases/download/v0.1.3/asat_0.1.0-1_amd64.deb
+sudo dpkg -i asat_0.1.0-1_amd64.deb
+```
 
 ### Build from source
 
