@@ -149,7 +149,178 @@ jobs:
             yay -S asat-bin
             ```
 
+            ### Homebrew
+            ```bash
+            brew tap okt4v/tap && brew install asat
+            ```
+
             ### Build from source
             ```bash
             cargo install --git https://github.com/okt4v/ASAT --bin asat
             ```
+
+  # ── Update AUR ──────────────────────────────────────────────────────────────
+  update-aur:
+    name: Update AUR package
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download SHA256SUMS
+        run: |
+          gh release download ${{ github.ref_name }} --pattern SHA256SUMS.txt -D /tmp/sums
+          cat /tmp/sums/SHA256SUMS.txt
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract x86_64 linux SHA256
+        run: |
+          SHA=$(grep "x86_64-unknown-linux-gnu.tar.gz" /tmp/sums/SHA256SUMS.txt | awk '{print $1}')
+          echo "SHA256=$SHA" >> $GITHUB_ENV
+          VERSION=${{ github.ref_name }}
+          echo "PKGVER=${VERSION#v}" >> $GITHUB_ENV
+
+      - name: Write PKGBUILD
+        run: |
+          cat > /tmp/PKGBUILD <<EOF
+          # Maintainer: okt4v
+          pkgname=asat-bin
+          pkgver=${PKGVER}
+          pkgrel=1
+          pkgdesc="Terminal spreadsheet editor for Vim users — modal editing, 40+ formulas, CSV/XLSX/ODS"
+          arch=('x86_64')
+          url="https://github.com/okt4v/ASAT"
+          license=('GPL-3.0-or-later')
+          provides=('asat')
+          conflicts=('asat' 'asat-git')
+          source_x86_64=("\${pkgname}-\${pkgver}-x86_64.tar.gz::https://github.com/okt4v/ASAT/releases/download/v\${pkgver}/asat-v\${pkgver}-x86_64-unknown-linux-gnu.tar.gz")
+          sha256sums_x86_64=('${SHA256}')
+
+          package() {
+              install -Dm755 "asat-v\${pkgver}-x86_64-unknown-linux-gnu/asat" "\${pkgdir}/usr/bin/asat"
+              install -Dm644 "asat-v\${pkgver}-x86_64-unknown-linux-gnu/README.md" \\
+                  "\${pkgdir}/usr/share/doc/\${pkgname}/README.md"
+          }
+          EOF
+
+      - name: Set up SSH for AUR
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.AUR_SSH_KEY }}" > ~/.ssh/aur
+          chmod 600 ~/.ssh/aur
+          ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts
+          cat >> ~/.ssh/config <<EOF
+          Host aur.archlinux.org
+            IdentityFile ~/.ssh/aur
+            User aur
+          EOF
+
+      - name: Push to AUR
+        run: |
+          git clone ssh://aur@aur.archlinux.org/asat-bin.git /tmp/aur-asat-bin
+          cp /tmp/PKGBUILD /tmp/aur-asat-bin/PKGBUILD
+          cd /tmp/aur-asat-bin
+          # Generate .SRCINFO using a Docker image with makepkg
+          docker run --rm -v "$PWD:/pkg" archlinux:latest bash -c \
+            "pacman -Sy --noconfirm base-devel && cd /pkg && HOME=/tmp makepkg --printsrcinfo > .SRCINFO"
+          git config user.name "okt4v"
+          git config user.email "aur@asat"
+          git add PKGBUILD .SRCINFO
+          git diff --cached --quiet || git commit -m "Update to ${{ github.ref_name }}"
+          git push origin master
+
+  # ── Update Homebrew tap ──────────────────────────────────────────────────────
+  update-homebrew:
+    name: Update Homebrew tap
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download SHA256SUMS
+        run: |
+          gh release download ${{ github.ref_name }} --pattern SHA256SUMS.txt -D /tmp/sums
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract SHA256s and write formula
+        run: |
+          SUMS=/tmp/sums/SHA256SUMS.txt
+          VERSION=${{ github.ref_name }}
+          VER=${VERSION#v}
+
+          SHA_MACOS_ARM=$(grep "aarch64-apple-darwin.tar.gz" $SUMS | awk '{print $1}')
+          SHA_MACOS_X86=$(grep "x86_64-apple-darwin.tar.gz"  $SUMS | awk '{print $1}')
+          SHA_LINUX_ARM=$(grep "aarch64-unknown-linux-gnu.tar.gz" $SUMS | awk '{print $1}')
+          SHA_LINUX_X86=$(grep "x86_64-unknown-linux-gnu.tar.gz"  $SUMS | awk '{print $1}')
+
+          mkdir -p /tmp/homebrew-tap
+          cat > /tmp/homebrew-tap/asat.rb <<EOF
+          class Asat < Formula
+            desc "Terminal spreadsheet editor for Vim users — modal editing, 40+ formulas, CSV/XLSX/ODS"
+            homepage "https://okt4v.github.io/ASAT/"
+            license "GPL-3.0-or-later"
+            version "${VER}"
+
+            on_macos do
+              on_arm do
+                url "https://github.com/okt4v/ASAT/releases/download/v#{version}/asat-v#{version}-aarch64-apple-darwin.tar.gz"
+                sha256 "${SHA_MACOS_ARM}"
+              end
+              on_intel do
+                url "https://github.com/okt4v/ASAT/releases/download/v#{version}/asat-v#{version}-x86_64-apple-darwin.tar.gz"
+                sha256 "${SHA_MACOS_X86}"
+              end
+            end
+
+            on_linux do
+              on_arm do
+                url "https://github.com/okt4v/ASAT/releases/download/v#{version}/asat-v#{version}-aarch64-unknown-linux-gnu.tar.gz"
+                sha256 "${SHA_LINUX_ARM}"
+              end
+              on_intel do
+                url "https://github.com/okt4v/ASAT/releases/download/v#{version}/asat-v#{version}-x86_64-unknown-linux-gnu.tar.gz"
+                sha256 "${SHA_LINUX_X86}"
+              end
+            end
+
+            def install
+              bin.install "asat"
+            end
+
+            test do
+              system "#{bin}/asat", "--version"
+            end
+          end
+          EOF
+
+      - name: Push to homebrew-tap
+        run: |
+          git clone https://x-access-token:${{ secrets.GH_PAT }}@github.com/okt4v/homebrew-tap.git /tmp/homebrew-tap-repo
+          cp /tmp/homebrew-tap/asat.rb /tmp/homebrew-tap-repo/asat.rb
+          cd /tmp/homebrew-tap-repo
+          git config user.name "okt4v"
+          git config user.email "bot@asat"
+          git add asat.rb
+          git diff --cached --quiet || git commit -m "Update asat to ${{ github.ref_name }}"
+          git push origin main
+
+  # ── Update Buildkite apt registry ────────────────────────────────────────────
+  update-apt:
+    name: Upload .deb to Buildkite
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download .deb from release
+        run: |
+          gh release download ${{ github.ref_name }} --pattern "*.deb" -D /tmp/deb
+          DEB=$(ls /tmp/deb/*.deb)
+          echo "DEB_PATH=$DEB" >> $GITHUB_ENV
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload to Buildkite registry
+        run: |
+          curl -sf -X POST \
+            "https://api.buildkite.com/v2/packages/organizations/oktavian-m/registries/asat/packages" \
+            -H "Authorization: Bearer ${{ secrets.BUILDKITE_API_TOKEN }}" \
+            -F "file=@${DEB_PATH}"
