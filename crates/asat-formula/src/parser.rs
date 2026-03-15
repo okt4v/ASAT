@@ -17,8 +17,18 @@ pub enum Expr {
     Number(f64),
     Text(String),
     Boolean(bool),
-    CellRef { sheet: Option<String>, col: u32, row: u32 },
-    RangeRef { sheet: Option<String>, col1: u32, row1: u32, col2: u32, row2: u32 },
+    CellRef {
+        sheet: Option<String>,
+        col: u32,
+        row: u32,
+    },
+    RangeRef {
+        sheet: Option<String>,
+        col1: u32,
+        row1: u32,
+        col2: u32,
+        row2: u32,
+    },
 
     UnaryMinus(Box<Expr>),
     UnaryPlus(Box<Expr>),
@@ -29,7 +39,7 @@ pub enum Expr {
     Mul(Box<Expr>, Box<Expr>),
     Div(Box<Expr>, Box<Expr>),
     Pow(Box<Expr>, Box<Expr>),
-    Concat(Box<Expr>, Box<Expr>),  // &
+    Concat(Box<Expr>, Box<Expr>), // &
 
     // Comparisons
     Eq(Box<Expr>, Box<Expr>),
@@ -40,7 +50,10 @@ pub enum Expr {
     Gte(Box<Expr>, Box<Expr>),
 
     // Function call
-    Call { name: String, args: Vec<Expr> },
+    Call {
+        name: String,
+        args: Vec<Expr>,
+    },
 }
 
 struct Parser<'a> {
@@ -59,7 +72,9 @@ impl<'a> Parser<'a> {
 
     fn advance(&mut self) -> &Token {
         let t = self.tokens.get(self.pos).unwrap_or(&Token::Eof);
-        if self.pos < self.tokens.len() { self.pos += 1; }
+        if self.pos < self.tokens.len() {
+            self.pos += 1;
+        }
         t
     }
 
@@ -93,11 +108,11 @@ impl<'a> Parser<'a> {
         let mut left = self.parse_additive()?;
         loop {
             let op = match self.peek() {
-                Token::Eq  => Expr::Eq as fn(_, _) -> _,
+                Token::Eq => Expr::Eq as fn(_, _) -> _,
                 Token::Neq => Expr::Neq as fn(_, _) -> _,
-                Token::Lt  => Expr::Lt  as fn(_, _) -> _,
+                Token::Lt => Expr::Lt as fn(_, _) -> _,
                 Token::Lte => Expr::Lte as fn(_, _) -> _,
-                Token::Gt  => Expr::Gt  as fn(_, _) -> _,
+                Token::Gt => Expr::Gt as fn(_, _) -> _,
                 Token::Gte => Expr::Gte as fn(_, _) -> _,
                 _ => break,
             };
@@ -112,8 +127,16 @@ impl<'a> Parser<'a> {
         let mut left = self.parse_multiplicative()?;
         loop {
             match self.peek() {
-                Token::Plus  => { self.advance(); let r = self.parse_multiplicative()?; left = Expr::Add(Box::new(left), Box::new(r)); }
-                Token::Minus => { self.advance(); let r = self.parse_multiplicative()?; left = Expr::Sub(Box::new(left), Box::new(r)); }
+                Token::Plus => {
+                    self.advance();
+                    let r = self.parse_multiplicative()?;
+                    left = Expr::Add(Box::new(left), Box::new(r));
+                }
+                Token::Minus => {
+                    self.advance();
+                    let r = self.parse_multiplicative()?;
+                    left = Expr::Sub(Box::new(left), Box::new(r));
+                }
                 _ => break,
             }
         }
@@ -124,8 +147,16 @@ impl<'a> Parser<'a> {
         let mut left = self.parse_power()?;
         loop {
             match self.peek() {
-                Token::Star  => { self.advance(); let r = self.parse_power()?; left = Expr::Mul(Box::new(left), Box::new(r)); }
-                Token::Slash => { self.advance(); let r = self.parse_power()?; left = Expr::Div(Box::new(left), Box::new(r)); }
+                Token::Star => {
+                    self.advance();
+                    let r = self.parse_power()?;
+                    left = Expr::Mul(Box::new(left), Box::new(r));
+                }
+                Token::Slash => {
+                    self.advance();
+                    let r = self.parse_power()?;
+                    left = Expr::Div(Box::new(left), Box::new(r));
+                }
                 _ => break,
             }
         }
@@ -136,7 +167,7 @@ impl<'a> Parser<'a> {
         let base = self.parse_unary()?;
         if matches!(self.peek(), Token::Caret) {
             self.advance();
-            let exp = self.parse_unary()?;  // right-associative
+            let exp = self.parse_unary()?; // right-associative
             Ok(Expr::Pow(Box::new(base), Box::new(exp)))
         } else {
             Ok(base)
@@ -145,25 +176,55 @@ impl<'a> Parser<'a> {
 
     fn parse_unary(&mut self) -> Result<Expr, ParseError> {
         match self.peek() {
-            Token::Minus => { self.advance(); Ok(Expr::UnaryMinus(Box::new(self.parse_unary()?))) }
-            Token::Plus  => { self.advance(); Ok(Expr::UnaryPlus(Box::new(self.parse_unary()?))) }
+            Token::Minus => {
+                self.advance();
+                Ok(Expr::UnaryMinus(Box::new(self.parse_unary()?)))
+            }
+            Token::Plus => {
+                self.advance();
+                Ok(Expr::UnaryPlus(Box::new(self.parse_unary()?)))
+            }
             _ => self.parse_primary(),
         }
     }
 
     fn parse_primary(&mut self) -> Result<Expr, ParseError> {
         match self.peek().clone() {
-            Token::Number(n) => { self.advance(); Ok(Expr::Number(n)) }
-            Token::Text(s)   => { self.advance(); Ok(Expr::Text(s)) }
-            Token::Boolean(b) => { self.advance(); Ok(Expr::Boolean(b)) }
+            Token::Number(n) => {
+                self.advance();
+                Ok(Expr::Number(n))
+            }
+            Token::Text(s) => {
+                self.advance();
+                Ok(Expr::Text(s))
+            }
+            Token::Boolean(b) => {
+                self.advance();
+                Ok(Expr::Boolean(b))
+            }
 
-            Token::CellRef { sheet, col, row, .. } => {
+            Token::CellRef {
+                sheet, col, row, ..
+            } => {
                 self.advance();
                 Ok(Expr::CellRef { sheet, col, row })
             }
-            Token::RangeRef { sheet, col1, row1, col2, row2, .. } => {
+            Token::RangeRef {
+                sheet,
+                col1,
+                row1,
+                col2,
+                row2,
+                ..
+            } => {
                 self.advance();
-                Ok(Expr::RangeRef { sheet, col1, row1, col2, row2 })
+                Ok(Expr::RangeRef {
+                    sheet,
+                    col1,
+                    row1,
+                    col2,
+                    row2,
+                })
             }
 
             Token::Ident(name) => {
@@ -176,7 +237,9 @@ impl<'a> Parser<'a> {
                         args.push(self.parse_expr()?);
                         while matches!(self.peek(), Token::Comma | Token::Semicolon) {
                             self.advance();
-                            if matches!(self.peek(), Token::RParen) { break; }
+                            if matches!(self.peek(), Token::RParen) {
+                                break;
+                            }
                             args.push(self.parse_expr()?);
                         }
                     }
@@ -184,7 +247,10 @@ impl<'a> Parser<'a> {
                         return Err(ParseError::Expected(")"));
                     }
                     self.advance(); // consume ')'
-                    Ok(Expr::Call { name: name.to_uppercase(), args })
+                    Ok(Expr::Call {
+                        name: name.to_uppercase(),
+                        args,
+                    })
                 } else {
                     // Named range or unknown identifier
                     Err(ParseError::UnexpectedToken(Token::Ident(name)))

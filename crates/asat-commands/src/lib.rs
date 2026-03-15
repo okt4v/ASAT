@@ -1,4 +1,4 @@
-use asat_core::{Cell, CellValue, CellStyle, Workbook};
+use asat_core::{Cell, CellStyle, CellValue, Workbook};
 use thiserror::Error;
 
 // ── Error ────────────────────────────────────────────────────────────────────
@@ -34,11 +34,19 @@ pub struct UndoStack {
 
 impl UndoStack {
     pub fn new() -> Self {
-        UndoStack { past: Vec::new(), future: Vec::new(), max_depth: 1000 }
+        UndoStack {
+            past: Vec::new(),
+            future: Vec::new(),
+            max_depth: 1000,
+        }
     }
 
     pub fn with_limit(max_depth: usize) -> Self {
-        UndoStack { past: Vec::new(), future: Vec::new(), max_depth: max_depth.max(1) }
+        UndoStack {
+            past: Vec::new(),
+            future: Vec::new(),
+            max_depth: max_depth.max(1),
+        }
     }
 
     pub fn push(&mut self, cmd: Box<dyn Command>) {
@@ -80,8 +88,12 @@ impl UndoStack {
         }
     }
 
-    pub fn can_undo(&self) -> bool { !self.past.is_empty() }
-    pub fn can_redo(&self) -> bool { !self.future.is_empty() }
+    pub fn can_undo(&self) -> bool {
+        !self.past.is_empty()
+    }
+    pub fn can_redo(&self) -> bool {
+        !self.future.is_empty()
+    }
 }
 
 impl Default for UndoStack {
@@ -111,38 +123,53 @@ impl SetCell {
         col: u32,
         new_value: CellValue,
     ) -> Self {
-        let old_cell = workbook.sheet(sheet)
-            .and_then(|s| s.get_cell(row, col));
-        let old_value = old_cell.map(|c| c.value.clone()).unwrap_or(CellValue::Empty);
+        let old_cell = workbook.sheet(sheet).and_then(|s| s.get_cell(row, col));
+        let old_value = old_cell
+            .map(|c| c.value.clone())
+            .unwrap_or(CellValue::Empty);
         let old_style = old_cell.and_then(|c| c.style.clone());
         SetCell {
-            sheet, row, col,
-            old_value, old_style,
-            new_value, new_style: None,
+            sheet,
+            row,
+            col,
+            old_value,
+            old_style,
+            new_value,
+            new_style: None,
         }
     }
 }
 
 impl Command for SetCell {
     fn execute(&self, workbook: &mut Workbook) -> Result<(), CommandError> {
-        let sheet = workbook.sheet_mut(self.sheet)
+        let sheet = workbook
+            .sheet_mut(self.sheet)
             .ok_or(CommandError::SheetOutOfRange(self.sheet))?;
-        let cell = Cell { value: self.new_value.clone(), style: self.new_style.clone() };
+        let cell = Cell {
+            value: self.new_value.clone(),
+            style: self.new_style.clone(),
+        };
         sheet.set_cell(self.row, self.col, cell);
         workbook.dirty = true;
         Ok(())
     }
 
     fn undo(&self, workbook: &mut Workbook) -> Result<(), CommandError> {
-        let sheet = workbook.sheet_mut(self.sheet)
+        let sheet = workbook
+            .sheet_mut(self.sheet)
             .ok_or(CommandError::SheetOutOfRange(self.sheet))?;
-        let cell = Cell { value: self.old_value.clone(), style: self.old_style.clone() };
+        let cell = Cell {
+            value: self.old_value.clone(),
+            style: self.old_style.clone(),
+        };
         sheet.set_cell(self.row, self.col, cell);
         workbook.dirty = true;
         Ok(())
     }
 
-    fn description(&self) -> &str { "set cell" }
+    fn description(&self) -> &str {
+        "set cell"
+    }
 
     fn merge(&self, other: &dyn Command) -> Option<Box<dyn Command>> {
         // Downcast attempt: merge consecutive SetCell on same cell
@@ -162,10 +189,13 @@ pub struct InsertRow {
 
 impl Command for InsertRow {
     fn execute(&self, workbook: &mut Workbook) -> Result<(), CommandError> {
-        let sheet = workbook.sheet_mut(self.sheet)
+        let sheet = workbook
+            .sheet_mut(self.sheet)
             .ok_or(CommandError::SheetOutOfRange(self.sheet))?;
         // Shift all cells at or below `row` down by 1
-        let affected: Vec<_> = sheet.cells.keys()
+        let affected: Vec<_> = sheet
+            .cells
+            .keys()
             .filter(|(r, _)| *r >= self.row)
             .cloned()
             .collect();
@@ -179,11 +209,14 @@ impl Command for InsertRow {
     }
 
     fn undo(&self, workbook: &mut Workbook) -> Result<(), CommandError> {
-        let sheet = workbook.sheet_mut(self.sheet)
+        let sheet = workbook
+            .sheet_mut(self.sheet)
             .ok_or(CommandError::SheetOutOfRange(self.sheet))?;
         // Remove row `row`, shift everything above it back up
         // First remove the inserted row's cells
-        let row_cells: Vec<_> = sheet.cells.keys()
+        let row_cells: Vec<_> = sheet
+            .cells
+            .keys()
             .filter(|(r, _)| *r == self.row)
             .cloned()
             .collect();
@@ -191,7 +224,9 @@ impl Command for InsertRow {
             sheet.cells.remove(&coord);
         }
         // Shift everything above back down
-        let affected: Vec<_> = sheet.cells.keys()
+        let affected: Vec<_> = sheet
+            .cells
+            .keys()
             .filter(|(r, _)| *r > self.row)
             .cloned()
             .collect();
@@ -204,36 +239,47 @@ impl Command for InsertRow {
         Ok(())
     }
 
-    fn description(&self) -> &str { "insert row" }
+    fn description(&self) -> &str {
+        "insert row"
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct DeleteRow {
     pub sheet: usize,
     pub row: u32,
-    pub saved_cells: Vec<(u32, Cell)>,  // (col, cell) for undo
+    pub saved_cells: Vec<(u32, Cell)>, // (col, cell) for undo
 }
 
 impl DeleteRow {
     pub fn new(workbook: &Workbook, sheet: usize, row: u32) -> Self {
-        let saved_cells = workbook.sheet(sheet)
+        let saved_cells = workbook
+            .sheet(sheet)
             .map(|s| {
-                s.cells.iter()
+                s.cells
+                    .iter()
                     .filter(|((r, _), _)| *r == row)
                     .map(|((_, c), cell)| (*c, cell.clone()))
                     .collect()
             })
             .unwrap_or_default();
-        DeleteRow { sheet, row, saved_cells }
+        DeleteRow {
+            sheet,
+            row,
+            saved_cells,
+        }
     }
 }
 
 impl Command for DeleteRow {
     fn execute(&self, workbook: &mut Workbook) -> Result<(), CommandError> {
-        let sheet = workbook.sheet_mut(self.sheet)
+        let sheet = workbook
+            .sheet_mut(self.sheet)
             .ok_or(CommandError::SheetOutOfRange(self.sheet))?;
         // Remove this row's cells
-        let row_cells: Vec<_> = sheet.cells.keys()
+        let row_cells: Vec<_> = sheet
+            .cells
+            .keys()
             .filter(|(r, _)| *r == self.row)
             .cloned()
             .collect();
@@ -241,7 +287,9 @@ impl Command for DeleteRow {
             sheet.cells.remove(&coord);
         }
         // Shift rows above up
-        let affected: Vec<_> = sheet.cells.keys()
+        let affected: Vec<_> = sheet
+            .cells
+            .keys()
             .filter(|(r, _)| *r > self.row)
             .cloned()
             .collect();
@@ -255,10 +303,13 @@ impl Command for DeleteRow {
     }
 
     fn undo(&self, workbook: &mut Workbook) -> Result<(), CommandError> {
-        let sheet = workbook.sheet_mut(self.sheet)
+        let sheet = workbook
+            .sheet_mut(self.sheet)
             .ok_or(CommandError::SheetOutOfRange(self.sheet))?;
         // Shift rows back down
-        let affected: Vec<_> = sheet.cells.keys()
+        let affected: Vec<_> = sheet
+            .cells
+            .keys()
             .filter(|(r, _)| *r >= self.row)
             .cloned()
             .collect();
@@ -275,7 +326,9 @@ impl Command for DeleteRow {
         Ok(())
     }
 
-    fn description(&self) -> &str { "delete row" }
+    fn description(&self) -> &str {
+        "delete row"
+    }
 }
 
 // ── InsertCol / DeleteCol ────────────────────────────────────────────────────
@@ -288,9 +341,12 @@ pub struct InsertCol {
 
 impl Command for InsertCol {
     fn execute(&self, workbook: &mut Workbook) -> Result<(), CommandError> {
-        let sheet = workbook.sheet_mut(self.sheet)
+        let sheet = workbook
+            .sheet_mut(self.sheet)
             .ok_or(CommandError::SheetOutOfRange(self.sheet))?;
-        let affected: Vec<_> = sheet.cells.keys()
+        let affected: Vec<_> = sheet
+            .cells
+            .keys()
             .filter(|(_, c)| *c >= self.col)
             .cloned()
             .collect();
@@ -304,16 +360,21 @@ impl Command for InsertCol {
     }
 
     fn undo(&self, workbook: &mut Workbook) -> Result<(), CommandError> {
-        let sheet = workbook.sheet_mut(self.sheet)
+        let sheet = workbook
+            .sheet_mut(self.sheet)
             .ok_or(CommandError::SheetOutOfRange(self.sheet))?;
-        let col_cells: Vec<_> = sheet.cells.keys()
+        let col_cells: Vec<_> = sheet
+            .cells
+            .keys()
             .filter(|(_, c)| *c == self.col)
             .cloned()
             .collect();
         for coord in col_cells {
             sheet.cells.remove(&coord);
         }
-        let affected: Vec<_> = sheet.cells.keys()
+        let affected: Vec<_> = sheet
+            .cells
+            .keys()
             .filter(|(_, c)| *c > self.col)
             .cloned()
             .collect();
@@ -326,42 +387,55 @@ impl Command for InsertCol {
         Ok(())
     }
 
-    fn description(&self) -> &str { "insert column" }
+    fn description(&self) -> &str {
+        "insert column"
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct DeleteCol {
     pub sheet: usize,
     pub col: u32,
-    pub saved_cells: Vec<(u32, Cell)>,  // (row, cell) for undo
+    pub saved_cells: Vec<(u32, Cell)>, // (row, cell) for undo
 }
 
 impl DeleteCol {
     pub fn new(workbook: &Workbook, sheet: usize, col: u32) -> Self {
-        let saved_cells = workbook.sheet(sheet)
+        let saved_cells = workbook
+            .sheet(sheet)
             .map(|s| {
-                s.cells.iter()
+                s.cells
+                    .iter()
                     .filter(|((_, c), _)| *c == col)
                     .map(|((r, _), cell)| (*r, cell.clone()))
                     .collect()
             })
             .unwrap_or_default();
-        DeleteCol { sheet, col, saved_cells }
+        DeleteCol {
+            sheet,
+            col,
+            saved_cells,
+        }
     }
 }
 
 impl Command for DeleteCol {
     fn execute(&self, workbook: &mut Workbook) -> Result<(), CommandError> {
-        let sheet = workbook.sheet_mut(self.sheet)
+        let sheet = workbook
+            .sheet_mut(self.sheet)
             .ok_or(CommandError::SheetOutOfRange(self.sheet))?;
-        let col_cells: Vec<_> = sheet.cells.keys()
+        let col_cells: Vec<_> = sheet
+            .cells
+            .keys()
             .filter(|(_, c)| *c == self.col)
             .cloned()
             .collect();
         for coord in col_cells {
             sheet.cells.remove(&coord);
         }
-        let affected: Vec<_> = sheet.cells.keys()
+        let affected: Vec<_> = sheet
+            .cells
+            .keys()
             .filter(|(_, c)| *c > self.col)
             .cloned()
             .collect();
@@ -375,9 +449,12 @@ impl Command for DeleteCol {
     }
 
     fn undo(&self, workbook: &mut Workbook) -> Result<(), CommandError> {
-        let sheet = workbook.sheet_mut(self.sheet)
+        let sheet = workbook
+            .sheet_mut(self.sheet)
             .ok_or(CommandError::SheetOutOfRange(self.sheet))?;
-        let affected: Vec<_> = sheet.cells.keys()
+        let affected: Vec<_> = sheet
+            .cells
+            .keys()
             .filter(|(_, c)| *c >= self.col)
             .cloned()
             .collect();
@@ -393,7 +470,9 @@ impl Command for DeleteCol {
         Ok(())
     }
 
-    fn description(&self) -> &str { "delete column" }
+    fn description(&self) -> &str {
+        "delete column"
+    }
 }
 
 // ── GroupedCommand ────────────────────────────────────────────────────────────
@@ -418,21 +497,23 @@ impl Command for GroupedCommand {
         Ok(())
     }
 
-    fn description(&self) -> &str { &self.description }
+    fn description(&self) -> &str {
+        &self.description
+    }
 }
 
 // ── Clipboard / Registers ─────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Default)]
 pub struct Register {
-    pub cells: Vec<Vec<CellValue>>,  // rows of cols
-    pub is_line: bool,               // true if yanked whole row(s)
+    pub cells: Vec<Vec<CellValue>>, // rows of cols
+    pub is_line: bool,              // true if yanked whole row(s)
 }
 
 #[derive(Debug, Default)]
 pub struct RegisterMap {
     pub named: std::collections::HashMap<char, Register>,
-    pub unnamed: Register,  // "0 register
+    pub unnamed: Register, // "0 register
 }
 
 impl RegisterMap {

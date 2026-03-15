@@ -1,6 +1,6 @@
 # ── Rust build output ─────────────────────────────────────────────────────────
 /target/
-Cargo.lock
+# Cargo.lock is committed for binary crates (required for --locked builds)
 
 # ── Project-specific non-code directories ─────────────────────────────────────
 /planning/

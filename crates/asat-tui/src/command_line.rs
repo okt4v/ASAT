@@ -1,3 +1,4 @@
+use crate::{parse_hex_color, RenderState};
 use asat_input::Mode;
 use ratatui::{
     layout::Rect,
@@ -6,23 +7,20 @@ use ratatui::{
     widgets::Paragraph,
     Frame,
 };
-use crate::{parse_hex_color, RenderState};
 
 pub fn render(frame: &mut Frame, area: Rect, state: &RenderState<'_>) {
     let theme = &state.config.theme;
     let header_bg = parse_hex_color(&theme.header_bg);
-    let amber     = parse_hex_color(&theme.cursor_bg);
+    let amber = parse_hex_color(&theme.cursor_bg);
 
     let (prefix, content, is_command) = match &state.input.mode {
         Mode::Command => (":", state.input.command_buffer.as_str(), true),
-        Mode::Search { forward: true  } => ("/", state.input.search_buffer.as_str(), false),
+        Mode::Search { forward: true } => ("/", state.input.search_buffer.as_str(), false),
         Mode::Search { forward: false } => ("?", state.input.search_buffer.as_str(), false),
         _ => return,
     };
 
-    let bg_style = Style::default()
-        .fg(Color::White)
-        .bg(header_bg);
+    let bg_style = Style::default().fg(Color::White).bg(header_bg);
 
     // Prefix (':' '/' '?') is amber/teal depending on mode
     let prefix_color = if is_command {
@@ -37,7 +35,10 @@ pub fn render(frame: &mut Frame, area: Rect, state: &RenderState<'_>) {
 
     // If a completion is active, tint the buffer text to hint it was auto-filled
     let content_style = if is_command && state.input.completion_idx.is_some() {
-        Style::default().fg(amber).bg(header_bg).add_modifier(Modifier::ITALIC)
+        Style::default()
+            .fg(amber)
+            .bg(header_bg)
+            .add_modifier(Modifier::ITALIC)
     } else {
         Style::default().fg(Color::White).bg(header_bg)
     };
@@ -61,8 +62,5 @@ pub fn render(frame: &mut Frame, area: Rect, state: &RenderState<'_>) {
         }
     }
 
-    frame.render_widget(
-        Paragraph::new(Line::from(spans)).style(bg_style),
-        area,
-    );
+    frame.render_widget(Paragraph::new(Line::from(spans)).style(bg_style), area);
 }

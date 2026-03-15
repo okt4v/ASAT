@@ -1,6 +1,6 @@
-use asat_core::{CellError, CellValue, Workbook};
-use crate::parser::Expr;
 use crate::functions;
+use crate::parser::Expr;
+use asat_core::{CellError, CellValue, Workbook};
 
 pub struct EvalContext<'a> {
     pub workbook: &'a Workbook,
@@ -12,12 +12,14 @@ pub struct EvalContext<'a> {
 pub struct Evaluator;
 
 impl Evaluator {
-    pub fn new() -> Self { Evaluator }
+    pub fn new() -> Self {
+        Evaluator
+    }
 
     pub fn eval(&self, expr: &Expr, ctx: &EvalContext<'_>) -> CellValue {
         match expr {
-            Expr::Number(n)  => CellValue::Number(*n),
-            Expr::Text(s)    => CellValue::Text(s.clone()),
+            Expr::Number(n) => CellValue::Number(*n),
+            Expr::Text(s) => CellValue::Text(s.clone()),
             Expr::Boolean(b) => CellValue::Boolean(*b),
 
             Expr::CellRef { sheet, col, row } => {
@@ -34,13 +36,11 @@ impl Evaluator {
                 CellValue::Error(CellError::Value)
             }
 
-            Expr::UnaryMinus(e) => {
-                match self.eval(e, ctx) {
-                    CellValue::Number(n) => CellValue::Number(-n),
-                    CellValue::Error(e) => CellValue::Error(e),
-                    _ => CellValue::Error(CellError::Value),
-                }
-            }
+            Expr::UnaryMinus(e) => match self.eval(e, ctx) {
+                CellValue::Number(n) => CellValue::Number(-n),
+                CellValue::Error(e) => CellValue::Error(e),
+                _ => CellValue::Error(CellError::Value),
+            },
             Expr::UnaryPlus(e) => self.eval(e, ctx),
 
             Expr::Add(a, b) => self.binop_num(a, b, ctx, |x, y| x + y),
@@ -67,11 +67,11 @@ impl Evaluator {
                 }
             }
 
-            Expr::Eq(a, b)  => self.compare(a, b, ctx, |o| o == std::cmp::Ordering::Equal),
+            Expr::Eq(a, b) => self.compare(a, b, ctx, |o| o == std::cmp::Ordering::Equal),
             Expr::Neq(a, b) => self.compare(a, b, ctx, |o| o != std::cmp::Ordering::Equal),
-            Expr::Lt(a, b)  => self.compare(a, b, ctx, |o| o == std::cmp::Ordering::Less),
+            Expr::Lt(a, b) => self.compare(a, b, ctx, |o| o == std::cmp::Ordering::Less),
             Expr::Lte(a, b) => self.compare(a, b, ctx, |o| o != std::cmp::Ordering::Greater),
-            Expr::Gt(a, b)  => self.compare(a, b, ctx, |o| o == std::cmp::Ordering::Greater),
+            Expr::Gt(a, b) => self.compare(a, b, ctx, |o| o == std::cmp::Ordering::Greater),
             Expr::Gte(a, b) => self.compare(a, b, ctx, |o| o != std::cmp::Ordering::Less),
 
             Expr::Call { name, args } => {
@@ -114,7 +114,13 @@ impl Evaluator {
             }
         }
         match expr {
-            Expr::RangeRef { sheet, col1, row1, col2, row2 } => {
+            Expr::RangeRef {
+                sheet,
+                col1,
+                row1,
+                col2,
+                row2,
+            } => {
                 let sheet_idx = self.resolve_sheet(sheet, ctx);
                 if let Some(s) = ctx.workbook.sheet(sheet_idx) {
                     let mut vals = Vec::new();
@@ -144,7 +150,10 @@ impl Evaluator {
 
     fn resolve_sheet(&self, sheet: &Option<String>, ctx: &EvalContext<'_>) -> usize {
         if let Some(name) = sheet {
-            ctx.workbook.sheets.iter().position(|s| s.name.eq_ignore_ascii_case(name))
+            ctx.workbook
+                .sheets
+                .iter()
+                .position(|s| s.name.eq_ignore_ascii_case(name))
                 .unwrap_or(ctx.sheet_idx)
         } else {
             ctx.sheet_idx
@@ -152,7 +161,10 @@ impl Evaluator {
     }
 
     fn binop_num(
-        &self, a: &Expr, b: &Expr, ctx: &EvalContext<'_>,
+        &self,
+        a: &Expr,
+        b: &Expr,
+        ctx: &EvalContext<'_>,
         f: impl Fn(f64, f64) -> f64,
     ) -> CellValue {
         let lv = self.eval(a, ctx);
@@ -164,7 +176,10 @@ impl Evaluator {
     }
 
     fn compare(
-        &self, a: &Expr, b: &Expr, ctx: &EvalContext<'_>,
+        &self,
+        a: &Expr,
+        b: &Expr,
+        ctx: &EvalContext<'_>,
         pred: impl Fn(std::cmp::Ordering) -> bool,
     ) -> CellValue {
         let lv = self.eval(a, ctx);
@@ -184,10 +199,10 @@ impl Evaluator {
 
 pub fn to_number(v: &CellValue) -> Option<f64> {
     match v {
-        CellValue::Number(n)  => Some(*n),
+        CellValue::Number(n) => Some(*n),
         CellValue::Boolean(b) => Some(if *b { 1.0 } else { 0.0 }),
-        CellValue::Text(s)    => s.parse::<f64>().ok(),
-        CellValue::Empty      => Some(0.0),
+        CellValue::Text(s) => s.parse::<f64>().ok(),
+        CellValue::Empty => Some(0.0),
         _ => None,
     }
 }
@@ -195,8 +210,8 @@ pub fn to_number(v: &CellValue) -> Option<f64> {
 pub fn to_bool(v: &CellValue) -> Option<bool> {
     match v {
         CellValue::Boolean(b) => Some(*b),
-        CellValue::Number(n)  => Some(*n != 0.0),
-        CellValue::Text(s)    => match s.to_uppercase().as_str() {
+        CellValue::Number(n) => Some(*n != 0.0),
+        CellValue::Text(s) => match s.to_uppercase().as_str() {
             "TRUE" => Some(true),
             "FALSE" => Some(false),
             _ => None,
@@ -214,7 +229,7 @@ fn compare_values(a: &CellValue, b: &CellValue) -> std::cmp::Ordering {
     use CellValue::*;
     match (a, b) {
         (Number(x), Number(y)) => x.partial_cmp(y).unwrap_or(std::cmp::Ordering::Equal),
-        (Text(x), Text(y))     => x.to_lowercase().cmp(&y.to_lowercase()),
+        (Text(x), Text(y)) => x.to_lowercase().cmp(&y.to_lowercase()),
         (Boolean(x), Boolean(y)) => x.cmp(y),
         (Empty, Empty) => std::cmp::Ordering::Equal,
         // Type ordering: Empty < Number < Text < Boolean (Excel-like)
@@ -232,6 +247,6 @@ fn propagate_error(a: &CellValue, b: &CellValue) -> CellValue {
         _ => match b {
             CellValue::Error(e) => CellValue::Error(e.clone()),
             _ => CellValue::Error(CellError::Value),
-        }
+        },
     }
 }

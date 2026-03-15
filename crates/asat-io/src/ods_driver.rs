@@ -12,8 +12,8 @@ pub struct OdsDriver;
 impl FileDriver for OdsDriver {
     fn read(&self, path: &Path) -> Result<Workbook, IoError> {
         // calamine's open_workbook_auto handles .ods natively
-        let mut cal: calamine::Sheets<_> = open_workbook_auto(path)
-            .map_err(|e| IoError::Ods(e.to_string()))?;
+        let mut cal: calamine::Sheets<_> =
+            open_workbook_auto(path).map_err(|e| IoError::Ods(e.to_string()))?;
 
         let mut wb = Workbook {
             sheets: Vec::new(),
@@ -220,20 +220,20 @@ const MANIFEST_XML: &str = "\
 
 fn data_to_value(dt: &Data) -> CellValue {
     match dt {
-        Data::Empty           => CellValue::Empty,
-        Data::String(s)       => {
+        Data::Empty => CellValue::Empty,
+        Data::String(s) => {
             if s.starts_with('=') {
                 CellValue::Formula(s[1..].to_string())
             } else {
                 CellValue::Text(s.clone())
             }
         }
-        Data::Float(f)        => CellValue::Number(*f),
-        Data::Int(i)          => CellValue::Number(*i as f64),
-        Data::Bool(b)         => CellValue::Boolean(*b),
-        Data::Error(_)        => CellValue::Error(asat_core::CellError::Value),
-        Data::DateTime(dt)    => CellValue::Number(dt.as_f64()),
-        Data::DateTimeIso(s)  => CellValue::Text(s.clone()),
-        Data::DurationIso(s)  => CellValue::Text(s.clone()),
+        Data::Float(f) => CellValue::Number(*f),
+        Data::Int(i) => CellValue::Number(*i as f64),
+        Data::Bool(b) => CellValue::Boolean(*b),
+        Data::Error(_) => CellValue::Error(asat_core::CellError::Value),
+        Data::DateTime(dt) => CellValue::Number(dt.as_f64()),
+        Data::DateTimeIso(s) => CellValue::Text(s.clone()),
+        Data::DurationIso(s) => CellValue::Text(s.clone()),
     }
 }

@@ -1,11 +1,11 @@
-pub mod lexer;
-pub mod parser;
 pub mod evaluator;
 pub mod functions;
+pub mod lexer;
+pub mod parser;
 
 pub use evaluator::{EvalContext, Evaluator};
+pub use lexer::{LexError, Token};
 pub use parser::{Expr, ParseError};
-pub use lexer::{Token, LexError};
 
 use asat_core::{CellValue, Workbook};
 use thiserror::Error;
@@ -46,7 +46,12 @@ fn evaluate_inner(
 ) -> Result<CellValue, FormulaError> {
     let tokens = lexer::lex(formula)?;
     let expr = parser::parse(&tokens)?;
-    let ctx = EvalContext { workbook, sheet_idx, row, col };
+    let ctx = EvalContext {
+        workbook,
+        sheet_idx,
+        row,
+        col,
+    };
     let evaluator = Evaluator::new();
     Ok(evaluator.eval(&expr, &ctx))
 }

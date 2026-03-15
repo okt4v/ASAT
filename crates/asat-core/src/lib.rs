@@ -1,6 +1,6 @@
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
-use serde::{Deserialize, Serialize};
 
 // ── Cell Value ─────────────────────────────────────────────────────────────
 
@@ -31,7 +31,13 @@ impl CellValue {
                     format!("{}", n)
                 }
             }
-            CellValue::Boolean(b) => if *b { "TRUE".to_string() } else { "FALSE".to_string() },
+            CellValue::Boolean(b) => {
+                if *b {
+                    "TRUE".to_string()
+                } else {
+                    "FALSE".to_string()
+                }
+            }
             CellValue::Formula(f) => format!("={}", f),
             CellValue::Error(e) => e.to_string(),
         }
@@ -68,13 +74,13 @@ pub enum CellError {
 impl std::fmt::Display for CellError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CellError::Div0  => write!(f, "#DIV/0!"),
-            CellError::Name  => write!(f, "#NAME?"),
+            CellError::Div0 => write!(f, "#DIV/0!"),
+            CellError::Name => write!(f, "#NAME?"),
             CellError::Value => write!(f, "#VALUE!"),
-            CellError::Ref   => write!(f, "#REF!"),
-            CellError::Num   => write!(f, "#NUM!"),
-            CellError::NA    => write!(f, "#N/A"),
-            CellError::Null  => write!(f, "#NULL!"),
+            CellError::Ref => write!(f, "#REF!"),
+            CellError::Num => write!(f, "#NUM!"),
+            CellError::NA => write!(f, "#N/A"),
+            CellError::Null => write!(f, "#NULL!"),
         }
     }
 }
@@ -107,10 +113,10 @@ pub enum Alignment {
 pub enum NumberFormat {
     General,
     Integer,
-    Decimal(u8),       // decimal places
+    Decimal(u8), // decimal places
     Percentage(u8),
-    Currency(String),  // symbol
-    Date(String),      // strftime-style pattern
+    Currency(String), // symbol
+    Date(String),     // strftime-style pattern
     Custom(String),
     Thousands,             // #,##0
     ThousandsDecimals(u8), // #,##0.00
@@ -157,13 +163,19 @@ impl Cell {
     }
 
     pub fn with_style(value: CellValue, style: CellStyle) -> Self {
-        Cell { value, style: Some(style) }
+        Cell {
+            value,
+            style: Some(style),
+        }
     }
 }
 
 impl Default for Cell {
     fn default() -> Self {
-        Cell { value: CellValue::Empty, style: None }
+        Cell {
+            value: CellValue::Empty,
+            style: None,
+        }
     }
 }
 
@@ -171,27 +183,35 @@ impl Default for Cell {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RowMeta {
-    pub height: Option<u16>,  // None = auto
+    pub height: Option<u16>, // None = auto
     pub hidden: bool,
     pub style: Option<CellStyle>,
 }
 
 impl Default for RowMeta {
     fn default() -> Self {
-        RowMeta { height: None, hidden: false, style: None }
+        RowMeta {
+            height: None,
+            hidden: false,
+            style: None,
+        }
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ColMeta {
-    pub width: Option<u16>,   // None = auto (chars)
+    pub width: Option<u16>, // None = auto (chars)
     pub hidden: bool,
     pub style: Option<CellStyle>,
 }
 
 impl Default for ColMeta {
     fn default() -> Self {
-        ColMeta { width: None, hidden: false, style: None }
+        ColMeta {
+            width: None,
+            hidden: false,
+            style: None,
+        }
     }
 }
 
@@ -209,7 +229,13 @@ pub struct CellRange {
 
 impl CellRange {
     pub fn single(sheet: usize, row: u32, col: u32) -> Self {
-        CellRange { sheet, row_start: row, col_start: col, row_end: row, col_end: col }
+        CellRange {
+            sheet,
+            row_start: row,
+            col_start: col,
+            row_end: row,
+            col_end: col,
+        }
     }
 
     pub fn new(sheet: usize, row_start: u32, col_start: u32, row_end: u32, col_end: u32) -> Self {
@@ -289,7 +315,8 @@ impl Sheet {
     pub fn display_value(&self, row: u32, col: u32) -> String {
         let val = self.get_value(row, col);
         // Apply NumberFormat from cell style if present
-        if let Some(fmt) = self.get_cell(row, col)
+        if let Some(fmt) = self
+            .get_cell(row, col)
             .and_then(|c| c.style.as_ref())
             .and_then(|s| s.format.as_ref())
         {
@@ -318,17 +345,11 @@ impl Sheet {
     }
 
     pub fn col_width(&self, col: u32) -> u16 {
-        self.col_meta
-            .get(&col)
-            .and_then(|m| m.width)
-            .unwrap_or(10)
+        self.col_meta.get(&col).and_then(|m| m.width).unwrap_or(10)
     }
 
     pub fn row_height(&self, row: u32) -> u16 {
-        self.row_meta
-            .get(&row)
-            .and_then(|m| m.height)
-            .unwrap_or(1)
+        self.row_meta.get(&row).and_then(|m| m.height).unwrap_or(1)
     }
 }
 
@@ -415,7 +436,11 @@ pub fn letter_to_col(s: &str) -> Option<u32> {
         }
         result = result * 26 + (ch.to_ascii_uppercase() as u32 - b'A' as u32 + 1);
     }
-    if result == 0 { None } else { Some(result - 1) }
+    if result == 0 {
+        None
+    } else {
+        Some(result - 1)
+    }
 }
 
 /// Format a CellValue according to a NumberFormat.
@@ -425,13 +450,16 @@ pub fn apply_number_format(val: &CellValue, fmt: &NumberFormat) -> String {
         _ => return val.display(), // non-numeric cells ignore format
     };
     match fmt {
-        NumberFormat::General       => val.display(),
-        NumberFormat::Integer       => format!("{}", n.round() as i64),
-        NumberFormat::Decimal(d)    => format!("{:.prec$}", n, prec = *d as usize),
+        NumberFormat::General => val.display(),
+        NumberFormat::Integer => format!("{}", n.round() as i64),
+        NumberFormat::Decimal(d) => format!("{:.prec$}", n, prec = *d as usize),
         NumberFormat::Percentage(d) => format!("{:.prec$}%", n * 100.0, prec = *d as usize),
         NumberFormat::Currency(sym) => {
-            if n < 0.0 { format!("-{}{:.2}", sym, n.abs()) }
-            else       { format!("{}{:.2}", sym, n) }
+            if n < 0.0 {
+                format!("-{}{:.2}", sym, n.abs())
+            } else {
+                format!("{}{:.2}", sym, n)
+            }
         }
         NumberFormat::Date(_pat) => {
             // Treat n as days since 1900-01-01 (Excel epoch)
@@ -446,35 +474,61 @@ pub fn apply_number_format(val: &CellValue, fmt: &NumberFormat) -> String {
             // Format with thousands separator
             let abs = n_int.abs();
             let s = abs.to_string();
-            let with_sep: String = s.chars().rev().enumerate()
+            let with_sep: String = s
+                .chars()
+                .rev()
+                .enumerate()
                 .flat_map(|(i, c)| {
-                    if i > 0 && i % 3 == 0 { vec![',', c] } else { vec![c] }
+                    if i > 0 && i % 3 == 0 {
+                        vec![',', c]
+                    } else {
+                        vec![c]
+                    }
                 })
                 .collect::<String>()
                 .chars()
                 .rev()
                 .collect();
-            if n_int < 0 { format!("-{}", with_sep) } else { with_sep }
+            if n_int < 0 {
+                format!("-{}", with_sep)
+            } else {
+                with_sep
+            }
         }
         NumberFormat::ThousandsDecimals(d) => {
             let factor = 10f64.powi(*d as i32);
             let rounded = (n * factor).round() / factor;
             let int_part = rounded.abs() as i64;
             let s = int_part.to_string();
-            let with_sep: String = s.chars().rev().enumerate()
+            let with_sep: String = s
+                .chars()
+                .rev()
+                .enumerate()
                 .flat_map(|(i, c)| {
-                    if i > 0 && i % 3 == 0 { vec![',', c] } else { vec![c] }
+                    if i > 0 && i % 3 == 0 {
+                        vec![',', c]
+                    } else {
+                        vec![c]
+                    }
                 })
                 .collect::<String>()
                 .chars()
                 .rev()
                 .collect();
             let frac_str = if *d > 0 {
-                format!(".{:0>prec$}", ((rounded.abs() - int_part as f64) * factor).round() as u64, prec = *d as usize)
+                format!(
+                    ".{:0>prec$}",
+                    ((rounded.abs() - int_part as f64) * factor).round() as u64,
+                    prec = *d as usize
+                )
             } else {
                 String::new()
             };
-            if n < 0.0 { format!("-{}{}", with_sep, frac_str) } else { format!("{}{}", with_sep, frac_str) }
+            if n < 0.0 {
+                format!("-{}{}", with_sep, frac_str)
+            } else {
+                format!("{}{}", with_sep, frac_str)
+            }
         }
     }
 }

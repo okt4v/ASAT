@@ -1,13 +1,13 @@
-pub mod grid;
-pub mod formula_bar;
-pub mod status_bar;
-pub mod tab_bar;
 pub mod command_line;
 pub mod completion;
+pub mod formula_bar;
+pub mod grid;
 pub mod notification;
-pub mod whichkey;
-pub mod welcome;
+pub mod status_bar;
+pub mod tab_bar;
 pub mod theme_manager;
+pub mod welcome;
+pub mod whichkey;
 
 use asat_config::Config;
 use asat_core::Workbook;
@@ -55,8 +55,9 @@ pub fn darken(color: ratatui::style::Color, factor: f32) -> ratatui::style::Colo
 /// Returns true if the colour is perceptually dark (useful for choosing fg contrast).
 pub fn is_dark_color(color: ratatui::style::Color) -> bool {
     match color {
-        ratatui::style::Color::Rgb(r, g, b) =>
-            (r as u32 * 299 + g as u32 * 587 + b as u32 * 114) < 128_000,
+        ratatui::style::Color::Rgb(r, g, b) => {
+            (r as u32 * 299 + g as u32 * 587 + b as u32 * 114) < 128_000
+        }
         _ => true,
     }
 }
@@ -65,21 +66,21 @@ pub fn render(frame: &mut Frame, state: &RenderState<'_>) {
     let area = frame.area();
     let mode = &state.input.mode;
     let show_command = matches!(mode, Mode::Command | Mode::Search { .. });
-    let is_special   = matches!(mode, Mode::Welcome | Mode::FileFind | Mode::RecentFiles | Mode::ThemeManager);
+    let is_special = matches!(
+        mode,
+        Mode::Welcome | Mode::FileFind | Mode::RecentFiles | Mode::ThemeManager
+    );
 
     if is_special {
         // Special screens: just the content area + status bar
         let rows = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Min(3),
-                Constraint::Length(1),
-            ])
+            .constraints([Constraint::Min(3), Constraint::Length(1)])
             .split(area);
 
         match mode {
-            Mode::Welcome     => welcome::render_welcome(frame, rows[0], state),
-            Mode::FileFind    => {
+            Mode::Welcome => welcome::render_welcome(frame, rows[0], state),
+            Mode::FileFind => {
                 welcome::render_welcome(frame, rows[0], state);
                 welcome::render_file_finder(frame, rows[0], state);
             }

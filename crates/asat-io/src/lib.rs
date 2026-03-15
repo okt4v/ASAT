@@ -1,10 +1,10 @@
-pub mod csv_driver;
-pub mod xlsx_driver;
-pub mod ods_driver;
 pub mod asat_driver;
+pub mod csv_driver;
+pub mod ods_driver;
+pub mod xlsx_driver;
 
-use std::path::Path;
 use asat_core::Workbook;
+use std::path::Path;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -31,7 +31,8 @@ pub trait FileDriver: Send + Sync {
 
 /// Load a workbook from any supported file path
 pub fn load(path: &Path) -> Result<Workbook, IoError> {
-    let ext = path.extension()
+    let ext = path
+        .extension()
         .and_then(|e| e.to_str())
         .unwrap_or("")
         .to_lowercase();
@@ -46,7 +47,8 @@ pub fn load(path: &Path) -> Result<Workbook, IoError> {
 
 /// Save a workbook to any supported file path
 pub fn save(workbook: &Workbook, path: &Path) -> Result<(), IoError> {
-    let ext = path.extension()
+    let ext = path
+        .extension()
         .and_then(|e| e.to_str())
         .unwrap_or("")
         .to_lowercase();

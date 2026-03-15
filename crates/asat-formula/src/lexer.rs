@@ -8,20 +8,48 @@ pub enum Token {
     Boolean(bool),
 
     // Cell refs
-    CellRef { sheet: Option<String>, col: u32, row: u32, abs_col: bool, abs_row: bool },
-    RangeRef { sheet: Option<String>, col1: u32, row1: u32, abs_col1: bool, abs_row1: bool,
-                                      col2: u32, row2: u32, abs_col2: bool, abs_row2: bool },
+    CellRef {
+        sheet: Option<String>,
+        col: u32,
+        row: u32,
+        abs_col: bool,
+        abs_row: bool,
+    },
+    RangeRef {
+        sheet: Option<String>,
+        col1: u32,
+        row1: u32,
+        abs_col1: bool,
+        abs_row1: bool,
+        col2: u32,
+        row2: u32,
+        abs_col2: bool,
+        abs_row2: bool,
+    },
 
     // Identifiers (function names)
     Ident(String),
 
     // Operators
-    Plus, Minus, Star, Slash, Caret,  // ^ = power
-    Eq, Neq, Lt, Lte, Gt, Gte,
-    Ampersand,  // string concat
+    Plus,
+    Minus,
+    Star,
+    Slash,
+    Caret, // ^ = power
+    Eq,
+    Neq,
+    Lt,
+    Lte,
+    Gt,
+    Gte,
+    Ampersand, // string concat
 
     // Punctuation
-    LParen, RParen, Comma, Colon, Semicolon,
+    LParen,
+    RParen,
+    Comma,
+    Colon,
+    Semicolon,
 
     // Structural
     Eof,
@@ -52,7 +80,8 @@ pub fn lex(input: &str) -> Result<Vec<Token>, LexError> {
         }
 
         // Numbers
-        if c.is_ascii_digit() || (c == '.' && i + 1 < chars.len() && chars[i + 1].is_ascii_digit()) {
+        if c.is_ascii_digit() || (c == '.' && i + 1 < chars.len() && chars[i + 1].is_ascii_digit())
+        {
             let start = i;
             while i < chars.len() && (chars[i].is_ascii_digit() || chars[i] == '.') {
                 i += 1;
@@ -141,8 +170,14 @@ pub fn lex(input: &str) -> Result<Vec<Token>, LexError> {
                 } else {
                     // Check: is it TRUE/FALSE?
                     match ident.to_uppercase().as_str() {
-                        "TRUE"  => { tokens.push(Token::Boolean(true)); continue; }
-                        "FALSE" => { tokens.push(Token::Boolean(false)); continue; }
+                        "TRUE" => {
+                            tokens.push(Token::Boolean(true));
+                            continue;
+                        }
+                        "FALSE" => {
+                            tokens.push(Token::Boolean(false));
+                            continue;
+                        }
                         _ => {}
                     }
                     // Try to parse as cell ref (e.g. A1, $B$3, AB12)
@@ -155,24 +190,47 @@ pub fn lex(input: &str) -> Result<Vec<Token>, LexError> {
                             let ref2_start = i;
                             let mut abs_col2 = false;
                             let mut abs_row2 = false;
-                            if i < chars.len() && chars[i] == '$' { abs_col2 = true; i += 1; }
+                            if i < chars.len() && chars[i] == '$' {
+                                abs_col2 = true;
+                                i += 1;
+                            }
                             let col2_start = i;
-                            while i < chars.len() && chars[i].is_ascii_alphabetic() { i += 1; }
+                            while i < chars.len() && chars[i].is_ascii_alphabetic() {
+                                i += 1;
+                            }
                             let col2_str: String = chars[col2_start..i].iter().collect();
-                            if i < chars.len() && chars[i] == '$' { abs_row2 = true; i += 1; }
+                            if i < chars.len() && chars[i] == '$' {
+                                abs_row2 = true;
+                                i += 1;
+                            }
                             let row2_start = i;
-                            while i < chars.len() && chars[i].is_ascii_digit() { i += 1; }
+                            while i < chars.len() && chars[i].is_ascii_digit() {
+                                i += 1;
+                            }
                             let row2_str: String = chars[row2_start..i].iter().collect();
                             // Replace the last token with a range ref
-                            if let Some(Token::CellRef { sheet, col, row, abs_col, abs_row }) = tokens.pop() {
+                            if let Some(Token::CellRef {
+                                sheet,
+                                col,
+                                row,
+                                abs_col,
+                                abs_row,
+                            }) = tokens.pop()
+                            {
                                 if let (Some(col2), Ok(row2)) = (
                                     asat_core::letter_to_col(&col2_str),
                                     row2_str.parse::<u32>().map(|r| r.saturating_sub(1)),
                                 ) {
                                     tokens.push(Token::RangeRef {
                                         sheet,
-                                        col1: col, row1: row, abs_col1: abs_col, abs_row1: abs_row,
-                                        col2, row2, abs_col2, abs_row2,
+                                        col1: col,
+                                        row1: row,
+                                        abs_col1: abs_col,
+                                        abs_row1: abs_row,
+                                        col2,
+                                        row2,
+                                        abs_col2,
+                                        abs_row2,
                                     });
                                 }
                             }
@@ -190,44 +248,79 @@ pub fn lex(input: &str) -> Result<Vec<Token>, LexError> {
             let cell_start = i;
             let mut abs_col = false;
             let mut abs_row = false;
-            if i < chars.len() && chars[i] == '$' { abs_col = true; i += 1; }
+            if i < chars.len() && chars[i] == '$' {
+                abs_col = true;
+                i += 1;
+            }
             let col_start = i;
-            while i < chars.len() && chars[i].is_ascii_alphabetic() { i += 1; }
+            while i < chars.len() && chars[i].is_ascii_alphabetic() {
+                i += 1;
+            }
             let col_str: String = chars[col_start..i].iter().collect();
-            if i < chars.len() && chars[i] == '$' { abs_row = true; i += 1; }
+            if i < chars.len() && chars[i] == '$' {
+                abs_row = true;
+                i += 1;
+            }
             let row_start = i;
-            while i < chars.len() && chars[i].is_ascii_digit() { i += 1; }
+            while i < chars.len() && chars[i].is_ascii_digit() {
+                i += 1;
+            }
             let row_str: String = chars[row_start..i].iter().collect();
 
             let col = asat_core::letter_to_col(&col_str)
                 .ok_or_else(|| LexError::InvalidCellRef(col_str.clone()))?;
-            let row = row_str.parse::<u32>()
+            let row = row_str
+                .parse::<u32>()
                 .map(|r| r.saturating_sub(1))
                 .map_err(|_| LexError::InvalidCellRef(row_str.clone()))?;
 
-            let tok = Token::CellRef { sheet: sheet.clone(), col, row, abs_col, abs_row };
+            let tok = Token::CellRef {
+                sheet: sheet.clone(),
+                col,
+                row,
+                abs_col,
+                abs_row,
+            };
             // Check for range
             if i < chars.len() && chars[i] == ':' {
                 i += 1;
                 // Skip optional sheet prefix (same sheet assumed)
                 let mut abs_col2 = false;
                 let mut abs_row2 = false;
-                if i < chars.len() && chars[i] == '$' { abs_col2 = true; i += 1; }
+                if i < chars.len() && chars[i] == '$' {
+                    abs_col2 = true;
+                    i += 1;
+                }
                 let col2_start = i;
-                while i < chars.len() && chars[i].is_ascii_alphabetic() { i += 1; }
+                while i < chars.len() && chars[i].is_ascii_alphabetic() {
+                    i += 1;
+                }
                 let col2_str: String = chars[col2_start..i].iter().collect();
-                if i < chars.len() && chars[i] == '$' { abs_row2 = true; i += 1; }
+                if i < chars.len() && chars[i] == '$' {
+                    abs_row2 = true;
+                    i += 1;
+                }
                 let row2_start = i;
-                while i < chars.len() && chars[i].is_ascii_digit() { i += 1; }
+                while i < chars.len() && chars[i].is_ascii_digit() {
+                    i += 1;
+                }
                 let row2_str: String = chars[row2_start..i].iter().collect();
                 let col2 = asat_core::letter_to_col(&col2_str)
                     .ok_or_else(|| LexError::InvalidCellRef(col2_str.clone()))?;
-                let row2 = row2_str.parse::<u32>()
+                let row2 = row2_str
+                    .parse::<u32>()
                     .map(|r| r.saturating_sub(1))
                     .map_err(|_| LexError::InvalidCellRef(row2_str.clone()))?;
                 tokens.push(Token::RangeRef {
-                    sheet, col1: col, row1: row, abs_col1: abs_col, abs_row1: abs_row,
-                    col2, row2, abs_col2, abs_row2,
+                    sheet,
+                    col1: col,
+                    row1: row,
+                    abs_col1: abs_col,
+                    abs_row1: abs_row,
+                    col2,
+                    row2,
+                    abs_col2,
+                    abs_row2,
                 });
             } else {
                 tokens.push(tok);
@@ -240,19 +333,33 @@ pub fn lex(input: &str) -> Result<Vec<Token>, LexError> {
             i += 1;
             let mut abs_col = true;
             let col_start = i;
-            while i < chars.len() && chars[i].is_ascii_alphabetic() { i += 1; }
+            while i < chars.len() && chars[i].is_ascii_alphabetic() {
+                i += 1;
+            }
             let col_str: String = chars[col_start..i].iter().collect();
             let mut abs_row = false;
-            if i < chars.len() && chars[i] == '$' { abs_row = true; i += 1; }
+            if i < chars.len() && chars[i] == '$' {
+                abs_row = true;
+                i += 1;
+            }
             let row_start = i;
-            while i < chars.len() && chars[i].is_ascii_digit() { i += 1; }
+            while i < chars.len() && chars[i].is_ascii_digit() {
+                i += 1;
+            }
             let row_str: String = chars[row_start..i].iter().collect();
             let col = asat_core::letter_to_col(&col_str)
                 .ok_or_else(|| LexError::InvalidCellRef(col_str.clone()))?;
-            let row = row_str.parse::<u32>()
+            let row = row_str
+                .parse::<u32>()
                 .map(|r| r.saturating_sub(1))
                 .map_err(|_| LexError::InvalidCellRef(row_str.clone()))?;
-            tokens.push(Token::CellRef { sheet: None, col, row, abs_col, abs_row });
+            tokens.push(Token::CellRef {
+                sheet: None,
+                col,
+                row,
+                abs_col,
+                abs_row,
+            });
             continue;
         }
 
@@ -271,17 +378,27 @@ pub fn lex(input: &str) -> Result<Vec<Token>, LexError> {
             '<' => {
                 if i + 1 < chars.len() {
                     match chars[i + 1] {
-                        '=' => { i += 1; Token::Lte }
-                        '>' => { i += 1; Token::Neq }
+                        '=' => {
+                            i += 1;
+                            Token::Lte
+                        }
+                        '>' => {
+                            i += 1;
+                            Token::Neq
+                        }
                         _ => Token::Lt,
                     }
-                } else { Token::Lt }
+                } else {
+                    Token::Lt
+                }
             }
             '>' => {
                 if i + 1 < chars.len() && chars[i + 1] == '=' {
                     i += 1;
                     Token::Gte
-                } else { Token::Gt }
+                } else {
+                    Token::Gt
+                }
             }
             '=' => {
                 if i + 1 < chars.len() && chars[i + 1] == '=' {
@@ -322,7 +439,9 @@ fn try_parse_cell_ref(s: &str, sheet: Option<String>) -> Option<Token> {
     while i < bytes.len() && bytes[i].is_ascii_alphabetic() {
         i += 1;
     }
-    if i == col_start { return None; }  // no letters
+    if i == col_start {
+        return None;
+    } // no letters
     let col_str: &str = &s[col_start..i];
 
     if i < bytes.len() && bytes[i] == b'$' {
@@ -333,13 +452,21 @@ fn try_parse_cell_ref(s: &str, sheet: Option<String>) -> Option<Token> {
     while i < bytes.len() && bytes[i].is_ascii_digit() {
         i += 1;
     }
-    if i != bytes.len() || i == row_start { return None; }  // trailing chars or no digits
+    if i != bytes.len() || i == row_start {
+        return None;
+    } // trailing chars or no digits
 
     let row_str: &str = &s[row_start..i];
     let col = asat_core::letter_to_col(col_str)?;
     let row = row_str.parse::<u32>().ok()?.checked_sub(1)?;
 
-    Some(Token::CellRef { sheet, col, row, abs_col, abs_row })
+    Some(Token::CellRef {
+        sheet,
+        col,
+        row,
+        abs_col,
+        abs_row,
+    })
 }
 
 #[cfg(test)]
@@ -357,7 +484,16 @@ mod tests {
     #[test]
     fn test_lex_cell_ref() {
         let tokens = lex("A1").unwrap();
-        assert_eq!(tokens[0], Token::CellRef { sheet: None, col: 0, row: 0, abs_col: false, abs_row: false });
+        assert_eq!(
+            tokens[0],
+            Token::CellRef {
+                sheet: None,
+                col: 0,
+                row: 0,
+                abs_col: false,
+                abs_row: false
+            }
+        );
     }
 
     #[test]

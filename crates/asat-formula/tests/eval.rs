@@ -57,31 +57,58 @@ fn test_arithmetic() {
 #[test]
 fn test_if() {
     let wb = wb_with_data();
-    assert_eq!(eval("IF(1>0,\"yes\",\"no\")", &wb), CellValue::Text("yes".into()));
-    assert_eq!(eval("IF(1<0,\"yes\",\"no\")", &wb), CellValue::Text("no".into()));
+    assert_eq!(
+        eval("IF(1>0,\"yes\",\"no\")", &wb),
+        CellValue::Text("yes".into())
+    );
+    assert_eq!(
+        eval("IF(1<0,\"yes\",\"no\")", &wb),
+        CellValue::Text("no".into())
+    );
 }
 
 #[test]
 fn test_string_functions() {
     let wb = wb_with_data();
     assert_eq!(eval("LEN(\"hello\")", &wb), CellValue::Number(5.0));
-    assert_eq!(eval("UPPER(\"hello\")", &wb), CellValue::Text("HELLO".into()));
-    assert_eq!(eval("LEFT(\"hello\",3)", &wb), CellValue::Text("hel".into()));
-    assert_eq!(eval("RIGHT(\"hello\",3)", &wb), CellValue::Text("llo".into()));
-    assert_eq!(eval("MID(\"hello\",2,3)", &wb), CellValue::Text("ell".into()));
+    assert_eq!(
+        eval("UPPER(\"hello\")", &wb),
+        CellValue::Text("HELLO".into())
+    );
+    assert_eq!(
+        eval("LEFT(\"hello\",3)", &wb),
+        CellValue::Text("hel".into())
+    );
+    assert_eq!(
+        eval("RIGHT(\"hello\",3)", &wb),
+        CellValue::Text("llo".into())
+    );
+    assert_eq!(
+        eval("MID(\"hello\",2,3)", &wb),
+        CellValue::Text("ell".into())
+    );
 }
 
 #[test]
 fn test_concat() {
     let wb = wb_with_data();
-    assert_eq!(eval("\"foo\"&\"bar\"", &wb), CellValue::Text("foobar".into()));
-    assert_eq!(eval("CONCATENATE(\"a\",\"b\",\"c\")", &wb), CellValue::Text("abc".into()));
+    assert_eq!(
+        eval("\"foo\"&\"bar\"", &wb),
+        CellValue::Text("foobar".into())
+    );
+    assert_eq!(
+        eval("CONCATENATE(\"a\",\"b\",\"c\")", &wb),
+        CellValue::Text("abc".into())
+    );
 }
 
 #[test]
 fn test_div_by_zero() {
     let wb = wb_with_data();
-    assert_eq!(eval("1/0", &wb), CellValue::Error(asat_core::CellError::Div0));
+    assert_eq!(
+        eval("1/0", &wb),
+        CellValue::Error(asat_core::CellError::Div0)
+    );
 }
 
 #[test]

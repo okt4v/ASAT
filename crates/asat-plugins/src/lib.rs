@@ -32,22 +32,39 @@ use asat_core::{CellValue, Workbook};
 
 #[derive(Debug, Clone)]
 pub enum PluginEvent {
-    Open        { path: Option<String> },
-    PreSave     { path: String },
-    PostSave    { path: String },
-    CellChange  { sheet: usize, row: u32, col: u32, old: CellValue, new: CellValue },
-    ModeChange  { mode: String },
-    SheetChange { from: usize, to: usize },
+    Open {
+        path: Option<String>,
+    },
+    PreSave {
+        path: String,
+    },
+    PostSave {
+        path: String,
+    },
+    CellChange {
+        sheet: usize,
+        row: u32,
+        col: u32,
+        old: CellValue,
+        new: CellValue,
+    },
+    ModeChange {
+        mode: String,
+    },
+    SheetChange {
+        from: usize,
+        to: usize,
+    },
 }
 
 impl PluginEvent {
     pub fn event_name(&self) -> &'static str {
         match self {
-            PluginEvent::Open { .. }        => "open",
-            PluginEvent::PreSave { .. }     => "pre_save",
-            PluginEvent::PostSave { .. }    => "post_save",
-            PluginEvent::CellChange { .. }  => "cell_change",
-            PluginEvent::ModeChange { .. }  => "mode_change",
+            PluginEvent::Open { .. } => "open",
+            PluginEvent::PreSave { .. } => "pre_save",
+            PluginEvent::PostSave { .. } => "post_save",
+            PluginEvent::CellChange { .. } => "cell_change",
+            PluginEvent::ModeChange { .. } => "mode_change",
             PluginEvent::SheetChange { .. } => "sheet_change",
         }
     }
@@ -60,7 +77,12 @@ pub enum PluginOutput {
     Notify(String),
     Command(String),
     /// `sheet == usize::MAX` → use caller's active sheet.
-    SetCell { sheet: usize, row: u32, col: u32, value: CellValue },
+    SetCell {
+        sheet: usize,
+        row: u32,
+        col: u32,
+        value: CellValue,
+    },
 }
 
 // ── Plugin manager ────────────────────────────────────────────────────────────
@@ -72,7 +94,9 @@ pub struct PluginManager {
 }
 
 impl Default for PluginManager {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl PluginManager {
@@ -90,7 +114,9 @@ impl PluginManager {
 
     pub fn load_init_script(&mut self) {
         #[cfg(feature = "python")]
-        { self.initialized = python::init(); }
+        {
+            self.initialized = python::init();
+        }
     }
 
     /// Reload init.py without restarting ASAT.
@@ -138,21 +164,21 @@ impl PluginManager {
 #[cfg(feature = "python")]
 mod python {
     use std::collections::HashMap;
-    use std::sync::{Mutex, OnceLock};
     use std::sync::Arc;
+    use std::sync::{Mutex, OnceLock};
 
     use pyo3::prelude::*;
     use pyo3::types::{PyDict, PyList, PyModule, PyTuple};
 
-    use asat_core::{CellError, CellValue, CustomFn, Workbook, register_custom_fn};
     use super::{PluginEvent, PluginOutput};
+    use asat_core::{register_custom_fn, CellError, CellValue, CustomFn, Workbook};
 
     // ── Global state ─────────────────────────────────────────────────────────
 
     #[derive(Default)]
     struct State {
         handlers: HashMap<String, Vec<Py<PyAny>>>,
-        outputs:  Vec<PluginOutput>,
+        outputs: Vec<PluginOutput>,
     }
 
     static STATE: OnceLock<Mutex<State>> = OnceLock::new();
@@ -170,12 +196,15 @@ mod python {
 
     fn cv_to_py(py: Python<'_>, v: &CellValue) -> Py<PyAny> {
         match v {
-            CellValue::Number(n)  => n.into_pyobject(py).unwrap().into_any().unbind(),
-            CellValue::Text(s)    => s.into_pyobject(py).unwrap().into_any().unbind(),
+            CellValue::Number(n) => n.into_pyobject(py).unwrap().into_any().unbind(),
+            CellValue::Text(s) => s.into_pyobject(py).unwrap().into_any().unbind(),
             CellValue::Boolean(b) => b.into_pyobject(py).unwrap().into_any().unbind(),
-            CellValue::Empty      => py.None(),
-            CellValue::Error(e)   =>
-                format!("#{:?}", e).into_pyobject(py).unwrap().into_any().unbind(),
+            CellValue::Empty => py.None(),
+            CellValue::Error(e) => format!("#{:?}", e)
+                .into_pyobject(py)
+                .unwrap()
+                .into_any()
+                .unbind(),
             CellValue::Formula(f) => f.into_pyobject(py).unwrap().into_any().unbind(),
         }
     }
@@ -202,7 +231,10 @@ mod python {
     /// Internal: register an event handler.
     #[pyfunction]
     fn _register_handler(event_name: String, handler: Py<PyAny>) {
-        state().lock().unwrap().handlers
+        state()
+            .lock()
+            .unwrap()
+            .handlers
             .entry(event_name.to_ascii_lowercase())
             .or_default()
             .push(handler);
@@ -214,11 +246,10 @@ mod python {
         let h = Arc::new(handler);
         let f: CustomFn = Arc::new(move |args: &[CellValue]| {
             Python::attach(|py| {
-                let py_args: Vec<Py<PyAny>> =
-                    args.iter().map(|v| cv_to_py(py, v)).collect();
+                let py_args: Vec<Py<PyAny>> = args.iter().map(|v| cv_to_py(py, v)).collect();
                 let tuple = PyTuple::new(py, &py_args).unwrap();
                 match h.bind(py).call1(tuple) {
-                    Ok(r)  => py_to_cv(py, &r.unbind()),
+                    Ok(r) => py_to_cv(py, &r.unbind()),
                     Err(_) => CellValue::Error(CellError::Value),
                 }
             })
@@ -230,13 +261,21 @@ mod python {
     /// Show a notification in the TUI.
     #[pyfunction]
     fn notify(message: String) {
-        state().lock().unwrap().outputs.push(PluginOutput::Notify(message));
+        state()
+            .lock()
+            .unwrap()
+            .outputs
+            .push(PluginOutput::Notify(message));
     }
 
     /// Execute an ex-command.
     #[pyfunction]
     fn command(cmd: String) {
-        state().lock().unwrap().outputs.push(PluginOutput::Command(cmd));
+        state()
+            .lock()
+            .unwrap()
+            .outputs
+            .push(PluginOutput::Command(cmd));
     }
 
     /// Read a cell from the active sheet (0-indexed row, col).
@@ -244,7 +283,9 @@ mod python {
     fn get_cell(py: Python<'_>, row: u32, col: u32) -> Py<PyAny> {
         WB_PTR.with(|ptr| {
             let raw = ptr.get();
-            if raw.is_null() { return py.None(); }
+            if raw.is_null() {
+                return py.None();
+            }
             // SAFETY: valid during dispatch() only.
             let wb = unsafe { &*raw };
             cv_to_py(py, wb.active().get_value(row, col))
@@ -256,7 +297,10 @@ mod python {
     fn set_cell(py: Python<'_>, row: u32, col: u32, value: Py<PyAny>) {
         let cv = py_to_cv(py, &value);
         state().lock().unwrap().outputs.push(PluginOutput::SetCell {
-            sheet: usize::MAX, row, col, value: cv,
+            sheet: usize::MAX,
+            row,
+            col,
+            value: cv,
         });
     }
 
@@ -351,7 +395,8 @@ asat = _Asat()
 
     /// Count total registered event handlers (for :plugin list).
     pub fn handler_count() -> usize {
-        state().lock()
+        state()
+            .lock()
             .map(|s| s.handlers.values().map(|v| v.len()).sum())
             .unwrap_or(0)
     }
@@ -365,30 +410,33 @@ asat = _Asat()
         }
 
         let user_code = match std::fs::read_to_string(&script_path) {
-            Ok(c)  => c,
-            Err(e) => { eprintln!("[asat] Cannot read init.py: {}", e); return false; }
+            Ok(c) => c,
+            Err(e) => {
+                eprintln!("[asat] Cannot read init.py: {}", e);
+                return false;
+            }
         };
 
         match Python::attach(|py| -> PyResult<()> {
             // Build the native module
             let native = PyModule::new(py, "_asat_native")?;
             native.add_function(wrap_pyfunction!(_register_handler, &native)?)?;
-            native.add_function(wrap_pyfunction!(_register_fn,      &native)?)?;
-            native.add_function(wrap_pyfunction!(notify,             &native)?)?;
-            native.add_function(wrap_pyfunction!(command,            &native)?)?;
-            native.add_function(wrap_pyfunction!(get_cell,           &native)?)?;
-            native.add_function(wrap_pyfunction!(set_cell,           &native)?)?;
+            native.add_function(wrap_pyfunction!(_register_fn, &native)?)?;
+            native.add_function(wrap_pyfunction!(notify, &native)?)?;
+            native.add_function(wrap_pyfunction!(command, &native)?)?;
+            native.add_function(wrap_pyfunction!(get_cell, &native)?)?;
+            native.add_function(wrap_pyfunction!(set_cell, &native)?)?;
 
             // Globals for the shim + user script
             let globals = PyDict::new(py);
             globals.set_item("__builtins__", py.import("builtins")?)?;
             // Expose native functions directly into globals
             globals.set_item("_register_handler", native.getattr("_register_handler")?)?;
-            globals.set_item("_register_fn",      native.getattr("_register_fn")?)?;
-            globals.set_item("_notify",           native.getattr("notify")?)?;
-            globals.set_item("_command",          native.getattr("command")?)?;
-            globals.set_item("_get_cell",         native.getattr("get_cell")?)?;
-            globals.set_item("_set_cell",         native.getattr("set_cell")?)?;
+            globals.set_item("_register_fn", native.getattr("_register_fn")?)?;
+            globals.set_item("_notify", native.getattr("notify")?)?;
+            globals.set_item("_command", native.getattr("command")?)?;
+            globals.set_item("_get_cell", native.getattr("get_cell")?)?;
+            globals.set_item("_set_cell", native.getattr("set_cell")?)?;
 
             // Run the shim — defines `asat` in globals
             py.run(ASAT_SHIM, Some(&globals), None)?;
@@ -398,8 +446,14 @@ asat = _Asat()
 
             Ok(())
         }) {
-            Ok(_)  => { eprintln!("[asat] init.py loaded"); true }
-            Err(e) => { eprintln!("[asat] init.py error:\n{}", e); false }
+            Ok(_) => {
+                eprintln!("[asat] init.py loaded");
+                true
+            }
+            Err(e) => {
+                eprintln!("[asat] init.py error:\n{}", e);
+                false
+            }
         }
     }
 
@@ -415,13 +469,13 @@ asat = _Asat()
                     let s = state().lock().unwrap();
                     match s.handlers.get(event.event_name()) {
                         Some(v) => v.iter().map(|h| h.clone_ref(py)).collect(),
-                        None    => continue,
+                        None => continue,
                     }
                 };
 
                 let args = make_args(py, event);
                 let tuple = match PyTuple::new(py, &args) {
-                    Ok(t)  => t,
+                    Ok(t) => t,
                     Err(_) => continue,
                 };
 
@@ -440,22 +494,29 @@ asat = _Asat()
 
     fn make_args(py: Python<'_>, event: &PluginEvent) -> Vec<Py<PyAny>> {
         match event {
-            PluginEvent::Open { path } => vec![
-                path.as_deref()
-                    .map(|s| s.into_pyobject(py).unwrap().into_any().unbind())
-                    .unwrap_or_else(|| py.None()),
-            ],
-            PluginEvent::PreSave { path } | PluginEvent::PostSave { path } =>
-                vec![path.into_pyobject(py).unwrap().into_any().unbind()],
-            PluginEvent::CellChange { sheet, row, col, old, new } => vec![
+            PluginEvent::Open { path } => vec![path
+                .as_deref()
+                .map(|s| s.into_pyobject(py).unwrap().into_any().unbind())
+                .unwrap_or_else(|| py.None())],
+            PluginEvent::PreSave { path } | PluginEvent::PostSave { path } => {
+                vec![path.into_pyobject(py).unwrap().into_any().unbind()]
+            }
+            PluginEvent::CellChange {
+                sheet,
+                row,
+                col,
+                old,
+                new,
+            } => vec![
                 sheet.into_pyobject(py).unwrap().into_any().unbind(),
                 row.into_pyobject(py).unwrap().into_any().unbind(),
                 col.into_pyobject(py).unwrap().into_any().unbind(),
                 cv_to_py(py, old),
                 cv_to_py(py, new),
             ],
-            PluginEvent::ModeChange { mode } =>
-                vec![mode.into_pyobject(py).unwrap().into_any().unbind()],
+            PluginEvent::ModeChange { mode } => {
+                vec![mode.into_pyobject(py).unwrap().into_any().unbind()]
+            }
             PluginEvent::SheetChange { from, to } => vec![
                 from.into_pyobject(py).unwrap().into_any().unbind(),
                 to.into_pyobject(py).unwrap().into_any().unbind(),

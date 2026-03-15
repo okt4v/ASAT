@@ -24,12 +24,23 @@ fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().collect();
 
     // Handle --version / -V before doing anything else
-    if args.get(1).map(|s| s == "--version" || s == "-V").unwrap_or(false) {
+    if args
+        .get(1)
+        .map(|s| s == "--version" || s == "-V")
+        .unwrap_or(false)
+    {
         println!("asat {}", env!("CARGO_PKG_VERSION"));
         return Ok(());
     }
-    if args.get(1).map(|s| s == "--help" || s == "-h").unwrap_or(false) {
-        println!("asat {} — terminal spreadsheet editor", env!("CARGO_PKG_VERSION"));
+    if args
+        .get(1)
+        .map(|s| s == "--help" || s == "-h")
+        .unwrap_or(false)
+    {
+        println!(
+            "asat {} — terminal spreadsheet editor",
+            env!("CARGO_PKG_VERSION")
+        );
         println!();
         println!("USAGE:");
         println!("  asat [FILE]");
@@ -148,10 +159,22 @@ fn run_app(
                     set_status(&mut status_message, msg);
                 }
                 PluginOutput::Command(cmd) => {
-                    handle_ex_command(&cmd, &mut workbook, &mut input_state,
-                                      &mut undo_stack, &mut status_message, &mut config, &mut plugins);
+                    handle_ex_command(
+                        &cmd,
+                        &mut workbook,
+                        &mut input_state,
+                        &mut undo_stack,
+                        &mut status_message,
+                        &mut config,
+                        &mut plugins,
+                    );
                 }
-                PluginOutput::SetCell { sheet, row, col, value } => {
+                PluginOutput::SetCell {
+                    sheet,
+                    row,
+                    col,
+                    value,
+                } => {
                     // sentinel usize::MAX means "active sheet"
                     let sheet_idx = if sheet == usize::MAX {
                         workbook.active_sheet
@@ -166,14 +189,21 @@ fn run_app(
         }
 
         // Autosave: save every autosave_interval seconds when the workbook is dirty
-        if config.autosave_interval > 0 && workbook.dirty
+        if config.autosave_interval > 0
+            && workbook.dirty
             && last_autosave.elapsed() >= Duration::from_secs(config.autosave_interval as u64)
         {
             last_autosave = std::time::Instant::now();
             if let Some(path) = workbook.file_path.clone() {
                 if let Ok(_) = asat_io::save(&workbook, &path) {
                     workbook.dirty = false;
-                    set_status(&mut status_message, format!("Autosaved \"{}\"", path.file_name().unwrap_or_default().to_string_lossy()));
+                    set_status(
+                        &mut status_message,
+                        format!(
+                            "Autosaved \"{}\"",
+                            path.file_name().unwrap_or_default().to_string_lossy()
+                        ),
+                    );
                 }
             }
         }
@@ -202,8 +232,10 @@ fn run_app(
             let non_grid = if show_cmd { 5u16 } else { 4u16 };
             let grid_h = size.height.saturating_sub(non_grid);
             let grid_w = size.width;
-            let vrows = visible_rows_in_height(grid_h, workbook.active(), input_state.viewport.top_row);
-            let vcols = visible_cols_in_width(grid_w, workbook.active(), input_state.viewport.left_col);
+            let vrows =
+                visible_rows_in_height(grid_h, workbook.active(), input_state.viewport.top_row);
+            let vcols =
+                visible_cols_in_width(grid_w, workbook.active(), input_state.viewport.left_col);
             (vrows, vcols)
         };
 
@@ -288,7 +320,9 @@ fn recalculate_sheet(workbook: &mut Workbook, sheet_idx: usize) {
     // Collect formula cells (immutable borrow ends at the semicolon)
     let formula_cells: Vec<(u32, u32, String)> = {
         let sheet = &workbook.sheets[sheet_idx];
-        sheet.cells.iter()
+        sheet
+            .cells
+            .iter()
             .filter_map(|((r, c), cell)| {
                 if let CellValue::Formula(f) = &cell.value {
                     Some((*r, *c, f.clone()))
@@ -308,7 +342,8 @@ fn recalculate_sheet(workbook: &mut Workbook, sheet_idx: usize) {
 
     // Up to 3 passes so formula→formula chains resolve correctly
     for _pass in 0..3 {
-        let results: Vec<(u32, u32, CellValue)> = formula_cells.iter()
+        let results: Vec<(u32, u32, CellValue)> = formula_cells
+            .iter()
             .map(|(r, c, f)| {
                 let val = asat_formula::evaluate(f, workbook, sheet_idx, *r, *c);
                 (*r, *c, val)
@@ -328,11 +363,15 @@ fn visible_rows_in_height(grid_height: u16, sheet: &asat_core::Sheet, top_row: u
     let mut r = top_row;
     loop {
         let h = sheet.row_height(r) as u32;
-        if remaining < h { break; }
+        if remaining < h {
+            break;
+        }
         remaining -= h;
         count += 1;
         r += 1;
-        if r > 1_000_000 { break; }
+        if r > 1_000_000 {
+            break;
+        }
     }
     count.max(1)
 }
@@ -347,11 +386,15 @@ fn visible_cols_in_width(grid_width: u16, sheet: &asat_core::Sheet, left_col: u3
     let mut c = left_col;
     loop {
         let w = sheet.col_width(c).max(MIN_COL);
-        if avail < w { break; }
+        if avail < w {
+            break;
+        }
         avail -= w;
         count += 1;
         c += 1;
-        if c > 10_000 { break; }
+        if c > 10_000 {
+            break;
+        }
     }
     count.max(1)
 }
@@ -365,8 +408,14 @@ fn copy_to_clipboard(text: &str) {
 
 /// Serialise a 2-D grid of CellValues as tab-separated values (rows separated by newlines).
 fn cells_to_tsv(cells: &[Vec<CellValue>]) -> String {
-    cells.iter()
-        .map(|row| row.iter().map(|v| v.display()).collect::<Vec<_>>().join("\t"))
+    cells
+        .iter()
+        .map(|row| {
+            row.iter()
+                .map(|v| v.display())
+                .collect::<Vec<_>>()
+                .join("\t")
+        })
         .collect::<Vec<_>>()
         .join("\n")
 }
@@ -379,11 +428,9 @@ fn compare_cell_values(a: &CellValue, b: &CellValue) -> std::cmp::Ordering {
         (CellValue::Empty, CellValue::Empty) => Ordering::Equal,
         (CellValue::Empty, _) => Ordering::Greater, // empty sorts last
         (_, CellValue::Empty) => Ordering::Less,
-        (CellValue::Number(x), CellValue::Number(y)) =>
-            x.partial_cmp(y).unwrap_or(Ordering::Equal),
+        (CellValue::Number(x), CellValue::Number(y)) => x.partial_cmp(y).unwrap_or(Ordering::Equal),
         (CellValue::Boolean(x), CellValue::Boolean(y)) => x.cmp(y),
-        (CellValue::Text(x), CellValue::Text(y)) =>
-            x.to_lowercase().cmp(&y.to_lowercase()),
+        (CellValue::Text(x), CellValue::Text(y)) => x.to_lowercase().cmp(&y.to_lowercase()),
         // Mixed types: numbers first, then text, booleans, errors
         (CellValue::Number(_), _) => Ordering::Less,
         (_, CellValue::Number(_)) => Ordering::Greater,
@@ -405,12 +452,14 @@ fn process_action(
     visible_cols: u32,
     edit_count: &mut u32,
 ) -> ActionResult {
-
     match action {
         AppAction::NoOp => {}
 
         // ── Navigation ──
-        AppAction::MoveCursor { row_delta, col_delta } => {
+        AppAction::MoveCursor {
+            row_delta,
+            col_delta,
+        } => {
             let new_row = (input.cursor.row as i64 + row_delta as i64).max(0) as u32;
             let new_col = (input.cursor.col as i64 + col_delta as i64).max(0) as u32;
             input.cursor.row = new_row;
@@ -466,7 +515,12 @@ fn process_action(
         }
 
         // ── Cell editing ──
-        AppAction::SetCell { sheet: _, row, col, value } => {
+        AppAction::SetCell {
+            sheet: _,
+            row,
+            col,
+            value,
+        } => {
             let sheet_idx = workbook.active_sheet;
             let old_val = workbook.active().get_value(row, col).clone();
             let cmd = Box::new(SetCell::new(workbook, sheet_idx, row, col, value.clone()));
@@ -476,8 +530,11 @@ fn process_action(
                 undo.push(cmd);
                 *edit_count += 1;
                 plugins.push_event(PluginEvent::CellChange {
-                    sheet: sheet_idx, row, col,
-                    old: old_val, new: value,
+                    sheet: sheet_idx,
+                    row,
+                    col,
+                    old: old_val,
+                    new: value,
                 });
             }
         }
@@ -485,14 +542,25 @@ fn process_action(
             let sheet_idx = workbook.active_sheet;
             let row = input.cursor.row;
             let col = input.cursor.col;
-            let cmd = Box::new(SetCell::new(workbook, sheet_idx, row, col, CellValue::Empty));
+            let cmd = Box::new(SetCell::new(
+                workbook,
+                sheet_idx,
+                row,
+                col,
+                CellValue::Empty,
+            ));
             if let Err(e) = cmd.execute(workbook) {
                 set_status(status, format!("Error: {}", e));
             } else {
                 undo.push(cmd);
             }
         }
-        AppAction::DeleteCellRange { row_start, col_start, row_end, col_end } => {
+        AppAction::DeleteCellRange {
+            row_start,
+            col_start,
+            row_end,
+            col_end,
+        } => {
             let sheet_idx = workbook.active_sheet;
             // Clamp to actual data bounds first — row_end/col_end may be u32::MAX
             // for V-ROW (col_end=MAX) and V-COL (row_end=MAX) modes.
@@ -501,18 +569,24 @@ fn process_action(
                 (row_end.min(s.max_row()), col_end.min(s.max_col()))
             };
             // Only clear cells that actually have data (sparse-safe, avoids huge loops)
-            let coords: Vec<(u32, u32)> = workbook.active()
-                .cells.keys()
+            let coords: Vec<(u32, u32)> = workbook
+                .active()
+                .cells
+                .keys()
                 .filter(|(r, c)| {
-                    *r >= row_start && *r <= row_end &&
-                    *c >= col_start && *c <= col_end
+                    *r >= row_start && *r <= row_end && *c >= col_start && *c <= col_end
                 })
                 .cloned()
                 .collect();
-            if coords.is_empty() { return ActionResult::Continue; }
-            let cmds: Vec<Box<dyn asat_commands::Command>> = coords.into_iter()
-                .map(|(r, c)| Box::new(SetCell::new(workbook, sheet_idx, r, c, CellValue::Empty))
-                    as Box<dyn asat_commands::Command>)
+            if coords.is_empty() {
+                return ActionResult::Continue;
+            }
+            let cmds: Vec<Box<dyn asat_commands::Command>> = coords
+                .into_iter()
+                .map(|(r, c)| {
+                    Box::new(SetCell::new(workbook, sheet_idx, r, c, CellValue::Empty))
+                        as Box<dyn asat_commands::Command>
+                })
                 .collect();
             let grouped = Box::new(asat_commands::GroupedCommand {
                 description: "delete selection".to_string(),
@@ -529,7 +603,10 @@ fn process_action(
         AppAction::InsertRowAbove => {
             let sheet_idx = workbook.active_sheet;
             let row = input.cursor.row;
-            let cmd = Box::new(asat_commands::InsertRow { sheet: sheet_idx, row });
+            let cmd = Box::new(asat_commands::InsertRow {
+                sheet: sheet_idx,
+                row,
+            });
             if let Err(e) = cmd.execute(workbook) {
                 set_status(status, format!("Error: {}", e));
             } else {
@@ -548,20 +625,16 @@ fn process_action(
         }
 
         // ── Undo/Redo ──
-        AppAction::Undo => {
-            match undo.undo(workbook) {
-                Ok(true)  => set_status(status, "Undo".to_string()),
-                Ok(false) => set_status(status, "Already at oldest change".to_string()),
-                Err(e)    => set_status(status, format!("Undo error: {}", e)),
-            }
-        }
-        AppAction::Redo => {
-            match undo.redo(workbook) {
-                Ok(true)  => set_status(status, "Redo".to_string()),
-                Ok(false) => set_status(status, "Already at newest change".to_string()),
-                Err(e)    => set_status(status, format!("Redo error: {}", e)),
-            }
-        }
+        AppAction::Undo => match undo.undo(workbook) {
+            Ok(true) => set_status(status, "Undo".to_string()),
+            Ok(false) => set_status(status, "Already at oldest change".to_string()),
+            Err(e) => set_status(status, format!("Undo error: {}", e)),
+        },
+        AppAction::Redo => match undo.redo(workbook) {
+            Ok(true) => set_status(status, "Redo".to_string()),
+            Ok(false) => set_status(status, "Already at newest change".to_string()),
+            Err(e) => set_status(status, format!("Redo error: {}", e)),
+        },
 
         // ── Command execution ──
         AppAction::ExecuteCommand2(cmd_str) => {
@@ -573,14 +646,20 @@ fn process_action(
             if workbook.active_sheet + 1 < workbook.sheets.len() {
                 let from = workbook.active_sheet;
                 workbook.active_sheet += 1;
-                plugins.push_event(PluginEvent::SheetChange { from, to: workbook.active_sheet });
+                plugins.push_event(PluginEvent::SheetChange {
+                    from,
+                    to: workbook.active_sheet,
+                });
             }
         }
         AppAction::PrevSheet => {
             if workbook.active_sheet > 0 {
                 let from = workbook.active_sheet;
                 workbook.active_sheet -= 1;
-                plugins.push_event(PluginEvent::SheetChange { from, to: workbook.active_sheet });
+                plugins.push_event(PluginEvent::SheetChange {
+                    from,
+                    to: workbook.active_sheet,
+                });
             }
         }
 
@@ -590,18 +669,24 @@ fn process_action(
         AppAction::Save => {
             if let Some(path) = workbook.file_path.clone() {
                 let path_str = path.display().to_string();
-                plugins.push_event(PluginEvent::PreSave { path: path_str.clone() });
+                plugins.push_event(PluginEvent::PreSave {
+                    path: path_str.clone(),
+                });
                 if config.backup_on_save && path.exists() {
-                    let bak = path.with_extension(
-                        format!("{}.bak", path.extension().and_then(|e| e.to_str()).unwrap_or(""))
-                    );
+                    let bak = path.with_extension(format!(
+                        "{}.bak",
+                        path.extension().and_then(|e| e.to_str()).unwrap_or("")
+                    ));
                     let _ = std::fs::copy(&path, &bak);
                 }
                 match asat_io::save(workbook, &path) {
                     Ok(_) => {
                         workbook.dirty = false;
                         plugins.push_event(PluginEvent::PostSave { path: path_str });
-                        set_status(status, format!("Saved {:?}", path.file_name().unwrap_or_default()));
+                        set_status(
+                            status,
+                            format!("Saved {:?}", path.file_name().unwrap_or_default()),
+                        );
                     }
                     Err(e) => set_status(status, format!("Save error: {}", e)),
                 }
@@ -611,7 +696,9 @@ fn process_action(
         }
 
         // ── Mode transitions ──
-        AppAction::EnterVisualLine => { input.mode = Mode::VisualLine; }
+        AppAction::EnterVisualLine => {
+            input.mode = Mode::VisualLine;
+        }
 
         // ── New navigation ──
         AppAction::MoveToNextNonEmptyH { forward } => {
@@ -620,13 +707,19 @@ fn process_action(
             let max_col = sheet.max_col();
             let col = if forward {
                 let mut c = input.cursor.col + 1;
-                while c <= max_col && sheet.get_value(row, c).is_empty() { c += 1; }
+                while c <= max_col && sheet.get_value(row, c).is_empty() {
+                    c += 1;
+                }
                 c.min(max_col)
             } else {
                 let mut c = input.cursor.col.saturating_sub(1);
                 loop {
-                    if !sheet.get_value(row, c).is_empty() { break; }
-                    if c == 0 { break; }
+                    if !sheet.get_value(row, c).is_empty() {
+                        break;
+                    }
+                    if c == 0 {
+                        break;
+                    }
                     c -= 1;
                 }
                 c
@@ -640,13 +733,19 @@ fn process_action(
             let max_row = sheet.max_row();
             let row = if forward {
                 let mut r = input.cursor.row + 1;
-                while r <= max_row && sheet.get_value(r, col).is_empty() { r += 1; }
+                while r <= max_row && sheet.get_value(r, col).is_empty() {
+                    r += 1;
+                }
                 r.min(max_row)
             } else {
                 let mut r = input.cursor.row.saturating_sub(1);
                 loop {
-                    if !sheet.get_value(r, col).is_empty() { break; }
-                    if r == 0 { break; }
+                    if !sheet.get_value(r, col).is_empty() {
+                        break;
+                    }
+                    if r == 0 {
+                        break;
+                    }
                     r -= 1;
                 }
                 r
@@ -662,20 +761,32 @@ fn process_action(
             let row = if forward {
                 let mut r = input.cursor.row + 1;
                 // Skip current non-empty block
-                while r <= max_row && !sheet.get_value(r, col).is_empty() { r += 1; }
+                while r <= max_row && !sheet.get_value(r, col).is_empty() {
+                    r += 1;
+                }
                 // Skip empty rows
-                while r <= max_row && sheet.get_value(r, col).is_empty() { r += 1; }
+                while r <= max_row && sheet.get_value(r, col).is_empty() {
+                    r += 1;
+                }
                 r.min(max_row)
             } else {
                 let mut r = input.cursor.row.saturating_sub(1);
                 loop {
-                    if sheet.get_value(r, col).is_empty() { break; }
-                    if r == 0 { break; }
+                    if sheet.get_value(r, col).is_empty() {
+                        break;
+                    }
+                    if r == 0 {
+                        break;
+                    }
                     r -= 1;
                 }
                 loop {
-                    if !sheet.get_value(r, col).is_empty() { break; }
-                    if r == 0 { break; }
+                    if !sheet.get_value(r, col).is_empty() {
+                        break;
+                    }
+                    if r == 0 {
+                        break;
+                    }
                     r -= 1;
                 }
                 r
@@ -703,12 +814,17 @@ fn process_action(
             input.viewport.top_row = input.cursor.row;
         }
         AppAction::ScrollBottom => {
-            input.viewport.top_row = input.cursor.row.saturating_sub(visible_rows.saturating_sub(1));
+            input.viewport.top_row = input
+                .cursor
+                .row
+                .saturating_sub(visible_rows.saturating_sub(1));
         }
 
         // ── Marks ──
         AppAction::SetMark { ch } => {
-            input.marks.insert(ch, (workbook.active_sheet, input.cursor));
+            input
+                .marks
+                .insert(ch, (workbook.active_sheet, input.cursor));
             set_status(status, format!("Mark '{}'", ch));
         }
         AppAction::JumpToMark { ch } => {
@@ -738,7 +854,13 @@ fn process_action(
             let sheet_idx = workbook.active_sheet;
             let row = input.cursor.row;
             let col = input.cursor.col;
-            let cmd = Box::new(SetCell::new(workbook, sheet_idx, row, col, CellValue::Empty));
+            let cmd = Box::new(SetCell::new(
+                workbook,
+                sheet_idx,
+                row,
+                col,
+                CellValue::Empty,
+            ));
             if let Err(e) = cmd.execute(workbook) {
                 set_status(status, format!("Error: {}", e));
             } else {
@@ -759,7 +881,13 @@ fn process_action(
                 } else {
                     s.to_uppercase()
                 };
-                let cmd = Box::new(SetCell::new(workbook, sheet_idx, row, col, CellValue::Text(toggled)));
+                let cmd = Box::new(SetCell::new(
+                    workbook,
+                    sheet_idx,
+                    row,
+                    col,
+                    CellValue::Text(toggled),
+                ));
                 if let Err(e) = cmd.execute(workbook) {
                     set_status(status, format!("Error: {}", e));
                 } else {
@@ -772,7 +900,10 @@ fn process_action(
         AppAction::OpenRowBelow => {
             let sheet_idx = workbook.active_sheet;
             let new_row = input.cursor.row + 1;
-            let cmd = Box::new(asat_commands::InsertRow { sheet: sheet_idx, row: new_row });
+            let cmd = Box::new(asat_commands::InsertRow {
+                sheet: sheet_idx,
+                row: new_row,
+            });
             if let Err(e) = cmd.execute(workbook) {
                 set_status(status, format!("Error: {}", e));
             } else {
@@ -788,7 +919,10 @@ fn process_action(
         AppAction::OpenRowAbove => {
             let sheet_idx = workbook.active_sheet;
             let row = input.cursor.row;
-            let cmd = Box::new(asat_commands::InsertRow { sheet: sheet_idx, row });
+            let cmd = Box::new(asat_commands::InsertRow {
+                sheet: sheet_idx,
+                row,
+            });
             if let Err(e) = cmd.execute(workbook) {
                 set_status(status, format!("Error: {}", e));
             } else {
@@ -861,7 +995,10 @@ fn process_action(
 
         // ── Search ──
         AppAction::SearchCurrentCell => {
-            let val = workbook.active().get_value(input.cursor.row, input.cursor.col).display();
+            let val = workbook
+                .active()
+                .get_value(input.cursor.row, input.cursor.col)
+                .display();
             if !val.is_empty() {
                 input.last_search = Some((val.clone(), true));
                 set_status(status, format!("/{}", val));
@@ -873,9 +1010,9 @@ fn process_action(
             let sheet = workbook.active();
             let row = input.cursor.row;
             let max_col = sheet.max_col();
-            let cells: Vec<Vec<CellValue>> = vec![
-                (0..=max_col).map(|c| sheet.get_value(row, c).clone()).collect()
-            ];
+            let cells: Vec<Vec<CellValue>> = vec![(0..=max_col)
+                .map(|c| sheet.get_value(row, c).clone())
+                .collect()];
             let tsv = cells_to_tsv(&cells);
             copy_to_clipboard(&tsv);
             input.registers.yank(None, cells, true);
@@ -891,7 +1028,13 @@ fn process_action(
             input.registers.yank(None, cells, false);
             set_status(status, format!("Yanked cell → clipboard: {}", text));
         }
-        AppAction::YankCellRange { row_start, col_start, row_end, col_end, is_line } => {
+        AppAction::YankCellRange {
+            row_start,
+            col_start,
+            row_end,
+            col_end,
+            is_line,
+        } => {
             let sheet = workbook.active();
             // Clamp both axes — u32::MAX is used for V-ROW (col_end) and V-COL (row_end)
             let row_end = row_end.min(sheet.max_row());
@@ -901,9 +1044,11 @@ fn process_action(
                 return ActionResult::Continue;
             }
             let cells: Vec<Vec<CellValue>> = (row_start..=row_end)
-                .map(|r| (col_start..=col_end)
-                    .map(|c| sheet.get_value(r, c).clone())
-                    .collect())
+                .map(|r| {
+                    (col_start..=col_end)
+                        .map(|c| sheet.get_value(r, c).clone())
+                        .collect()
+                })
                 .collect();
             let rows = cells.len();
             let cols = cells.first().map(|r| r.len()).unwrap_or(0);
@@ -914,7 +1059,7 @@ fn process_action(
         }
 
         // ── Paste ──
-        AppAction::PasteAfter  => do_paste(workbook, input, undo, status, true),
+        AppAction::PasteAfter => do_paste(workbook, input, undo, status, true),
         AppAction::PasteBefore => do_paste(workbook, input, undo, status, false),
 
         // ── Search ──
@@ -951,11 +1096,13 @@ fn process_action(
                     let cr = input.cursor.row;
                     let cc = input.cursor.col;
                     let idx = if forward {
-                        matches.iter()
+                        matches
+                            .iter()
                             .position(|&(r, c)| r > cr || (r == cr && c > cc))
                             .unwrap_or(0)
                     } else {
-                        matches.iter()
+                        matches
+                            .iter()
                             .rposition(|&(r, c)| r < cr || (r == cr && c < cc))
                             .unwrap_or(matches.len() - 1)
                     };
@@ -980,7 +1127,15 @@ fn process_action(
                 input.cursor.col = c;
                 input.scroll_to_cursor(visible_rows, visible_cols);
                 if let Some((pat, _)) = &input.last_search {
-                    set_status(status, format!("/{} [{}/{}]", pat, input.search_match_idx + 1, input.search_matches.len()));
+                    set_status(
+                        status,
+                        format!(
+                            "/{} [{}/{}]",
+                            pat,
+                            input.search_match_idx + 1,
+                            input.search_matches.len()
+                        ),
+                    );
                 }
             }
         }
@@ -998,7 +1153,15 @@ fn process_action(
                 input.cursor.col = c;
                 input.scroll_to_cursor(visible_rows, visible_cols);
                 if let Some((pat, _)) = &input.last_search {
-                    set_status(status, format!("/{} [{}/{}]", pat, input.search_match_idx + 1, input.search_matches.len()));
+                    set_status(
+                        status,
+                        format!(
+                            "/{} [{}/{}]",
+                            pat,
+                            input.search_match_idx + 1,
+                            input.search_matches.len()
+                        ),
+                    );
                 }
             }
         }
@@ -1007,12 +1170,16 @@ fn process_action(
         AppAction::WelcomeNewFile => {
             *workbook = Workbook::new();
             input.mode = Mode::Normal;
-            set_status(status, "New workbook — press i to start editing".to_string());
+            set_status(
+                status,
+                "New workbook — press i to start editing".to_string(),
+            );
         }
         AppAction::WelcomeEnterFileFind => {
             input.finder_query.clear();
             input.finder_selected = 0;
-            input.finder_files = scan_files(&std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+            input.finder_files =
+                scan_files(&std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
             input.mode = Mode::FileFind;
         }
         AppAction::WelcomeEnterRecent => {
@@ -1023,8 +1190,15 @@ fn process_action(
             input.theme_selected = 0;
             // Pre-select by theme_name id, falling back to cursor_bg match
             let themes = asat_config::builtin_themes();
-            if let Some(idx) = themes.iter().position(|t| t.id == config.theme_name)
-                .or_else(|| themes.iter().position(|t| t.config.cursor_bg == config.theme.cursor_bg)) {
+            if let Some(idx) = themes
+                .iter()
+                .position(|t| t.id == config.theme_name)
+                .or_else(|| {
+                    themes
+                        .iter()
+                        .position(|t| t.config.cursor_bg == config.theme.cursor_bg)
+                })
+            {
                 input.theme_selected = idx;
             }
             input.mode = Mode::ThemeManager;
@@ -1036,7 +1210,10 @@ fn process_action(
                 config.theme_name = preset.id.to_string();
                 config.theme = preset.config.clone();
                 match config.save() {
-                    Ok(_)  => set_status(status, format!("Theme \"{}\" applied and saved", preset.name)),
+                    Ok(_) => set_status(
+                        status,
+                        format!("Theme \"{}\" applied and saved", preset.name),
+                    ),
                     Err(e) => set_status(status, format!("Theme applied but couldn't save: {}", e)),
                 }
             }
@@ -1049,19 +1226,29 @@ fn process_action(
         // ── Style copy / paste ──
         AppAction::YankStyle => {
             let (r, c) = (input.cursor.row, input.cursor.col);
-            input.style_clipboard = workbook.active()
+            input.style_clipboard = workbook
+                .active()
                 .get_cell(r, c)
                 .and_then(|cell| cell.style.clone());
-            set_status(status, if input.style_clipboard.is_some() {
-                "Style copied".to_string()
-            } else {
-                "Cell has no style to copy".to_string()
-            });
+            set_status(
+                status,
+                if input.style_clipboard.is_some() {
+                    "Style copied".to_string()
+                } else {
+                    "Cell has no style to copy".to_string()
+                },
+            );
         }
         AppAction::PasteStyle => {
             if let Some(style) = input.style_clipboard.clone() {
-                apply_style_sel(workbook, input, undo, status,
-                    &move |s| *s = style.clone(), "Style pasted");
+                apply_style_sel(
+                    workbook,
+                    input,
+                    undo,
+                    status,
+                    &move |s| *s = style.clone(),
+                    "Style pasted",
+                );
             } else {
                 set_status(status, "No style in clipboard (use yS to copy)".to_string());
             }
@@ -1077,21 +1264,25 @@ fn process_action(
             // Mark the current cell as the range anchor
             if matches!(input.mode, Mode::FormulaSelect { anchor: None }) {
                 input.mode = Mode::FormulaSelect {
-                    anchor: Some((input.cursor.row, input.cursor.col))
+                    anchor: Some((input.cursor.row, input.cursor.col)),
                 };
             }
         }
         AppAction::FormulaSelectConfirm => {
             if let Mode::FormulaSelect { anchor } = input.mode.clone() {
                 let ref_str = if let Some((ar, ac)) = anchor {
-                    format!("{}:{}",
+                    format!(
+                        "{}:{}",
                         cell_address(ar, ac),
-                        cell_address(input.cursor.row, input.cursor.col))
+                        cell_address(input.cursor.row, input.cursor.col)
+                    )
                 } else {
                     cell_address(input.cursor.row, input.cursor.col)
                 };
                 // Insert the reference at the current edit cursor position
-                input.edit_buffer.insert_str(input.edit_cursor_pos, &ref_str);
+                input
+                    .edit_buffer
+                    .insert_str(input.edit_cursor_pos, &ref_str);
                 input.edit_cursor_pos += ref_str.len();
             }
             // Restore cursor to the cell being edited and return to Insert
@@ -1117,7 +1308,10 @@ fn process_action(
             if let Ok(new_cfg) = asat_config::Config::load() {
                 input.scroll_padding = new_cfg.scroll_padding;
             }
-            set_status(status, "Config saved — restart for all changes to take effect".to_string());
+            set_status(
+                status,
+                "Config saved — restart for all changes to take effect".to_string(),
+            );
             return ActionResult::ClearTerminal;
         }
 
@@ -1134,7 +1328,8 @@ fn process_action(
             }
         }
         AppAction::FinderOpen => {
-            let path_str = input.filtered_finder_files()
+            let path_str = input
+                .filtered_finder_files()
                 .get(input.finder_selected)
                 .map(|s| s.to_string());
             if let Some(p) = path_str {
@@ -1148,7 +1343,9 @@ fn process_action(
                         input.viewport = asat_input::Viewport::default();
                         input.mode = Mode::Normal;
                         input.finder_query.clear();
-                        plugins.push_event(PluginEvent::Open { path: Some(p.clone()) });
+                        plugins.push_event(PluginEvent::Open {
+                            path: Some(p.clone()),
+                        });
                         set_status(status, format!("Opened \"{}\"", p));
                     }
                     Err(e) => set_status(status, format!("Error: {}", e)),
@@ -1199,7 +1396,10 @@ fn process_action(
         AppAction::InsertRowBelow => {
             let sheet_idx = workbook.active_sheet;
             let row = input.cursor.row + 1;
-            let cmd = Box::new(asat_commands::InsertRow { sheet: sheet_idx, row });
+            let cmd = Box::new(asat_commands::InsertRow {
+                sheet: sheet_idx,
+                row,
+            });
             if let Err(e) = cmd.execute(workbook) {
                 set_status(status, format!("Error: {}", e));
             } else {
@@ -1209,7 +1409,10 @@ fn process_action(
         AppAction::InsertColLeft => {
             let sheet_idx = workbook.active_sheet;
             let col = input.cursor.col;
-            let cmd = Box::new(InsertCol { sheet: sheet_idx, col });
+            let cmd = Box::new(InsertCol {
+                sheet: sheet_idx,
+                col,
+            });
             if let Err(e) = cmd.execute(workbook) {
                 set_status(status, format!("Error: {}", e));
             } else {
@@ -1220,7 +1423,10 @@ fn process_action(
         AppAction::InsertColRight => {
             let sheet_idx = workbook.active_sheet;
             let col = input.cursor.col + 1;
-            let cmd = Box::new(InsertCol { sheet: sheet_idx, col });
+            let cmd = Box::new(InsertCol {
+                sheet: sheet_idx,
+                col,
+            });
             if let Err(e) = cmd.execute(workbook) {
                 set_status(status, format!("Error: {}", e));
             } else {
@@ -1270,22 +1476,41 @@ fn process_action(
         AppAction::StartRecording { register } => {
             input.recording_buffer.clear();
             input.mode = Mode::Recording { register };
-            set_status(status, format!("Recording to \"{}\"... (q to stop)", register));
+            set_status(
+                status,
+                format!("Recording to \"{}\"... (q to stop)", register),
+            );
         }
         AppAction::StopRecording => {
             if let Mode::Recording { register } = input.mode {
                 let count = input.recording_buffer.len();
-                input.macro_registers.insert(register, input.recording_buffer.clone());
+                input
+                    .macro_registers
+                    .insert(register, input.recording_buffer.clone());
                 input.last_macro_register = Some(register);
                 input.recording_buffer.clear();
                 input.mode = Mode::Normal;
-                set_status(status, format!("Recorded {} keys to \"{}\"", count, register));
+                set_status(
+                    status,
+                    format!("Recorded {} keys to \"{}\"", count, register),
+                );
             }
         }
         AppAction::PlayMacro { register } => {
             if let Some(keys) = input.macro_registers.get(&register).cloned() {
                 input.last_macro_register = Some(register);
-                replay_macro(keys, workbook, input, undo, status, config, plugins, visible_rows, visible_cols, edit_count);
+                replay_macro(
+                    keys,
+                    workbook,
+                    input,
+                    undo,
+                    status,
+                    config,
+                    plugins,
+                    visible_rows,
+                    visible_cols,
+                    edit_count,
+                );
             } else {
                 set_status(status, format!("Register \"{}\" is empty", register));
             }
@@ -1298,7 +1523,7 @@ fn process_action(
             let val = workbook.active().get_value(row, col).clone();
             let new_val = match val {
                 CellValue::Number(n) => CellValue::Number(n + 1.0),
-                CellValue::Empty     => CellValue::Number(1.0),
+                CellValue::Empty => CellValue::Number(1.0),
                 other => other, // non-numeric: no-op
             };
             let cmd = Box::new(SetCell::new(workbook, sheet_idx, row, col, new_val));
@@ -1314,7 +1539,7 @@ fn process_action(
             let val = workbook.active().get_value(row, col).clone();
             let new_val = match val {
                 CellValue::Number(n) => CellValue::Number(n - 1.0),
-                CellValue::Empty     => CellValue::Number(-1.0),
+                CellValue::Empty => CellValue::Number(-1.0),
                 other => other,
             };
             let cmd = Box::new(SetCell::new(workbook, sheet_idx, row, col, new_val));
@@ -1344,9 +1569,20 @@ fn process_action(
             } else {
                 format!("{} {}", above, below)
             };
-            let set_above = Box::new(SetCell::new(workbook, sheet_idx, row, col,
-                asat_input::parse_cell_value(&joined)));
-            let clear_below = Box::new(SetCell::new(workbook, sheet_idx, row + 1, col, CellValue::Empty));
+            let set_above = Box::new(SetCell::new(
+                workbook,
+                sheet_idx,
+                row,
+                col,
+                asat_input::parse_cell_value(&joined),
+            ));
+            let clear_below = Box::new(SetCell::new(
+                workbook,
+                sheet_idx,
+                row + 1,
+                col,
+                CellValue::Empty,
+            ));
             let grouped = Box::new(asat_commands::GroupedCommand {
                 description: "join cells".to_string(),
                 commands: vec![set_above, clear_below],
@@ -1378,62 +1614,98 @@ fn process_action(
         }
 
         // ── Fill Down ──
-        AppAction::FillDown { anchor_row, col_start, col_end, row_end } => {
+        AppAction::FillDown {
+            anchor_row,
+            col_start,
+            col_end,
+            row_end,
+        } => {
             let sheet_idx = workbook.active_sheet;
             let col_end_c = col_end.min(workbook.active().max_col());
             let row_end_c = row_end;
             let mut cmds: Vec<Box<dyn asat_commands::Command>> = Vec::new();
             for c in col_start..=col_end_c {
                 let anchor_val = workbook.active().get_raw_value(anchor_row, c).clone();
-                let anchor_style = workbook.active().get_cell(anchor_row, c).and_then(|cell| cell.style.clone());
+                let anchor_style = workbook
+                    .active()
+                    .get_cell(anchor_row, c)
+                    .and_then(|cell| cell.style.clone());
                 for r in (anchor_row + 1)..=row_end_c {
                     let old_cell = workbook.active().get_cell(r, c);
-                    let old_val = old_cell.map(|c| c.value.clone()).unwrap_or(CellValue::Empty);
+                    let old_val = old_cell
+                        .map(|c| c.value.clone())
+                        .unwrap_or(CellValue::Empty);
                     let old_style = old_cell.and_then(|c| c.style.clone());
                     cmds.push(Box::new(SetCell {
-                        sheet: sheet_idx, row: r, col: c,
-                        old_value: old_val, new_value: anchor_val.clone(),
-                        old_style, new_style: anchor_style.clone(),
+                        sheet: sheet_idx,
+                        row: r,
+                        col: c,
+                        old_value: old_val,
+                        new_value: anchor_val.clone(),
+                        old_style,
+                        new_style: anchor_style.clone(),
                     }));
                 }
             }
             if !cmds.is_empty() {
                 let grouped = Box::new(asat_commands::GroupedCommand {
-                    description: "fill down".to_string(), commands: cmds,
+                    description: "fill down".to_string(),
+                    commands: cmds,
                 });
                 match grouped.execute(workbook) {
-                    Ok(_) => { undo.push(grouped); set_status(status, "Fill down".to_string()); }
+                    Ok(_) => {
+                        undo.push(grouped);
+                        set_status(status, "Fill down".to_string());
+                    }
                     Err(e) => set_status(status, format!("Error: {}", e)),
                 }
             }
         }
 
         // ── Fill Right ──
-        AppAction::FillRight { anchor_col, row_start, row_end, col_end } => {
+        AppAction::FillRight {
+            anchor_col,
+            row_start,
+            row_end,
+            col_end,
+        } => {
             let sheet_idx = workbook.active_sheet;
             let row_end_c = row_end;
             let col_end_c = col_end;
             let mut cmds: Vec<Box<dyn asat_commands::Command>> = Vec::new();
             for r in row_start..=row_end_c {
                 let anchor_val = workbook.active().get_raw_value(r, anchor_col).clone();
-                let anchor_style = workbook.active().get_cell(r, anchor_col).and_then(|cell| cell.style.clone());
+                let anchor_style = workbook
+                    .active()
+                    .get_cell(r, anchor_col)
+                    .and_then(|cell| cell.style.clone());
                 for c in (anchor_col + 1)..=col_end_c {
                     let old_cell = workbook.active().get_cell(r, c);
-                    let old_val = old_cell.map(|x| x.value.clone()).unwrap_or(CellValue::Empty);
+                    let old_val = old_cell
+                        .map(|x| x.value.clone())
+                        .unwrap_or(CellValue::Empty);
                     let old_style = old_cell.and_then(|x| x.style.clone());
                     cmds.push(Box::new(SetCell {
-                        sheet: sheet_idx, row: r, col: c,
-                        old_value: old_val, new_value: anchor_val.clone(),
-                        old_style, new_style: anchor_style.clone(),
+                        sheet: sheet_idx,
+                        row: r,
+                        col: c,
+                        old_value: old_val,
+                        new_value: anchor_val.clone(),
+                        old_style,
+                        new_style: anchor_style.clone(),
                     }));
                 }
             }
             if !cmds.is_empty() {
                 let grouped = Box::new(asat_commands::GroupedCommand {
-                    description: "fill right".to_string(), commands: cmds,
+                    description: "fill right".to_string(),
+                    commands: cmds,
                 });
                 match grouped.execute(workbook) {
-                    Ok(_) => { undo.push(grouped); set_status(status, "Fill right".to_string()); }
+                    Ok(_) => {
+                        undo.push(grouped);
+                        set_status(status, "Fill right".to_string());
+                    }
                     Err(e) => set_status(status, format!("Error: {}", e)),
                 }
             }
@@ -1466,20 +1738,32 @@ fn process_action(
         }
 
         // ── Insert SUM formula ──
-        AppAction::InsertSumBelow { row_start, col_start, row_end, col_end } => {
+        AppAction::InsertSumBelow {
+            row_start,
+            col_start,
+            row_end,
+            col_end,
+        } => {
             let sheet = workbook.active();
             let row_end_c = row_end.min(sheet.max_row());
             let col_end_c = col_end.min(sheet.max_col());
-            let range_str = format!("{}:{}",
+            let range_str = format!(
+                "{}:{}",
                 cell_address(row_start, col_start),
-                cell_address(row_end_c, col_end_c));
+                cell_address(row_end_c, col_end_c)
+            );
             let formula = format!("SUM({})", range_str);
             // Place =SUM one row below the selection, at the leftmost column of the selection
             let dest_row = row_end_c + 1;
             let dest_col = col_start;
             let sheet_idx = workbook.active_sheet;
-            let cmd = Box::new(SetCell::new(workbook, sheet_idx, dest_row, dest_col,
-                CellValue::Formula(formula.clone())));
+            let cmd = Box::new(SetCell::new(
+                workbook,
+                sheet_idx,
+                dest_row,
+                dest_col,
+                CellValue::Formula(formula.clone()),
+            ));
             if let Err(e) = cmd.execute(workbook) {
                 set_status(status, format!("Error: {}", e));
             } else {
@@ -1487,7 +1771,10 @@ fn process_action(
                 input.cursor.row = dest_row;
                 input.cursor.col = dest_col;
                 input.scroll_to_cursor(visible_rows, visible_cols);
-                set_status(status, format!("={}  →  {}", formula, cell_address(dest_row, dest_col)));
+                set_status(
+                    status,
+                    format!("={}  →  {}", formula, cell_address(dest_row, dest_col)),
+                );
             }
         }
     }
@@ -1509,7 +1796,11 @@ fn do_paste(
     }
     let sheet_idx = workbook.active_sheet;
     let (start_row, start_col) = if reg.is_line {
-        let row = if is_after { input.cursor.row + 1 } else { input.cursor.row };
+        let row = if is_after {
+            input.cursor.row + 1
+        } else {
+            input.cursor.row
+        };
         (row, 0u32)
     } else {
         (input.cursor.row, input.cursor.col)
@@ -1519,7 +1810,13 @@ fn do_paste(
         for (dc, val) in row_vals.iter().enumerate() {
             let r = start_row + dr as u32;
             let c = start_col + dc as u32;
-            cmds.push(Box::new(SetCell::new(workbook, sheet_idx, r, c, val.clone())));
+            cmds.push(Box::new(SetCell::new(
+                workbook,
+                sheet_idx,
+                r,
+                c,
+                val.clone(),
+            )));
         }
     }
     let grouped = Box::new(asat_commands::GroupedCommand {
@@ -1549,12 +1846,26 @@ fn replay_macro(
     for key in keys {
         let actions = input.handle_key(key, workbook);
         for action in actions {
-            if matches!(action, AppAction::PlayMacro { .. }
-                              | AppAction::StartRecording { .. }
-                              | AppAction::StopRecording) {
+            if matches!(
+                action,
+                AppAction::PlayMacro { .. }
+                    | AppAction::StartRecording { .. }
+                    | AppAction::StopRecording
+            ) {
                 continue;
             }
-            match process_action(action, workbook, input, undo, status, config, plugins, visible_rows, visible_cols, edit_count) {
+            match process_action(
+                action,
+                workbook,
+                input,
+                undo,
+                status,
+                config,
+                plugins,
+                visible_rows,
+                visible_cols,
+                edit_count,
+            ) {
                 ActionResult::Continue | ActionResult::ClearTerminal => {}
                 ActionResult::Quit | ActionResult::ForceQuit => return,
             }
@@ -1579,33 +1890,33 @@ fn parse_color_arg(arg: &str) -> Option<asat_core::Color> {
     }
     // Named colors
     let (r, g, b): (u8, u8, u8) = match arg.to_ascii_lowercase().as_str() {
-        "red"                        => (220, 50,  50),
-        "darkred"    | "maroon"      => (140, 20,  20),
-        "lightred"   | "salmon"      => (255, 120, 120),
-        "orange"                     => (230, 130, 30),
-        "gold"                       => (220, 180, 30),
-        "yellow"                     => (220, 200, 50),
-        "lightyellow"                => (255, 255, 150),
-        "lime"                       => (100, 220, 50),
-        "green"                      => (50,  180, 80),
-        "darkgreen"  | "olive"       => (50,  120, 30),
-        "lightgreen"                 => (120, 220, 120),
-        "teal"       | "cyan"        => (40,  180, 180),
-        "lightcyan"                  => (100, 230, 230),
-        "blue"                       => (50,  100, 220),
-        "navy"       | "darkblue"    => (20,  50,  140),
-        "lightblue"  | "sky"         => (100, 160, 255),
-        "purple"     | "violet"      => (140, 80,  220),
-        "indigo"                     => (80,  50,  160),
-        "lightpurple"| "lavender"    => (180, 140, 255),
-        "pink"                       => (255, 150, 190),
-        "hotpink"    | "magenta"     => (220, 60,  160),
-        "brown"      | "sienna"      => (160, 90,  40),
-        "white"                      => (245, 245, 245),
-        "lightgray"  | "lightgrey"   => (200, 200, 200),
-        "gray"       | "grey"        => (130, 130, 130),
-        "darkgray"   | "darkgrey"    => (70,  70,  70),
-        "black"                      => (15,  15,  15),
+        "red" => (220, 50, 50),
+        "darkred" | "maroon" => (140, 20, 20),
+        "lightred" | "salmon" => (255, 120, 120),
+        "orange" => (230, 130, 30),
+        "gold" => (220, 180, 30),
+        "yellow" => (220, 200, 50),
+        "lightyellow" => (255, 255, 150),
+        "lime" => (100, 220, 50),
+        "green" => (50, 180, 80),
+        "darkgreen" | "olive" => (50, 120, 30),
+        "lightgreen" => (120, 220, 120),
+        "teal" | "cyan" => (40, 180, 180),
+        "lightcyan" => (100, 230, 230),
+        "blue" => (50, 100, 220),
+        "navy" | "darkblue" => (20, 50, 140),
+        "lightblue" | "sky" => (100, 160, 255),
+        "purple" | "violet" => (140, 80, 220),
+        "indigo" => (80, 50, 160),
+        "lightpurple" | "lavender" => (180, 140, 255),
+        "pink" => (255, 150, 190),
+        "hotpink" | "magenta" => (220, 60, 160),
+        "brown" | "sienna" => (160, 90, 40),
+        "white" => (245, 245, 245),
+        "lightgray" | "lightgrey" => (200, 200, 200),
+        "gray" | "grey" => (130, 130, 130),
+        "darkgray" | "darkgrey" => (70, 70, 70),
+        "black" => (15, 15, 15),
         _ => return None,
     };
     Some(asat_core::Color::rgb(r, g, b))
@@ -1626,8 +1937,12 @@ fn style_range(workbook: &Workbook, input: &InputState) -> (u32, u32, u32, u32) 
         let sh = workbook.active();
         (rs, cs, re.min(sh.max_row()), ce.min(sh.max_col()))
     } else {
-        (input.cursor.row, input.cursor.col,
-         input.cursor.row, input.cursor.col)
+        (
+            input.cursor.row,
+            input.cursor.col,
+            input.cursor.row,
+            input.cursor.col,
+        )
     }
 }
 
@@ -1645,7 +1960,9 @@ fn apply_style_sel(
 
     // Single cell — use the existing single-cell helper
     if row_start == row_end && col_start == col_end {
-        apply_style(workbook, undo, status, sheet_idx, row_start, col_start, f, msg);
+        apply_style(
+            workbook, undo, status, sheet_idx, row_start, col_start, f, msg,
+        );
         return;
     }
 
@@ -1660,14 +1977,20 @@ fn apply_style_sel(
     for r in row_start..=row_end {
         for c in col_start..=col_end {
             let old_cell = workbook.sheet(sheet_idx).and_then(|s| s.get_cell(r, c));
-            let old_value = old_cell.map(|c| c.value.clone()).unwrap_or(CellValue::Empty);
+            let old_value = old_cell
+                .map(|c| c.value.clone())
+                .unwrap_or(CellValue::Empty);
             let old_style = old_cell.and_then(|c| c.style.clone());
             let mut new_style = old_style.clone().unwrap_or_default();
             f(&mut new_style);
             cmds.push(Box::new(SetCell {
-                sheet: sheet_idx, row: r, col: c,
-                old_value: old_value.clone(), new_value: old_value,
-                old_style, new_style: Some(new_style),
+                sheet: sheet_idx,
+                row: r,
+                col: c,
+                old_value: old_value.clone(),
+                new_value: old_value,
+                old_style,
+                new_style: Some(new_style),
             }));
         }
     }
@@ -1698,19 +2021,26 @@ fn apply_style(
     msg: &str,
 ) {
     let old_cell = workbook.sheet(sheet_idx).and_then(|s| s.get_cell(row, col));
-    let old_value = old_cell.map(|c| c.value.clone()).unwrap_or(CellValue::Empty);
+    let old_value = old_cell
+        .map(|c| c.value.clone())
+        .unwrap_or(CellValue::Empty);
     let old_style = old_cell.and_then(|c| c.style.clone());
     let mut new_style = old_style.clone().unwrap_or_default();
     f(&mut new_style);
     let cmd = Box::new(SetCell {
-        sheet: sheet_idx, row, col,
+        sheet: sheet_idx,
+        row,
+        col,
         old_value: old_value.clone(),
         new_value: old_value,
         old_style,
         new_style: Some(new_style),
     });
     match cmd.execute(workbook) {
-        Ok(_) => { undo.push(cmd); set_status(status, msg.to_string()); }
+        Ok(_) => {
+            undo.push(cmd);
+            set_status(status, msg.to_string());
+        }
         Err(e) => set_status(status, format!("Error: {}", e)),
     }
 }
@@ -1731,7 +2061,10 @@ fn handle_ex_command(
     match verb {
         "q" | "quit" => {
             if workbook.dirty {
-                set_status(status, "Unsaved changes. Use :q! to force quit or :wq to save and quit".to_string());
+                set_status(
+                    status,
+                    "Unsaved changes. Use :q! to force quit or :wq to save and quit".to_string(),
+                );
             } else {
                 return ActionResult::Quit;
             }
@@ -1812,18 +2145,30 @@ fn handle_ex_command(
         "ic" | "insertcol" => {
             let sheet_idx = workbook.active_sheet;
             let col = input.cursor.col;
-            let cmd = Box::new(InsertCol { sheet: sheet_idx, col });
+            let cmd = Box::new(InsertCol {
+                sheet: sheet_idx,
+                col,
+            });
             match cmd.execute(workbook) {
-                Ok(_) => { undo.push(cmd); set_status(status, "Column inserted".to_string()); }
+                Ok(_) => {
+                    undo.push(cmd);
+                    set_status(status, "Column inserted".to_string());
+                }
                 Err(e) => set_status(status, format!("Error: {}", e)),
             }
         }
         "icr" | "insertcolright" => {
             let sheet_idx = workbook.active_sheet;
             let col = input.cursor.col + 1;
-            let cmd = Box::new(InsertCol { sheet: sheet_idx, col });
+            let cmd = Box::new(InsertCol {
+                sheet: sheet_idx,
+                col,
+            });
             match cmd.execute(workbook) {
-                Ok(_) => { undo.push(cmd); set_status(status, "Column inserted".to_string()); }
+                Ok(_) => {
+                    undo.push(cmd);
+                    set_status(status, "Column inserted".to_string());
+                }
                 Err(e) => set_status(status, format!("Error: {}", e)),
             }
         }
@@ -1832,7 +2177,10 @@ fn handle_ex_command(
             let col = input.cursor.col;
             let cmd = Box::new(DeleteCol::new(workbook, sheet_idx, col));
             match cmd.execute(workbook) {
-                Ok(_) => { undo.push(cmd); set_status(status, "Column deleted".to_string()); }
+                Ok(_) => {
+                    undo.push(cmd);
+                    set_status(status, "Column deleted".to_string());
+                }
                 Err(e) => set_status(status, format!("Error: {}", e)),
             }
         }
@@ -1842,11 +2190,19 @@ fn handle_ex_command(
             let row = if arg.is_empty() {
                 input.cursor.row
             } else {
-                arg.parse::<u32>().unwrap_or(input.cursor.row + 1).saturating_sub(1)
+                arg.parse::<u32>()
+                    .unwrap_or(input.cursor.row + 1)
+                    .saturating_sub(1)
             };
-            let cmd = Box::new(asat_commands::InsertRow { sheet: sheet_idx, row });
+            let cmd = Box::new(asat_commands::InsertRow {
+                sheet: sheet_idx,
+                row,
+            });
             match cmd.execute(workbook) {
-                Ok(_) => { undo.push(cmd); set_status(status, "Row inserted".to_string()); }
+                Ok(_) => {
+                    undo.push(cmd);
+                    set_status(status, "Row inserted".to_string());
+                }
                 Err(e) => set_status(status, format!("Error: {}", e)),
             }
         }
@@ -1855,65 +2211,152 @@ fn handle_ex_command(
             let row = if arg.is_empty() {
                 input.cursor.row
             } else {
-                arg.parse::<u32>().unwrap_or(input.cursor.row + 1).saturating_sub(1)
+                arg.parse::<u32>()
+                    .unwrap_or(input.cursor.row + 1)
+                    .saturating_sub(1)
             };
             let cmd = Box::new(asat_commands::DeleteRow::new(workbook, sheet_idx, row));
             match cmd.execute(workbook) {
-                Ok(_) => { undo.push(cmd); set_status(status, "Row deleted".to_string()); }
+                Ok(_) => {
+                    undo.push(cmd);
+                    set_status(status, "Row deleted".to_string());
+                }
                 Err(e) => set_status(status, format!("Error: {}", e)),
             }
         }
         // ── Cell styles ──
         "bold" | "b" => {
-            let cur = workbook.active().get_cell(input.cursor.row, input.cursor.col)
-                .and_then(|c| c.style.as_ref()).map(|s| s.bold).unwrap_or(false);
-            apply_style_sel(workbook, input, undo, status,
-                &move |s| s.bold = !cur, if cur { "Bold off" } else { "Bold on" });
+            let cur = workbook
+                .active()
+                .get_cell(input.cursor.row, input.cursor.col)
+                .and_then(|c| c.style.as_ref())
+                .map(|s| s.bold)
+                .unwrap_or(false);
+            apply_style_sel(
+                workbook,
+                input,
+                undo,
+                status,
+                &move |s| s.bold = !cur,
+                if cur { "Bold off" } else { "Bold on" },
+            );
         }
         "italic" | "it" => {
-            let cur = workbook.active().get_cell(input.cursor.row, input.cursor.col)
-                .and_then(|c| c.style.as_ref()).map(|s| s.italic).unwrap_or(false);
-            apply_style_sel(workbook, input, undo, status,
-                &move |s| s.italic = !cur, if cur { "Italic off" } else { "Italic on" });
+            let cur = workbook
+                .active()
+                .get_cell(input.cursor.row, input.cursor.col)
+                .and_then(|c| c.style.as_ref())
+                .map(|s| s.italic)
+                .unwrap_or(false);
+            apply_style_sel(
+                workbook,
+                input,
+                undo,
+                status,
+                &move |s| s.italic = !cur,
+                if cur { "Italic off" } else { "Italic on" },
+            );
         }
         "underline" | "ul" => {
-            let cur = workbook.active().get_cell(input.cursor.row, input.cursor.col)
-                .and_then(|c| c.style.as_ref()).map(|s| s.underline).unwrap_or(false);
-            apply_style_sel(workbook, input, undo, status,
-                &move |s| s.underline = !cur, if cur { "Underline off" } else { "Underline on" });
+            let cur = workbook
+                .active()
+                .get_cell(input.cursor.row, input.cursor.col)
+                .and_then(|c| c.style.as_ref())
+                .map(|s| s.underline)
+                .unwrap_or(false);
+            apply_style_sel(
+                workbook,
+                input,
+                undo,
+                status,
+                &move |s| s.underline = !cur,
+                if cur { "Underline off" } else { "Underline on" },
+            );
         }
         "strike" | "strikethrough" | "st" => {
-            let cur = workbook.active().get_cell(input.cursor.row, input.cursor.col)
-                .and_then(|c| c.style.as_ref()).map(|s| s.strikethrough).unwrap_or(false);
-            apply_style_sel(workbook, input, undo, status,
+            let cur = workbook
+                .active()
+                .get_cell(input.cursor.row, input.cursor.col)
+                .and_then(|c| c.style.as_ref())
+                .map(|s| s.strikethrough)
+                .unwrap_or(false);
+            apply_style_sel(
+                workbook,
+                input,
+                undo,
+                status,
                 &move |s| s.strikethrough = !cur,
-                if cur { "Strikethrough off" } else { "Strikethrough on" });
+                if cur {
+                    "Strikethrough off"
+                } else {
+                    "Strikethrough on"
+                },
+            );
         }
         "fg" | "color" => {
             if arg.is_empty() {
-                set_status(status, "Usage: :fg <#rrggbb or name>  e.g. :fg red  :fg #ff8800".to_string());
+                set_status(
+                    status,
+                    "Usage: :fg <#rrggbb or name>  e.g. :fg red  :fg #ff8800".to_string(),
+                );
             } else if let Some(col) = parse_color_arg(arg) {
-                apply_style_sel(workbook, input, undo, status,
-                    &move |s| s.fg = Some(col), &format!("Foreground: {}", arg));
+                apply_style_sel(
+                    workbook,
+                    input,
+                    undo,
+                    status,
+                    &move |s| s.fg = Some(col),
+                    &format!("Foreground: {}", arg),
+                );
             } else {
-                set_status(status, format!("Unknown color: \"{}\"  (use hex #rrggbb or a name like red, blue…)", arg));
+                set_status(
+                    status,
+                    format!(
+                        "Unknown color: \"{}\"  (use hex #rrggbb or a name like red, blue…)",
+                        arg
+                    ),
+                );
             }
         }
         "bg" | "bgcolor" => {
             if arg.is_empty() {
-                set_status(status, "Usage: :bg <#rrggbb or name>  e.g. :bg yellow  :bg #003366".to_string());
+                set_status(
+                    status,
+                    "Usage: :bg <#rrggbb or name>  e.g. :bg yellow  :bg #003366".to_string(),
+                );
             } else if let Some(col) = parse_color_arg(arg) {
-                apply_style_sel(workbook, input, undo, status,
-                    &move |s| s.bg = Some(col), &format!("Background: {}", arg));
+                apply_style_sel(
+                    workbook,
+                    input,
+                    undo,
+                    status,
+                    &move |s| s.bg = Some(col),
+                    &format!("Background: {}", arg),
+                );
             } else {
-                set_status(status, format!("Unknown color: \"{}\"  (use hex #rrggbb or a name like red, blue…)", arg));
+                set_status(
+                    status,
+                    format!(
+                        "Unknown color: \"{}\"  (use hex #rrggbb or a name like red, blue…)",
+                        arg
+                    ),
+                );
             }
         }
         "hl" | "highlight" => {
             if arg.is_empty() {
                 // No argument → clear highlight colours
-                apply_style_sel(workbook, input, undo, status,
-                    &|s| { s.bg = None; s.fg = None; }, "Highlight cleared");
+                apply_style_sel(
+                    workbook,
+                    input,
+                    undo,
+                    status,
+                    &|s| {
+                        s.bg = None;
+                        s.fg = None;
+                    },
+                    "Highlight cleared",
+                );
             } else if let Some(bg) = parse_color_arg(arg) {
                 // Auto-pick a contrasting text colour
                 let fg = if color_is_dark(&bg) {
@@ -1921,9 +2364,17 @@ fn handle_ex_command(
                 } else {
                     asat_core::Color::rgb(20, 20, 20)
                 };
-                apply_style_sel(workbook, input, undo, status,
-                    &move |s| { s.bg = Some(bg); s.fg = Some(fg); },
-                    &format!("Highlight: {}", arg));
+                apply_style_sel(
+                    workbook,
+                    input,
+                    undo,
+                    status,
+                    &move |s| {
+                        s.bg = Some(bg);
+                        s.fg = Some(fg);
+                    },
+                    &format!("Highlight: {}", arg),
+                );
             } else {
                 set_status(status, format!("Unknown color: \"{}\"", arg));
             }
@@ -1931,17 +2382,26 @@ fn handle_ex_command(
         "align" | "al" => {
             use asat_core::Alignment;
             let al = match arg.to_ascii_lowercase().as_str() {
-                "l" | "left"    => Alignment::Left,
+                "l" | "left" => Alignment::Left,
                 "c" | "center" | "centre" => Alignment::Center,
-                "r" | "right"   => Alignment::Right,
+                "r" | "right" => Alignment::Right,
                 "d" | "default" | "" => Alignment::Default,
                 _ => {
-                    set_status(status, "Usage: :align l/c/r  (left / center / right)".to_string());
+                    set_status(
+                        status,
+                        "Usage: :align l/c/r  (left / center / right)".to_string(),
+                    );
                     return ActionResult::Continue;
                 }
             };
-            apply_style_sel(workbook, input, undo, status,
-                &move |s| s.align = al.clone(), &format!("Align: {:?}", al));
+            apply_style_sel(
+                workbook,
+                input,
+                undo,
+                status,
+                &move |s| s.align = al.clone(),
+                &format!("Align: {:?}", al),
+            );
         }
         "fmt" | "format" => {
             use asat_core::NumberFormat;
@@ -1976,26 +2436,49 @@ fn handle_ex_command(
                 }
             };
             let fmt_clone = fmt.clone();
-            let label = fmt.as_ref().map(|f| format!("{:?}", f)).unwrap_or_else(|| "General".to_string());
-            apply_style_sel(workbook, input, undo, status,
-                &move |s| s.format = fmt_clone.clone(), &format!("Format: {}", label));
+            let label = fmt
+                .as_ref()
+                .map(|f| format!("{:?}", f))
+                .unwrap_or_else(|| "General".to_string());
+            apply_style_sel(
+                workbook,
+                input,
+                undo,
+                status,
+                &move |s| s.format = fmt_clone.clone(),
+                &format!("Format: {}", label),
+            );
         }
         "copystyle" | "ys" => {
             let (r, c) = (input.cursor.row, input.cursor.col);
-            input.style_clipboard = workbook.active()
-                .get_cell(r, c).and_then(|cell| cell.style.clone());
-            set_status(status, if input.style_clipboard.is_some() {
-                "Style copied".to_string()
-            } else {
-                "Cell has no style to copy".to_string()
-            });
+            input.style_clipboard = workbook
+                .active()
+                .get_cell(r, c)
+                .and_then(|cell| cell.style.clone());
+            set_status(
+                status,
+                if input.style_clipboard.is_some() {
+                    "Style copied".to_string()
+                } else {
+                    "Cell has no style to copy".to_string()
+                },
+            );
         }
         "pastestyle" | "ps" => {
             if let Some(style) = input.style_clipboard.clone() {
-                apply_style_sel(workbook, input, undo, status,
-                    &move |s| *s = style.clone(), "Style pasted");
+                apply_style_sel(
+                    workbook,
+                    input,
+                    undo,
+                    status,
+                    &move |s| *s = style.clone(),
+                    "Style pasted",
+                );
             } else {
-                set_status(status, "No style in clipboard  (use :copystyle or yS first)".to_string());
+                set_status(
+                    status,
+                    "No style in clipboard  (use :copystyle or yS first)".to_string(),
+                );
             }
         }
         "cs" | "clearstyle" => {
@@ -2003,20 +2486,30 @@ fn handle_ex_command(
             let (row_start, col_start, row_end, col_end) = style_range(workbook, input);
             let sheet_idx = workbook.active_sheet;
             if row_start == row_end && col_start == col_end {
-                let r = row_start; let c = col_start;
+                let r = row_start;
+                let c = col_start;
                 let old_cell = workbook.sheet(sheet_idx).and_then(|s| s.get_cell(r, c));
-                let old_value = old_cell.map(|c| c.value.clone()).unwrap_or(CellValue::Empty);
+                let old_value = old_cell
+                    .map(|c| c.value.clone())
+                    .unwrap_or(CellValue::Empty);
                 let old_style = old_cell.and_then(|c| c.style.clone());
                 if old_style.is_none() {
                     set_status(status, "Cell has no style to clear".to_string());
                 } else {
                     let cmd = Box::new(SetCell {
-                        sheet: sheet_idx, row: r, col: c,
-                        old_value: old_value.clone(), new_value: old_value,
-                        old_style, new_style: None,
+                        sheet: sheet_idx,
+                        row: r,
+                        col: c,
+                        old_value: old_value.clone(),
+                        new_value: old_value,
+                        old_style,
+                        new_style: None,
                     });
                     match cmd.execute(workbook) {
-                        Ok(_) => { undo.push(cmd); set_status(status, "Style cleared".to_string()); }
+                        Ok(_) => {
+                            undo.push(cmd);
+                            set_status(status, "Style cleared".to_string());
+                        }
                         Err(e) => set_status(status, format!("Error: {}", e)),
                     }
                 }
@@ -2024,8 +2517,14 @@ fn handle_ex_command(
                 // Range: clear styles by applying an empty CellStyle that looks like "no style"
                 // Use apply_style_sel to handle the range, but we need to clear entirely —
                 // set a flag and post-process to None
-                apply_style_sel(workbook, input, undo, status,
-                    &|s| *s = CellStyle::default(), "Styles cleared");
+                apply_style_sel(
+                    workbook,
+                    input,
+                    undo,
+                    status,
+                    &|s| *s = CellStyle::default(),
+                    "Styles cleared",
+                );
             }
         }
         // ── Column/row sizing via ex-command ──
@@ -2041,7 +2540,12 @@ fn handle_ex_command(
         "rh" | "rowheight" => {
             if let Ok(h) = arg.parse::<u16>() {
                 let row = input.cursor.row;
-                workbook.active_mut().row_meta.entry(row).or_default().height = Some(h.max(1));
+                workbook
+                    .active_mut()
+                    .row_meta
+                    .entry(row)
+                    .or_default()
+                    .height = Some(h.max(1));
                 set_status(status, format!("Row height: {}", h.max(1)));
             } else {
                 set_status(status, "Usage: :rh <height>".to_string());
@@ -2051,8 +2555,15 @@ fn handle_ex_command(
             if arg.is_empty() {
                 // Open theme manager
                 let themes = asat_config::builtin_themes();
-                if let Some(idx) = themes.iter().position(|t| t.id == config.theme_name)
-                    .or_else(|| themes.iter().position(|t| t.config.cursor_bg == config.theme.cursor_bg)) {
+                if let Some(idx) = themes
+                    .iter()
+                    .position(|t| t.id == config.theme_name)
+                    .or_else(|| {
+                        themes
+                            .iter()
+                            .position(|t| t.config.cursor_bg == config.theme.cursor_bg)
+                    })
+                {
                     input.theme_selected = idx;
                 }
                 input.mode = Mode::ThemeManager;
@@ -2062,17 +2573,22 @@ fn handle_ex_command(
                 let needle = arg.to_ascii_lowercase();
                 if let Some(preset) = themes.iter().find(|t| {
                     t.id.to_ascii_lowercase() == needle
-                    || t.name.to_ascii_lowercase() == needle
-                    || t.name.to_ascii_lowercase().replace(' ', "-") == needle
+                        || t.name.to_ascii_lowercase() == needle
+                        || t.name.to_ascii_lowercase().replace(' ', "-") == needle
                 }) {
                     config.theme_name = preset.id.to_string();
                     config.theme = preset.config.clone();
                     match config.save() {
-                        Ok(_)  => set_status(status, format!("Theme \"{}\" applied", preset.name)),
-                        Err(e) => set_status(status, format!("Theme applied but couldn't save: {}", e)),
+                        Ok(_) => set_status(status, format!("Theme \"{}\" applied", preset.name)),
+                        Err(e) => {
+                            set_status(status, format!("Theme applied but couldn't save: {}", e))
+                        }
                     }
                 } else {
-                    set_status(status, format!("Unknown theme: {}  (use :theme to open picker)", arg));
+                    set_status(
+                        status,
+                        format!("Unknown theme: {}  (use :theme to open picker)", arg),
+                    );
                 }
             }
         }
@@ -2085,21 +2601,19 @@ fn handle_ex_command(
             }
         }
         // ── Plugin management ──
-        "plugin" | "plug" => {
-            match arg {
-                "reload" | "r" => {
-                    plugins.reload();
-                    set_status(status, "Plugin init.py reloaded".to_string());
-                }
-                "list" | "l" | "" => {
-                    let info = plugins.info();
-                    set_status(status, info);
-                }
-                _ => {
-                    set_status(status, "Usage: :plugin [reload|list]".to_string());
-                }
+        "plugin" | "plug" => match arg {
+            "reload" | "r" => {
+                plugins.reload();
+                set_status(status, "Plugin init.py reloaded".to_string());
             }
-        }
+            "list" | "l" | "" => {
+                let info = plugins.info();
+                set_status(status, info);
+            }
+            _ => {
+                set_status(status, "Usage: :plugin [reload|list]".to_string());
+            }
+        },
         // ── Sort ──
         "sort" | "so" => {
             // :sort [asc|desc]  — sort all rows by the current cursor column
@@ -2127,12 +2641,22 @@ fn handle_ex_command(
 
             // Sort rows by the key column value
             rows.sort_by(|a, b| {
-                let av = a.get(col as usize)
-                    .and_then(|c| c.as_ref()).map(|c| &c.value).unwrap_or(&CellValue::Empty);
-                let bv = b.get(col as usize)
-                    .and_then(|c| c.as_ref()).map(|c| &c.value).unwrap_or(&CellValue::Empty);
+                let av = a
+                    .get(col as usize)
+                    .and_then(|c| c.as_ref())
+                    .map(|c| &c.value)
+                    .unwrap_or(&CellValue::Empty);
+                let bv = b
+                    .get(col as usize)
+                    .and_then(|c| c.as_ref())
+                    .map(|c| &c.value)
+                    .unwrap_or(&CellValue::Empty);
                 let ord = compare_cell_values(av, bv);
-                if descending { ord.reverse() } else { ord }
+                if descending {
+                    ord.reverse()
+                } else {
+                    ord
+                }
             });
 
             // Build one SetCell command per changed cell
@@ -2142,14 +2666,24 @@ fn handle_ex_command(
                     let r = new_row_idx as u32;
                     let c = c_idx as u32;
                     let old_cell = workbook.active().get_cell(r, c);
-                    let old_value = old_cell.map(|x| x.value.clone()).unwrap_or(CellValue::Empty);
+                    let old_value = old_cell
+                        .map(|x| x.value.clone())
+                        .unwrap_or(CellValue::Empty);
                     let old_style = old_cell.and_then(|x| x.style.clone());
-                    let new_value = new_cell.as_ref().map(|x| x.value.clone()).unwrap_or(CellValue::Empty);
+                    let new_value = new_cell
+                        .as_ref()
+                        .map(|x| x.value.clone())
+                        .unwrap_or(CellValue::Empty);
                     let new_style = new_cell.as_ref().and_then(|x| x.style.clone());
                     if old_value != new_value || old_style != new_style {
                         cmds.push(Box::new(SetCell {
-                            sheet: sheet_idx, row: r, col: c,
-                            old_value, new_value, old_style, new_style,
+                            sheet: sheet_idx,
+                            row: r,
+                            col: c,
+                            old_value,
+                            new_value,
+                            old_style,
+                            new_style,
                         }));
                     }
                 }
@@ -2187,37 +2721,53 @@ fn handle_ex_command(
                 set_status(status, "Usage: :s/pattern/replacement/[g][i]".to_string());
                 return ActionResult::Continue;
             }
-            let pattern     = parts[0];
+            let pattern = parts[0];
             let replacement = parts[1];
-            let flags       = parts.get(2).copied().unwrap_or("");
-            let global      = flags.contains('g');
-            let icase       = flags.contains('i');
+            let flags = parts.get(2).copied().unwrap_or("");
+            let global = flags.contains('g');
+            let icase = flags.contains('i');
 
-            let re_pat = if icase { format!("(?i){}", pattern) } else { pattern.to_string() };
+            let re_pat = if icase {
+                format!("(?i){}", pattern)
+            } else {
+                pattern.to_string()
+            };
             let re = match Regex::new(&re_pat) {
                 Ok(r) => r,
-                Err(e) => { set_status(status, format!("Invalid regex: {}", e)); return ActionResult::Continue; }
+                Err(e) => {
+                    set_status(status, format!("Invalid regex: {}", e));
+                    return ActionResult::Continue;
+                }
             };
 
             let sheet_idx = workbook.active_sheet;
             let sheet = workbook.active();
 
             // Restrict to visual selection when active, otherwise whole sheet
-            let (row_start, col_start, row_end, col_end) = if let Some(anchor) = &input.visual_anchor {
-                let cur = input.cursor;
-                (cur.row.min(anchor.row), cur.col.min(anchor.col),
-                 cur.row.max(anchor.row), cur.col.max(anchor.col))
-            } else {
-                (0, 0, sheet.max_row(), sheet.max_col())
-            };
+            let (row_start, col_start, row_end, col_end) =
+                if let Some(anchor) = &input.visual_anchor {
+                    let cur = input.cursor;
+                    (
+                        cur.row.min(anchor.row),
+                        cur.col.min(anchor.col),
+                        cur.row.max(anchor.row),
+                        cur.col.max(anchor.col),
+                    )
+                } else {
+                    (0, 0, sheet.max_row(), sheet.max_col())
+                };
 
-            let candidates: Vec<(u32, u32, String)> = sheet.cells.iter()
+            let candidates: Vec<(u32, u32, String)> = sheet
+                .cells
+                .iter()
                 .filter_map(|((r, c), cell)| {
                     if *r < row_start || *r > row_end || *c < col_start || *c > col_end {
                         return None;
                     }
                     if let CellValue::Text(s) = &cell.value {
-                        if re.is_match(s) { return Some((*r, *c, s.clone())); }
+                        if re.is_match(s) {
+                            return Some((*r, *c, s.clone()));
+                        }
                     }
                     None
                 })
@@ -2238,7 +2788,9 @@ fn handle_ex_command(
                 let old_cell = workbook.active().get_cell(*r, *c);
                 let old_style = old_cell.and_then(|x| x.style.clone());
                 cmds.push(Box::new(SetCell {
-                    sheet: sheet_idx, row: *r, col: *c,
+                    sheet: sheet_idx,
+                    row: *r,
+                    col: *c,
                     old_value: CellValue::Text(text.clone()),
                     new_value: CellValue::Text(new_text),
                     old_style: old_style.clone(),
@@ -2278,14 +2830,24 @@ fn handle_ex_command(
             // :name <name> <range>  e.g.  :name sales A1:C10
             let parts: Vec<&str> = arg.splitn(2, ' ').collect();
             if parts.len() < 2 {
-                set_status(status, "Usage: :name <name> <range>  e.g. :name sales A1:C10".to_string());
+                set_status(
+                    status,
+                    "Usage: :name <name> <range>  e.g. :name sales A1:C10".to_string(),
+                );
             } else {
                 let range_name = parts[0].to_uppercase();
-                let range_str  = parts[1].trim();
+                let range_str = parts[1].trim();
                 if let Some(range) = parse_range_address(range_str, workbook.active_sheet) {
                     workbook.named_ranges.insert(range_name.clone(), range);
                     workbook.dirty = true;
-                    set_status(status, format!("Named range \"{}\" = {}", range_name, range_str.to_uppercase()));
+                    set_status(
+                        status,
+                        format!(
+                            "Named range \"{}\" = {}",
+                            range_name,
+                            range_str.to_uppercase()
+                        ),
+                    );
                 } else {
                     set_status(status, format!("Invalid range: {}", range_str));
                 }
@@ -2306,10 +2868,13 @@ fn handle_ex_command(
                 // Or :filter <col-letter> <op> <value>
                 let fparts: Vec<&str> = arg.splitn(3, ' ').collect();
                 if fparts.len() < 3 {
-                    set_status(status, "Usage: :filter <col> <op> <val>  e.g. :filter A >100".to_string());
+                    set_status(
+                        status,
+                        "Usage: :filter <col> <op> <val>  e.g. :filter A >100".to_string(),
+                    );
                 } else {
                     let col_str = fparts[0];
-                    let op      = fparts[1];
+                    let op = fparts[1];
                     let val_str = fparts[2];
                     let col = if let Ok(n) = col_str.parse::<u32>() {
                         n.saturating_sub(1)
@@ -2335,7 +2900,10 @@ fn handle_ex_command(
                         workbook.active_mut().row_meta.entry(r).or_default().hidden = !keep;
                     }
                     workbook.dirty = true;
-                    set_status(status, format!("Filter: {} of {} rows visible", visible_count, total));
+                    set_status(
+                        status,
+                        format!("Filter: {} of {} rows visible", visible_count, total),
+                    );
                 }
             }
         }
@@ -2346,8 +2914,12 @@ fn handle_ex_command(
             let (row_start, col_start, row_end, col_end) = {
                 if let Some(anchor) = &input.visual_anchor {
                     let cur = input.cursor;
-                    (cur.row.min(anchor.row), cur.col.min(anchor.col),
-                     cur.row.max(anchor.row), cur.col.max(anchor.col))
+                    (
+                        cur.row.min(anchor.row),
+                        cur.col.min(anchor.col),
+                        cur.row.max(anchor.row),
+                        cur.col.max(anchor.col),
+                    )
                 } else {
                     // Transpose whole data range from cursor cell
                     let s = workbook.active();
@@ -2368,15 +2940,25 @@ fn handle_ex_command(
                 let new_r = col_start + (c - col_start);
                 let new_c = row_start + (r - row_start);
                 let old_val = workbook.active().get_raw_value(new_r, new_c).clone();
-                cmds.push(Box::new(SetCell::new(workbook, sheet_idx, new_r, new_c, v.clone())));
+                cmds.push(Box::new(SetCell::new(
+                    workbook,
+                    sheet_idx,
+                    new_r,
+                    new_c,
+                    v.clone(),
+                )));
                 let _ = old_val;
             }
             // Clear original non-transposed cells that are now outside the transposed block
             let grouped = Box::new(asat_commands::GroupedCommand {
-                description: "transpose".to_string(), commands: cmds,
+                description: "transpose".to_string(),
+                commands: cmds,
             });
             match grouped.execute(workbook) {
-                Ok(_) => { undo.push(grouped); set_status(status, "Transposed".to_string()); }
+                Ok(_) => {
+                    undo.push(grouped);
+                    set_status(status, "Transposed".to_string());
+                }
                 Err(e) => set_status(status, format!("Transpose error: {}", e)),
             }
             input.visual_anchor = None;
@@ -2391,7 +2973,9 @@ fn handle_ex_command(
             } else if let Some(c) = asat_core::letter_to_col(arg) {
                 c
             } else {
-                arg.parse::<u32>().unwrap_or(input.cursor.col + 1).saturating_sub(1)
+                arg.parse::<u32>()
+                    .unwrap_or(input.cursor.col + 1)
+                    .saturating_sub(1)
             };
             let sheet = workbook.active();
             let max_row = sheet.max_row();
@@ -2412,15 +2996,25 @@ fn handle_ex_command(
                 let mut cmds: Vec<Box<dyn asat_commands::Command>> = Vec::new();
                 for &r in rows_to_delete.iter().rev() {
                     for c in 0..=max_col {
-                        cmds.push(Box::new(SetCell::new(workbook, sheet_idx, r, c, CellValue::Empty)));
+                        cmds.push(Box::new(SetCell::new(
+                            workbook,
+                            sheet_idx,
+                            r,
+                            c,
+                            CellValue::Empty,
+                        )));
                     }
                 }
                 let n = rows_to_delete.len();
                 let grouped = Box::new(asat_commands::GroupedCommand {
-                    description: "dedup".to_string(), commands: cmds,
+                    description: "dedup".to_string(),
+                    commands: cmds,
                 });
                 match grouped.execute(workbook) {
-                    Ok(_) => { undo.push(grouped); set_status(status, format!("Removed {} duplicate row(s)", n)); }
+                    Ok(_) => {
+                        undo.push(grouped);
+                        set_status(status, format!("Removed {} duplicate row(s)", n));
+                    }
                     Err(e) => set_status(status, format!("Dedup error: {}", e)),
                 }
             }
@@ -2436,7 +3030,10 @@ fn handle_ex_command(
                 if let Some(note) = sheet.notes.get(&(row, col)) {
                     set_status(status, format!("Note: {}", note));
                 } else {
-                    set_status(status, "No note on this cell (use :note <text> to set)".to_string());
+                    set_status(
+                        status,
+                        "No note on this cell (use :note <text> to set)".to_string(),
+                    );
                 }
             } else if arg == "-" || arg == "clear" {
                 sheet.notes.remove(&(row, col));
@@ -2455,7 +3052,10 @@ fn handle_ex_command(
             // This applies a bg colour to all cells in the selection matching the condition
             let fparts: Vec<&str> = arg.splitn(3, ' ').collect();
             if fparts.len() < 2 {
-                set_status(status, "Usage: :colfmt <op> <val> [color]  e.g. :colfmt >100 red".to_string());
+                set_status(
+                    status,
+                    "Usage: :colfmt <op> <val> [color]  e.g. :colfmt >100 red".to_string(),
+                );
             } else {
                 // op+val may be merged like ">100" or split as "> 100"
                 let (op_val, color_arg) = if fparts.len() == 2 {
@@ -2486,9 +3086,12 @@ fn handle_ex_command(
                     if let Some(anchor) = &input.visual_anchor {
                         let cur = input.cursor;
                         let s = workbook.active();
-                        (cur.row.min(anchor.row), cur.col.min(anchor.col),
-                         cur.row.max(anchor.row).min(s.max_row()),
-                         cur.col.max(anchor.col).min(s.max_col()))
+                        (
+                            cur.row.min(anchor.row),
+                            cur.col.min(anchor.col),
+                            cur.row.max(anchor.row).min(s.max_row()),
+                            cur.col.max(anchor.col).min(s.max_col()),
+                        )
                     } else {
                         let s = workbook.active();
                         (0, input.cursor.col, s.max_row(), input.cursor.col)
@@ -2501,15 +3104,21 @@ fn handle_ex_command(
                         let cv = workbook.active().get_value(r, c).clone();
                         if filter_row_matches(&cv, op, val_str, val_num) {
                             let old_cell = workbook.active().get_cell(r, c);
-                            let old_val = old_cell.map(|x| x.value.clone()).unwrap_or(CellValue::Empty);
+                            let old_val = old_cell
+                                .map(|x| x.value.clone())
+                                .unwrap_or(CellValue::Empty);
                             let old_style = old_cell.and_then(|x| x.style.clone());
                             let mut new_style = old_style.clone().unwrap_or_default();
                             new_style.bg = Some(bg_color);
                             new_style.fg = Some(fg_color);
                             cmds.push(Box::new(SetCell {
-                                sheet: sheet_idx, row: r, col: c,
-                                old_value: old_val.clone(), new_value: old_val,
-                                old_style, new_style: Some(new_style),
+                                sheet: sheet_idx,
+                                row: r,
+                                col: c,
+                                old_value: old_val.clone(),
+                                new_value: old_val,
+                                old_style,
+                                new_style: Some(new_style),
                             }));
                         }
                     }
@@ -2519,10 +3128,14 @@ fn handle_ex_command(
                     set_status(status, "No cells matched the condition".to_string());
                 } else {
                     let grouped = Box::new(asat_commands::GroupedCommand {
-                        description: "conditional format".to_string(), commands: cmds,
+                        description: "conditional format".to_string(),
+                        commands: cmds,
                     });
                     match grouped.execute(workbook) {
-                        Ok(_) => { undo.push(grouped); set_status(status, format!("{} cell(s) highlighted", n)); }
+                        Ok(_) => {
+                            undo.push(grouped);
+                            set_status(status, format!("{} cell(s) highlighted", n));
+                        }
                         Err(e) => set_status(status, format!("Error: {}", e)),
                     }
                 }
@@ -2538,25 +3151,40 @@ fn handle_ex_command(
                 if let Some(anchor) = &input.visual_anchor {
                     let cur = input.cursor;
                     let s = workbook.active();
-                    (cur.row.min(anchor.row), cur.col.min(anchor.col),
-                     cur.row.max(anchor.row).min(s.max_row()),
-                     cur.col.max(anchor.col).min(s.max_col()))
+                    (
+                        cur.row.min(anchor.row),
+                        cur.col.min(anchor.col),
+                        cur.row.max(anchor.row).min(s.max_row()),
+                        cur.col.max(anchor.col).min(s.max_col()),
+                    )
                 } else {
-                    (input.cursor.row, input.cursor.col,
-                     workbook.active().max_row(), input.cursor.col)
+                    (
+                        input.cursor.row,
+                        input.cursor.col,
+                        workbook.active().max_row(),
+                        input.cursor.col,
+                    )
                 }
             };
             let mut cmds: Vec<Box<dyn asat_commands::Command>> = Vec::new();
             for c in col_start..=col_end {
                 let av = workbook.active().get_raw_value(row_start, c).clone();
-                let asty = workbook.active().get_cell(row_start, c).and_then(|x| x.style.clone());
+                let asty = workbook
+                    .active()
+                    .get_cell(row_start, c)
+                    .and_then(|x| x.style.clone());
                 for r in (row_start + 1)..=row_end {
                     let old = workbook.active().get_cell(r, c);
                     let ov = old.map(|x| x.value.clone()).unwrap_or(CellValue::Empty);
                     let os = old.and_then(|x| x.style.clone());
                     cmds.push(Box::new(SetCell {
-                        sheet: sheet_idx, row: r, col: c,
-                        old_value: ov, new_value: av.clone(), old_style: os, new_style: asty.clone(),
+                        sheet: sheet_idx,
+                        row: r,
+                        col: c,
+                        old_value: ov,
+                        new_value: av.clone(),
+                        old_style: os,
+                        new_style: asty.clone(),
                     }));
                 }
             }
@@ -2564,9 +3192,15 @@ fn handle_ex_command(
                 set_status(status, "Nothing to fill down".to_string());
             } else {
                 let n = cmds.len();
-                let grouped = Box::new(asat_commands::GroupedCommand { description: "fill down".to_string(), commands: cmds });
+                let grouped = Box::new(asat_commands::GroupedCommand {
+                    description: "fill down".to_string(),
+                    commands: cmds,
+                });
                 match grouped.execute(workbook) {
-                    Ok(_) => { undo.push(grouped); set_status(status, format!("Filled {} cell(s) down", n)); }
+                    Ok(_) => {
+                        undo.push(grouped);
+                        set_status(status, format!("Filled {} cell(s) down", n));
+                    }
                     Err(e) => set_status(status, format!("Error: {}", e)),
                 }
             }
@@ -2577,25 +3211,40 @@ fn handle_ex_command(
                 if let Some(anchor) = &input.visual_anchor {
                     let cur = input.cursor;
                     let s = workbook.active();
-                    (cur.row.min(anchor.row), cur.col.min(anchor.col),
-                     cur.row.max(anchor.row).min(s.max_row()),
-                     cur.col.max(anchor.col).min(s.max_col()))
+                    (
+                        cur.row.min(anchor.row),
+                        cur.col.min(anchor.col),
+                        cur.row.max(anchor.row).min(s.max_row()),
+                        cur.col.max(anchor.col).min(s.max_col()),
+                    )
                 } else {
-                    (input.cursor.row, input.cursor.col,
-                     input.cursor.row, workbook.active().max_col())
+                    (
+                        input.cursor.row,
+                        input.cursor.col,
+                        input.cursor.row,
+                        workbook.active().max_col(),
+                    )
                 }
             };
             let mut cmds: Vec<Box<dyn asat_commands::Command>> = Vec::new();
             for r in row_start..=row_end {
                 let av = workbook.active().get_raw_value(r, col_start).clone();
-                let asty = workbook.active().get_cell(r, col_start).and_then(|x| x.style.clone());
+                let asty = workbook
+                    .active()
+                    .get_cell(r, col_start)
+                    .and_then(|x| x.style.clone());
                 for c in (col_start + 1)..=col_end {
                     let old = workbook.active().get_cell(r, c);
                     let ov = old.map(|x| x.value.clone()).unwrap_or(CellValue::Empty);
                     let os = old.and_then(|x| x.style.clone());
                     cmds.push(Box::new(SetCell {
-                        sheet: sheet_idx, row: r, col: c,
-                        old_value: ov, new_value: av.clone(), old_style: os, new_style: asty.clone(),
+                        sheet: sheet_idx,
+                        row: r,
+                        col: c,
+                        old_value: ov,
+                        new_value: av.clone(),
+                        old_style: os,
+                        new_style: asty.clone(),
                     }));
                 }
             }
@@ -2603,9 +3252,15 @@ fn handle_ex_command(
                 set_status(status, "Nothing to fill right".to_string());
             } else {
                 let n = cmds.len();
-                let grouped = Box::new(asat_commands::GroupedCommand { description: "fill right".to_string(), commands: cmds });
+                let grouped = Box::new(asat_commands::GroupedCommand {
+                    description: "fill right".to_string(),
+                    commands: cmds,
+                });
                 match grouped.execute(workbook) {
-                    Ok(_) => { undo.push(grouped); set_status(status, format!("Filled {} cell(s) right", n)); }
+                    Ok(_) => {
+                        undo.push(grouped);
+                        set_status(status, format!("Filled {} cell(s) right", n));
+                    }
                     Err(e) => set_status(status, format!("Error: {}", e)),
                 }
             }
@@ -2616,24 +3271,29 @@ fn handle_ex_command(
             let sheet = workbook.sheets.get_mut(workbook.active_sheet).unwrap();
             let parts: Vec<&str> = arg.splitn(2, ' ').collect();
             match parts.as_slice() {
-                ["rows", n] | ["row", n] => {
-                    match n.parse::<u32>() {
-                        Ok(v) => { sheet.freeze_rows = v; set_status(status, format!("Frozen {} row(s)", v)); }
-                        Err(_) => set_status(status, "Usage: :freeze rows <N>".to_string()),
+                ["rows", n] | ["row", n] => match n.parse::<u32>() {
+                    Ok(v) => {
+                        sheet.freeze_rows = v;
+                        set_status(status, format!("Frozen {} row(s)", v));
                     }
-                }
-                ["cols", n] | ["col", n] | ["columns", n] => {
-                    match n.parse::<u32>() {
-                        Ok(v) => { sheet.freeze_cols = v; set_status(status, format!("Frozen {} column(s)", v)); }
-                        Err(_) => set_status(status, "Usage: :freeze cols <N>".to_string()),
+                    Err(_) => set_status(status, "Usage: :freeze rows <N>".to_string()),
+                },
+                ["cols", n] | ["col", n] | ["columns", n] => match n.parse::<u32>() {
+                    Ok(v) => {
+                        sheet.freeze_cols = v;
+                        set_status(status, format!("Frozen {} column(s)", v));
                     }
-                }
+                    Err(_) => set_status(status, "Usage: :freeze cols <N>".to_string()),
+                },
                 ["off"] | ["none"] | ["0"] => {
                     sheet.freeze_rows = 0;
                     sheet.freeze_cols = 0;
                     set_status(status, "Freeze panes cleared".to_string());
                 }
-                _ => set_status(status, "Usage: :freeze rows <N>  |  :freeze cols <N>  |  :freeze off".to_string()),
+                _ => set_status(
+                    status,
+                    "Usage: :freeze rows <N>  |  :freeze cols <N>  |  :freeze off".to_string(),
+                ),
             }
         }
 
@@ -2652,7 +3312,9 @@ fn set_status(status: &mut Option<(String, std::time::Instant)>, msg: String) {
 fn parse_cell_address(addr: &str) -> Option<(u32, u32)> {
     let addr = addr.trim().to_uppercase();
     let col_end = addr.find(|c: char| c.is_ascii_digit())?;
-    if col_end == 0 { return None; }
+    if col_end == 0 {
+        return None;
+    }
     let col_str = &addr[..col_end];
     let row_str = &addr[col_end..];
     let col = asat_core::letter_to_col(col_str)?;
@@ -2678,24 +3340,30 @@ fn parse_range_address(s: &str, sheet: usize) -> Option<asat_core::CellRange> {
 /// op can be: >, <, >=, <=, =, ==, <>, !=, or a plain substring match.
 fn filter_row_matches(val: &CellValue, op: &str, val_str: &str, val_num: Option<f64>) -> bool {
     // Numeric comparison
-    if let (Some(vn), Some(cn)) = (val_num, match val { CellValue::Number(n) => Some(*n), _ => None }) {
+    if let (Some(vn), Some(cn)) = (
+        val_num,
+        match val {
+            CellValue::Number(n) => Some(*n),
+            _ => None,
+        },
+    ) {
         return match op {
-            ">"  => cn > vn,
-            "<"  => cn < vn,
+            ">" => cn > vn,
+            "<" => cn < vn,
             ">=" => cn >= vn,
             "<=" => cn <= vn,
-            "="  | "==" => (cn - vn).abs() < 1e-10,
+            "=" | "==" => (cn - vn).abs() < 1e-10,
             "<>" | "!=" => (cn - vn).abs() >= 1e-10,
-            _    => false,
+            _ => false,
         };
     }
     // Text match
     let cell_text = val.display().to_lowercase();
-    let needle    = val_str.to_lowercase();
+    let needle = val_str.to_lowercase();
     match op {
-        "="  | "==" => cell_text == needle,
+        "=" | "==" => cell_text == needle,
         "<>" | "!=" => cell_text != needle,
-        _           => cell_text.contains(&needle),
+        _ => cell_text.contains(&needle),
     }
 }
 
@@ -2707,7 +3375,7 @@ fn update_subcmd_completions(input: &mut InputState) {
     }
     let buf = input.command_buffer.clone();
     if let Some(space_idx) = buf.find(' ') {
-        let verb       = buf[..space_idx].to_ascii_lowercase();
+        let verb = buf[..space_idx].to_ascii_lowercase();
         let arg_prefix = buf[space_idx + 1..].to_ascii_lowercase();
 
         match verb.as_str() {
@@ -2738,7 +3406,9 @@ fn update_subcmd_completions(input: &mut InputState) {
 
 fn recent_files_path() -> PathBuf {
     dirs::data_local_dir()
-        .unwrap_or_else(|| PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".local/share"))
+        .unwrap_or_else(|| {
+            PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".local/share")
+        })
         .join("asat")
         .join("recent")
 }
@@ -2781,18 +3451,24 @@ fn scan_files(root: &PathBuf) -> Vec<String> {
 }
 
 fn scan_dir(root: &PathBuf, dir: &PathBuf, depth: usize, results: &mut Vec<String>) {
-    if depth == 0 { return; }
+    if depth == 0 {
+        return;
+    }
     let entries = match std::fs::read_dir(dir) {
-        Ok(e) => e, Err(_) => return,
+        Ok(e) => e,
+        Err(_) => return,
     };
     for entry in entries.flatten() {
         let path = entry.path();
-        let name = path.file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("");
+        let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
         // Skip hidden files/dirs and common build directories
-        if name.starts_with('.') { continue; }
-        if matches!(name, "target" | "node_modules" | "__pycache__" | ".git" | "dist" | "build") {
+        if name.starts_with('.') {
+            continue;
+        }
+        if matches!(
+            name,
+            "target" | "node_modules" | "__pycache__" | ".git" | "dist" | "build"
+        ) {
             continue;
         }
         if path.is_dir() {
@@ -2806,8 +3482,8 @@ fn scan_dir(root: &PathBuf, dir: &PathBuf, depth: usize, results: &mut Vec<Strin
 // ── Config editor ─────────────────────────────────────────────────────────────
 
 fn open_config_in_editor() {
-    use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
     use crossterm::execute;
+    use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 
     let config_path = {
         let base = std::env::var("XDG_CONFIG_HOME")

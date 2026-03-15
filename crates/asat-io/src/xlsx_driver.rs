@@ -1,14 +1,14 @@
-use std::path::Path;
+use crate::{FileDriver, IoError};
 use asat_core::{Cell, CellValue, Sheet, Workbook};
 use calamine::{open_workbook_auto, Data, Reader};
-use crate::{FileDriver, IoError};
+use std::path::Path;
 
 pub struct XlsxDriver;
 
 impl FileDriver for XlsxDriver {
     fn read(&self, path: &Path) -> Result<Workbook, IoError> {
-        let mut calamine_wb: calamine::Sheets<_> = open_workbook_auto(path)
-            .map_err(|e| IoError::Xlsx(e.to_string()))?;
+        let mut calamine_wb: calamine::Sheets<_> =
+            open_workbook_auto(path).map_err(|e| IoError::Xlsx(e.to_string()))?;
 
         let mut wb = Workbook {
             sheets: Vec::new(),
@@ -53,7 +53,8 @@ impl FileDriver for XlsxDriver {
 
         for sheet in workbook.sheets.iter() {
             let worksheet = xl_wb.add_worksheet();
-            worksheet.set_name(&sheet.name)
+            worksheet
+                .set_name(&sheet.name)
                 .map_err(|e| IoError::Xlsx(e.to_string()))?;
 
             let max_row = sheet.max_row();
@@ -65,24 +66,29 @@ impl FileDriver for XlsxDriver {
                     match value {
                         CellValue::Empty => {}
                         CellValue::Text(s) => {
-                            worksheet.write_string(row as u32, col as u16, s)
+                            worksheet
+                                .write_string(row as u32, col as u16, s)
                                 .map_err(|e| IoError::Xlsx(e.to_string()))?;
                         }
                         CellValue::Number(n) => {
-                            worksheet.write_number(row as u32, col as u16, *n)
+                            worksheet
+                                .write_number(row as u32, col as u16, *n)
                                 .map_err(|e| IoError::Xlsx(e.to_string()))?;
                         }
                         CellValue::Boolean(b) => {
-                            worksheet.write_boolean(row as u32, col as u16, *b)
+                            worksheet
+                                .write_boolean(row as u32, col as u16, *b)
                                 .map_err(|e| IoError::Xlsx(e.to_string()))?;
                         }
                         CellValue::Formula(f) => {
                             let formula = Formula::new(format!("={}", f));
-                            worksheet.write_formula(row as u32, col as u16, formula)
+                            worksheet
+                                .write_formula(row as u32, col as u16, formula)
                                 .map_err(|e| IoError::Xlsx(e.to_string()))?;
                         }
                         CellValue::Error(e) => {
-                            worksheet.write_string(row as u32, col as u16, &e.to_string())
+                            worksheet
+                                .write_string(row as u32, col as u16, &e.to_string())
                                 .map_err(|e2| IoError::Xlsx(e2.to_string()))?;
                         }
                     }
@@ -110,8 +116,8 @@ fn calamine_data_to_cell_value(dt: &Data) -> CellValue {
             }
         }
         Data::Float(f) => CellValue::Number(*f),
-        Data::Int(i)   => CellValue::Number(*i as f64),
-        Data::Bool(b)  => CellValue::Boolean(*b),
+        Data::Int(i) => CellValue::Number(*i as f64),
+        Data::Bool(b) => CellValue::Boolean(*b),
         Data::Error(_) => CellValue::Error(asat_core::CellError::Value),
         Data::DateTime(dt) => CellValue::Number(dt.as_f64()),
         Data::DateTimeIso(s) => CellValue::Text(s.clone()),

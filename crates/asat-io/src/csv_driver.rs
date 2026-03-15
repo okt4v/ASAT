@@ -1,12 +1,13 @@
-use std::path::Path;
-use asat_core::{Cell, CellValue, Sheet, Workbook};
 use crate::{FileDriver, IoError};
+use asat_core::{Cell, CellValue, Sheet, Workbook};
+use std::path::Path;
 
 pub struct CsvDriver;
 
 impl FileDriver for CsvDriver {
     fn read(&self, path: &Path) -> Result<Workbook, IoError> {
-        let is_tsv = path.extension()
+        let is_tsv = path
+            .extension()
             .and_then(|e| e.to_str())
             .map(|e| e.eq_ignore_ascii_case("tsv"))
             .unwrap_or(false);
@@ -46,7 +47,8 @@ impl FileDriver for CsvDriver {
     }
 
     fn write(&self, workbook: &Workbook, path: &Path) -> Result<(), IoError> {
-        let is_tsv = path.extension()
+        let is_tsv = path
+            .extension()
             .and_then(|e| e.to_str())
             .map(|e| e.eq_ignore_ascii_case("tsv"))
             .unwrap_or(false);
@@ -73,7 +75,8 @@ impl FileDriver for CsvDriver {
             let record: Vec<String> = (0..=max_col)
                 .map(|col| sheet.display_value(row, col))
                 .collect();
-            wtr.write_record(&record).map_err(|e| IoError::Csv(e.to_string()))?;
+            wtr.write_record(&record)
+                .map_err(|e| IoError::Csv(e.to_string()))?;
         }
 
         wtr.flush().map_err(|e| IoError::Csv(e.to_string()))?;

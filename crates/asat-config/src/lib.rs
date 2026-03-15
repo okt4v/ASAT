@@ -103,39 +103,38 @@ pub struct Config {
     pub remember_recent: u32,
 }
 
-
 impl Default for Config {
     fn default() -> Self {
         Config {
             // Theme
-            theme_name:           "solarized-dark".to_string(),
-            theme:                ThemeConfig::default(),
+            theme_name: "solarized-dark".to_string(),
+            theme: ThemeConfig::default(),
             // Display
-            default_col_width:    10,
-            min_col_width:        3,
-            max_col_width:        60,
-            scroll_padding:       3,
-            show_line_numbers:    false,
+            default_col_width: 10,
+            min_col_width: 3,
+            max_col_width: 60,
+            scroll_padding: 3,
+            show_line_numbers: false,
             relative_line_numbers: false,
             highlight_cursor_row: false,
             highlight_cursor_col: false,
-            show_formula_bar:     true,
-            show_tab_bar:         true,
-            show_status_bar:      true,
-            status_timeout:       3,
+            show_formula_bar: true,
+            show_tab_bar: true,
+            show_status_bar: true,
+            status_timeout: 3,
             // Editing
-            undo_limit:           1000,
-            autosave_interval:    0,
-            backup_on_save:       false,
-            confirm_delete:       false,
-            wrap_navigation:      false,
+            undo_limit: 1000,
+            autosave_interval: 0,
+            backup_on_save: false,
+            confirm_delete: false,
+            wrap_navigation: false,
             // Number formatting
-            number_precision:     6,
-            date_format:          "YYYY-MM-DD".to_string(),
+            number_precision: 6,
+            date_format: "YYYY-MM-DD".to_string(),
             // Files
-            default_format:       "csv".to_string(),
-            csv_delimiter:        ",".to_string(),
-            remember_recent:      20,
+            default_format: "csv".to_string(),
+            csv_delimiter: ",".to_string(),
+            remember_recent: 20,
         }
     }
 }
@@ -164,16 +163,16 @@ impl Default for ThemeConfig {
     fn default() -> Self {
         // Matches the solarized-dark preset
         ThemeConfig {
-            cursor_bg:          "#268BD2".to_string(),
-            cursor_fg:          "#000000".to_string(),
-            header_bg:          "#073642".to_string(),
-            header_fg:          "#93A1A1".to_string(),
-            cell_bg:            "#002B36".to_string(),
-            selection_bg:       "#2AA198".to_string(),
-            number_color:       "#2AA198".to_string(),
-            normal_mode_color:  "#859900".to_string(),
-            insert_mode_color:  "#268BD2".to_string(),
-            visual_mode_color:  "#6C71C4".to_string(),
+            cursor_bg: "#268BD2".to_string(),
+            cursor_fg: "#000000".to_string(),
+            header_bg: "#073642".to_string(),
+            header_fg: "#93A1A1".to_string(),
+            cell_bg: "#002B36".to_string(),
+            selection_bg: "#2AA198".to_string(),
+            number_color: "#2AA198".to_string(),
+            normal_mode_color: "#859900".to_string(),
+            insert_mode_color: "#268BD2".to_string(),
+            visual_mode_color: "#6C71C4".to_string(),
             command_mode_color: "#CB4B16".to_string(),
         }
     }
@@ -239,7 +238,9 @@ impl Config {
 
         s.push_str("# ASAT configuration file\n");
         s.push_str("# Run :theme inside ASAT to browse themes interactively.\n");
-        s.push_str("# All fields are optional — missing ones use the default shown in comments.\n\n");
+        s.push_str(
+            "# All fields are optional — missing ones use the default shown in comments.\n\n",
+        );
 
         // Theme
         s.push_str("# ── Theme ────────────────────────────────────────────────────────────────\n");
@@ -252,53 +253,151 @@ impl Config {
 
         // Display
         s.push_str("# ── Display ──────────────────────────────────────────────────────────────\n");
-        s.push_str(&format!("default_col_width    = {}   # default width for new columns (chars)\n", self.default_col_width));
-        s.push_str(&format!("min_col_width        = {}    # minimum column width (chars)\n", self.min_col_width));
-        s.push_str(&format!("max_col_width        = {}   # maximum width when auto-fitting (= key)\n", self.max_col_width));
-        s.push_str(&format!("scroll_padding       = {}    # rows kept visible above/below cursor\n", self.scroll_padding));
-        s.push_str(&format!("show_line_numbers    = {}  # show row numbers in the gutter\n", self.show_line_numbers));
-        s.push_str(&format!("relative_line_numbers = {}  # Vim-style relative row numbers\n", self.relative_line_numbers));
-        s.push_str(&format!("highlight_cursor_row = {}  # tint the cursor row\n", self.highlight_cursor_row));
-        s.push_str(&format!("highlight_cursor_col = {}  # tint the cursor column\n", self.highlight_cursor_col));
-        s.push_str(&format!("show_formula_bar     = {}  # show the formula bar\n", self.show_formula_bar));
-        s.push_str(&format!("show_tab_bar         = {}  # show the sheet tab bar\n", self.show_tab_bar));
-        s.push_str(&format!("show_status_bar      = {}  # show the bottom status bar\n", self.show_status_bar));
-        s.push_str(&format!("status_timeout       = {}    # seconds before status message fades (0 = never)\n\n", self.status_timeout));
+        s.push_str(&format!(
+            "default_col_width    = {}   # default width for new columns (chars)\n",
+            self.default_col_width
+        ));
+        s.push_str(&format!(
+            "min_col_width        = {}    # minimum column width (chars)\n",
+            self.min_col_width
+        ));
+        s.push_str(&format!(
+            "max_col_width        = {}   # maximum width when auto-fitting (= key)\n",
+            self.max_col_width
+        ));
+        s.push_str(&format!(
+            "scroll_padding       = {}    # rows kept visible above/below cursor\n",
+            self.scroll_padding
+        ));
+        s.push_str(&format!(
+            "show_line_numbers    = {}  # show row numbers in the gutter\n",
+            self.show_line_numbers
+        ));
+        s.push_str(&format!(
+            "relative_line_numbers = {}  # Vim-style relative row numbers\n",
+            self.relative_line_numbers
+        ));
+        s.push_str(&format!(
+            "highlight_cursor_row = {}  # tint the cursor row\n",
+            self.highlight_cursor_row
+        ));
+        s.push_str(&format!(
+            "highlight_cursor_col = {}  # tint the cursor column\n",
+            self.highlight_cursor_col
+        ));
+        s.push_str(&format!(
+            "show_formula_bar     = {}  # show the formula bar\n",
+            self.show_formula_bar
+        ));
+        s.push_str(&format!(
+            "show_tab_bar         = {}  # show the sheet tab bar\n",
+            self.show_tab_bar
+        ));
+        s.push_str(&format!(
+            "show_status_bar      = {}  # show the bottom status bar\n",
+            self.show_status_bar
+        ));
+        s.push_str(&format!(
+            "status_timeout       = {}    # seconds before status message fades (0 = never)\n\n",
+            self.status_timeout
+        ));
 
         // Editing
         s.push_str("# ── Editing ──────────────────────────────────────────────────────────────\n");
-        s.push_str(&format!("undo_limit           = {}  # maximum undo history depth\n", self.undo_limit));
-        s.push_str(&format!("autosave_interval    = {}    # seconds between auto-saves (0 = disabled)\n", self.autosave_interval));
-        s.push_str(&format!("backup_on_save       = {}  # write a .bak file before overwriting\n", self.backup_on_save));
-        s.push_str(&format!("confirm_delete       = {}  # ask before dd / :dr / :dc\n", self.confirm_delete));
-        s.push_str(&format!("wrap_navigation      = {}  # wrap cursor at sheet edges\n\n", self.wrap_navigation));
+        s.push_str(&format!(
+            "undo_limit           = {}  # maximum undo history depth\n",
+            self.undo_limit
+        ));
+        s.push_str(&format!(
+            "autosave_interval    = {}    # seconds between auto-saves (0 = disabled)\n",
+            self.autosave_interval
+        ));
+        s.push_str(&format!(
+            "backup_on_save       = {}  # write a .bak file before overwriting\n",
+            self.backup_on_save
+        ));
+        s.push_str(&format!(
+            "confirm_delete       = {}  # ask before dd / :dr / :dc\n",
+            self.confirm_delete
+        ));
+        s.push_str(&format!(
+            "wrap_navigation      = {}  # wrap cursor at sheet edges\n\n",
+            self.wrap_navigation
+        ));
 
         // Number formatting
         s.push_str("# ── Number formatting ────────────────────────────────────────────────────\n");
-        s.push_str(&format!("number_precision     = {}    # max decimal places for unformatted numbers (0–15)\n", self.number_precision));
-        s.push_str(&format!("date_format          = {:?}  # date display format (YYYY MM DD HH mm ss)\n\n", self.date_format));
+        s.push_str(&format!(
+            "number_precision     = {}    # max decimal places for unformatted numbers (0–15)\n",
+            self.number_precision
+        ));
+        s.push_str(&format!(
+            "date_format          = {:?}  # date display format (YYYY MM DD HH mm ss)\n\n",
+            self.date_format
+        ));
 
         // Files
         s.push_str("# ── Files ────────────────────────────────────────────────────────────────\n");
-        s.push_str(&format!("default_format       = {:?}    # fallback format when saving without extension\n", self.default_format));
-        s.push_str(&format!("csv_delimiter        = {:?}      # CSV field separator\n", self.csv_delimiter));
-        s.push_str(&format!("remember_recent      = {}   # recent files shown on welcome screen\n\n", self.remember_recent));
+        s.push_str(&format!(
+            "default_format       = {:?}    # fallback format when saving without extension\n",
+            self.default_format
+        ));
+        s.push_str(&format!(
+            "csv_delimiter        = {:?}      # CSV field separator\n",
+            self.csv_delimiter
+        ));
+        s.push_str(&format!(
+            "remember_recent      = {}   # recent files shown on welcome screen\n\n",
+            self.remember_recent
+        ));
 
         // [theme] block — only when using custom colors
         if !using_preset {
-            s.push_str("# ── Custom colors (active when theme_name = \"custom\" or \"\") ────────────\n");
+            s.push_str(
+                "# ── Custom colors (active when theme_name = \"custom\" or \"\") ────────────\n",
+            );
             s.push_str("[theme]\n");
-            s.push_str(&format!("cursor_bg          = {:?}\n", self.theme.cursor_bg));
-            s.push_str(&format!("cursor_fg          = {:?}\n", self.theme.cursor_fg));
-            s.push_str(&format!("header_bg          = {:?}\n", self.theme.header_bg));
-            s.push_str(&format!("header_fg          = {:?}\n", self.theme.header_fg));
+            s.push_str(&format!(
+                "cursor_bg          = {:?}\n",
+                self.theme.cursor_bg
+            ));
+            s.push_str(&format!(
+                "cursor_fg          = {:?}\n",
+                self.theme.cursor_fg
+            ));
+            s.push_str(&format!(
+                "header_bg          = {:?}\n",
+                self.theme.header_bg
+            ));
+            s.push_str(&format!(
+                "header_fg          = {:?}\n",
+                self.theme.header_fg
+            ));
             s.push_str(&format!("cell_bg            = {:?}\n", self.theme.cell_bg));
-            s.push_str(&format!("selection_bg       = {:?}\n", self.theme.selection_bg));
-            s.push_str(&format!("number_color       = {:?}\n", self.theme.number_color));
-            s.push_str(&format!("normal_mode_color  = {:?}\n", self.theme.normal_mode_color));
-            s.push_str(&format!("insert_mode_color  = {:?}\n", self.theme.insert_mode_color));
-            s.push_str(&format!("visual_mode_color  = {:?}\n", self.theme.visual_mode_color));
-            s.push_str(&format!("command_mode_color = {:?}\n", self.theme.command_mode_color));
+            s.push_str(&format!(
+                "selection_bg       = {:?}\n",
+                self.theme.selection_bg
+            ));
+            s.push_str(&format!(
+                "number_color       = {:?}\n",
+                self.theme.number_color
+            ));
+            s.push_str(&format!(
+                "normal_mode_color  = {:?}\n",
+                self.theme.normal_mode_color
+            ));
+            s.push_str(&format!(
+                "insert_mode_color  = {:?}\n",
+                self.theme.insert_mode_color
+            ));
+            s.push_str(&format!(
+                "visual_mode_color  = {:?}\n",
+                self.theme.visual_mode_color
+            ));
+            s.push_str(&format!(
+                "command_mode_color = {:?}\n",
+                self.theme.command_mode_color
+            ));
         }
 
         s

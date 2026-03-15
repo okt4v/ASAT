@@ -1,11 +1,11 @@
 use crate::ThemeConfig;
 
 pub struct ThemePreset {
-    pub id:          &'static str,
-    pub name:        &'static str,
-    pub dark:        bool,
+    pub id: &'static str,
+    pub name: &'static str,
+    pub dark: bool,
     pub description: &'static str,
-    pub config:      ThemeConfig,
+    pub config: ThemeConfig,
 }
 
 macro_rules! theme {
@@ -23,18 +23,21 @@ macro_rules! theme {
         command:      $command:expr,
     ) => {
         ThemePreset {
-            id: $id, name: $name, dark: $dark, description: $desc,
+            id: $id,
+            name: $name,
+            dark: $dark,
+            description: $desc,
             config: ThemeConfig {
-                cursor_bg:          $cursor_bg.to_string(),
-                cursor_fg:          "#000000".to_string(),
-                header_bg:          $header_bg.to_string(),
-                header_fg:          $header_fg.to_string(),
-                cell_bg:            $cell_bg.to_string(),
-                selection_bg:       $sel_bg.to_string(),
-                number_color:       $num.to_string(),
-                normal_mode_color:  $normal.to_string(),
-                insert_mode_color:  $insert.to_string(),
-                visual_mode_color:  $visual.to_string(),
+                cursor_bg: $cursor_bg.to_string(),
+                cursor_fg: "#000000".to_string(),
+                header_bg: $header_bg.to_string(),
+                header_fg: $header_fg.to_string(),
+                cell_bg: $cell_bg.to_string(),
+                selection_bg: $sel_bg.to_string(),
+                number_color: $num.to_string(),
+                normal_mode_color: $normal.to_string(),
+                insert_mode_color: $insert.to_string(),
+                visual_mode_color: $visual.to_string(),
                 command_mode_color: $command.to_string(),
             },
         }

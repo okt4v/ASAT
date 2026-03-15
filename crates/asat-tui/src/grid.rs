@@ -1,4 +1,5 @@
-use asat_core::{col_to_letter, CellValue, CellStyle};
+use crate::{darken, parse_hex_color, RenderState};
+use asat_core::{col_to_letter, CellStyle, CellValue};
 use asat_input::{Mode, VisualAnchor};
 use ratatui::{
     buffer::Buffer,
@@ -8,7 +9,6 @@ use ratatui::{
     Frame,
 };
 use unicode_width::UnicodeWidthStr;
-use crate::{darken, parse_hex_color, RenderState};
 
 /// Width of the row number gutter
 const ROW_GUTTER_WIDTH: u16 = 5;
@@ -38,14 +38,14 @@ impl<'a> Widget for GridWidget<'a> {
         let theme = &self.state.config.theme;
 
         // Resolve theme colors
-        let cursor_bg    = parse_hex_color(&theme.cursor_bg);
-        let header_bg    = parse_hex_color(&theme.header_bg);
-        let header_fg    = parse_hex_color(&theme.header_fg);
-        let cell_bg      = parse_hex_color(&theme.cell_bg);
+        let cursor_bg = parse_hex_color(&theme.cursor_bg);
+        let header_bg = parse_hex_color(&theme.header_bg);
+        let header_fg = parse_hex_color(&theme.header_fg);
+        let cell_bg = parse_hex_color(&theme.cell_bg);
         let selection_bg = parse_hex_color(&theme.selection_bg);
         let number_color = parse_hex_color(&theme.number_color);
-        let cmd_color    = parse_hex_color(&theme.command_mode_color);
-        let vis_color    = parse_hex_color(&theme.visual_mode_color);
+        let cmd_color = parse_hex_color(&theme.command_mode_color);
+        let vis_color = parse_hex_color(&theme.visual_mode_color);
         let insert_color = parse_hex_color(&theme.insert_mode_color);
         let normal_color = parse_hex_color(&theme.normal_mode_color);
 
@@ -62,10 +62,16 @@ impl<'a> Widget for GridWidget<'a> {
             let w = w.min(available_width.saturating_sub(frozen_col_width));
             frozen_cols.push((fc, w));
             frozen_col_width += w;
-            if frozen_col_width >= available_width { break; }
+            if frozen_col_width >= available_width {
+                break;
+            }
         }
         // 1-char separator between frozen and scrollable cols (only if freeze_cols > 0)
-        let freeze_col_sep = if freeze_cols > 0 && frozen_col_width < available_width { 1u16 } else { 0u16 };
+        let freeze_col_sep = if freeze_cols > 0 && frozen_col_width < available_width {
+            1u16
+        } else {
+            0u16
+        };
         let scroll_col_available = available_width
             .saturating_sub(frozen_col_width)
             .saturating_sub(freeze_col_sep);
@@ -84,13 +90,19 @@ impl<'a> Widget for GridWidget<'a> {
             let mut x_offset = 0u16;
             let mut c = scroll_left;
             loop {
-                if x_offset >= scroll_col_available { break; }
+                if x_offset >= scroll_col_available {
+                    break;
+                }
                 let col_width = sheet.col_width(c).max(MIN_COL_WIDTH);
                 scroll_cols.push((c, col_width.min(scroll_col_available - x_offset)));
                 x_offset += col_width.min(scroll_col_available - x_offset);
-                if x_offset >= scroll_col_available { break; }
+                if x_offset >= scroll_col_available {
+                    break;
+                }
                 c += 1;
-                if c > 10000 { break; }
+                if c > 10000 {
+                    break;
+                }
             }
         }
 
@@ -101,7 +113,14 @@ impl<'a> Widget for GridWidget<'a> {
             .add_modifier(Modifier::BOLD);
 
         // ── Header row ───────────────────────────────────────────────────────
-        render_cell_str(buf, area.x, header_y, ROW_GUTTER_WIDTH, "     ", corner_style);
+        render_cell_str(
+            buf,
+            area.x,
+            header_y,
+            ROW_GUTTER_WIDTH,
+            "     ",
+            corner_style,
+        );
 
         let mut x = area.x + ROW_GUTTER_WIDTH;
         // Frozen col headers
@@ -109,9 +128,15 @@ impl<'a> Widget for GridWidget<'a> {
             let label = col_to_letter(*col_idx);
             let is_cursor_col = *col_idx == cursor.col;
             let hdr_style = if is_cursor_col {
-                Style::default().fg(Color::Black).bg(cursor_bg).add_modifier(Modifier::BOLD)
+                Style::default()
+                    .fg(Color::Black)
+                    .bg(cursor_bg)
+                    .add_modifier(Modifier::BOLD)
             } else {
-                Style::default().fg(header_fg).bg(darken(header_bg, 0.7)).add_modifier(Modifier::BOLD)
+                Style::default()
+                    .fg(header_fg)
+                    .bg(darken(header_bg, 0.7))
+                    .add_modifier(Modifier::BOLD)
             };
             render_cell_centered(buf, x, header_y, *col_width, &label, hdr_style);
             x += col_width;
@@ -127,7 +152,10 @@ impl<'a> Widget for GridWidget<'a> {
             let label = col_to_letter(*col_idx);
             let is_cursor_col = *col_idx == cursor.col;
             let hdr_style = if is_cursor_col {
-                Style::default().fg(Color::Black).bg(cursor_bg).add_modifier(Modifier::BOLD)
+                Style::default()
+                    .fg(Color::Black)
+                    .bg(cursor_bg)
+                    .add_modifier(Modifier::BOLD)
             } else {
                 corner_style
             };
@@ -150,25 +178,54 @@ impl<'a> Widget for GridWidget<'a> {
             let screen_y = area.y + 1 + frozen_r;
             let is_cursor_row = row_idx == cursor.row;
             let gutter_style = if is_cursor_row {
-                Style::default().fg(Color::Black).bg(cursor_bg).add_modifier(Modifier::BOLD)
+                Style::default()
+                    .fg(Color::Black)
+                    .bg(cursor_bg)
+                    .add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(header_fg).bg(darken(header_bg, 0.7))
             };
             let gutter_text = format!("{:>4}┃", row_idx + 1);
-            render_cell_str(buf, area.x, screen_y, ROW_GUTTER_WIDTH, &gutter_text, gutter_style);
+            render_cell_str(
+                buf,
+                area.x,
+                screen_y,
+                ROW_GUTTER_WIDTH,
+                &gutter_text,
+                gutter_style,
+            );
 
             let mut x = area.x + ROW_GUTTER_WIDTH;
             for &(col_idx, col_width) in &all_col_groups {
                 if col_idx == u32::MAX {
-                    let sep_style = Style::default().fg(darken(header_fg, 0.6)).bg(darken(header_bg, 0.5));
+                    let sep_style = Style::default()
+                        .fg(darken(header_fg, 0.6))
+                        .bg(darken(header_bg, 0.5));
                     render_cell_str(buf, x, screen_y, col_width, "┃", sep_style);
                     x += col_width;
                     continue;
                 }
-                render_data_cell(buf, x, screen_y, col_width, row_idx, col_idx, cursor,
-                    &input.mode, input.visual_anchor.as_ref(), input.search_highlight(row_idx, col_idx),
-                    sheet, &input.edit_buffer,
-                    cursor_bg, cell_bg, selection_bg, number_color, cmd_color, vis_color, insert_color, normal_color,
+                render_data_cell(
+                    buf,
+                    x,
+                    screen_y,
+                    col_width,
+                    row_idx,
+                    col_idx,
+                    cursor,
+                    &input.mode,
+                    input.visual_anchor.as_ref(),
+                    input.search_highlight(row_idx, col_idx),
+                    sheet,
+                    &input.edit_buffer,
+                    cursor_bg,
+                    cell_bg,
+                    selection_bg,
+                    number_color,
+                    cmd_color,
+                    vis_color,
+                    insert_color,
+                    normal_color,
                 );
                 if sheet.notes.contains_key(&(row_idx, col_idx)) {
                     if let Some(cell) = buf.cell_mut((x + col_width.saturating_sub(1), screen_y)) {
@@ -183,7 +240,9 @@ impl<'a> Widget for GridWidget<'a> {
         // ── Frozen row separator ─────────────────────────────────────────────
         if freeze_rows > 0 && freeze_row_sep > 0 {
             let sep_y = area.y + 1 + freeze_rows;
-            let sep_style = Style::default().fg(darken(header_fg, 0.6)).bg(darken(header_bg, 0.5));
+            let sep_style = Style::default()
+                .fg(darken(header_fg, 0.6))
+                .bg(darken(header_bg, 0.5));
             for dx in 0..area.width {
                 if let Some(cell) = buf.cell_mut((area.x + dx, sep_y)) {
                     cell.set_char('━');
@@ -197,7 +256,12 @@ impl<'a> Widget for GridWidget<'a> {
         let mut row_idx = viewport.top_row.max(freeze_rows as u32);
         while screen_y < data_y + data_height {
             // Skip hidden rows (filter)
-            if sheet.row_meta.get(&row_idx).map(|m| m.hidden).unwrap_or(false) {
+            if sheet
+                .row_meta
+                .get(&row_idx)
+                .map(|m| m.hidden)
+                .unwrap_or(false)
+            {
                 row_idx += 1;
                 continue;
             }
@@ -224,26 +288,50 @@ impl<'a> Widget for GridWidget<'a> {
                     .bg(cursor_bg)
                     .add_modifier(Modifier::BOLD)
             } else {
-                Style::default()
-                    .fg(header_fg)
-                    .bg(header_bg)
+                Style::default().fg(header_fg).bg(header_bg)
             };
-            render_cell_str(buf, area.x, screen_y, ROW_GUTTER_WIDTH, &gutter_text, gutter_style);
+            render_cell_str(
+                buf,
+                area.x,
+                screen_y,
+                ROW_GUTTER_WIDTH,
+                &gutter_text,
+                gutter_style,
+            );
 
             let mut x = area.x + ROW_GUTTER_WIDTH;
             for (col_idx, col_width) in &all_col_groups {
                 if *col_idx == u32::MAX {
                     // Freeze separator column
-                    let sep_style = Style::default().fg(darken(header_fg, 0.6)).bg(darken(header_bg, 0.5));
+                    let sep_style = Style::default()
+                        .fg(darken(header_fg, 0.6))
+                        .bg(darken(header_bg, 0.5));
                     render_cell_str(buf, x, screen_y, *col_width, "┃", sep_style);
                     x += col_width;
                     continue;
                 }
 
-                render_data_cell(buf, x, screen_y, *col_width, row_idx, *col_idx, cursor,
-                    &input.mode, input.visual_anchor.as_ref(), input.search_highlight(row_idx, *col_idx),
-                    sheet, &input.edit_buffer,
-                    cursor_bg, cell_bg, selection_bg, number_color, cmd_color, vis_color, insert_color, normal_color,
+                render_data_cell(
+                    buf,
+                    x,
+                    screen_y,
+                    *col_width,
+                    row_idx,
+                    *col_idx,
+                    cursor,
+                    &input.mode,
+                    input.visual_anchor.as_ref(),
+                    input.search_highlight(row_idx, *col_idx),
+                    sheet,
+                    &input.edit_buffer,
+                    cursor_bg,
+                    cell_bg,
+                    selection_bg,
+                    number_color,
+                    cmd_color,
+                    vis_color,
+                    insert_color,
+                    normal_color,
                 );
                 // Note indicator — small amber marker in top-right corner of the cell
                 if sheet.notes.contains_key(&(row_idx, *col_idx)) {
@@ -259,15 +347,15 @@ impl<'a> Widget for GridWidget<'a> {
             // ── Extra lines for tall rows (background fill) ───────────────────
             for extra in 1..row_h {
                 let ey = screen_y + extra;
-                if ey >= data_y + data_height { break; }
+                if ey >= data_y + data_height {
+                    break;
+                }
 
                 // Gutter continuation marker
                 let cont_style = if is_cursor_row {
                     gutter_style
                 } else {
-                    Style::default()
-                        .fg(darken(header_fg, 0.6))
-                        .bg(header_bg)
+                    Style::default().fg(darken(header_fg, 0.6)).bg(header_bg)
                 };
                 render_cell_str(buf, area.x, ey, ROW_GUTTER_WIDTH, "    │", cont_style);
 
@@ -275,7 +363,9 @@ impl<'a> Widget for GridWidget<'a> {
                 let mut ex = area.x + ROW_GUTTER_WIDTH;
                 for (col_idx, col_width) in &all_col_groups {
                     let bg_style = if *col_idx == u32::MAX {
-                        Style::default().fg(darken(header_fg, 0.6)).bg(darken(header_bg, 0.5))
+                        Style::default()
+                            .fg(darken(header_fg, 0.6))
+                            .bg(darken(header_bg, 0.5))
                     } else if is_cursor_row {
                         Style::default().fg(Color::Black).bg(cell_bg)
                     } else {
@@ -295,8 +385,11 @@ impl<'a> Widget for GridWidget<'a> {
 #[allow(clippy::too_many_arguments)]
 fn render_data_cell(
     buf: &mut Buffer,
-    x: u16, y: u16, col_width: u16,
-    row_idx: u32, col_idx: u32,
+    x: u16,
+    y: u16,
+    col_width: u16,
+    row_idx: u32,
+    col_idx: u32,
     cursor: asat_input::Cursor,
     mode: &Mode,
     visual_anchor: Option<&asat_input::VisualAnchor>,
@@ -315,14 +408,20 @@ fn render_data_cell(
     let is_cursor = row_idx == cursor.row && col_idx == cursor.col;
 
     let is_fref_cursor = matches!(mode, Mode::FormulaSelect { .. })
-        && row_idx == cursor.row && col_idx == cursor.col;
-    let is_fref_range = if let Mode::FormulaSelect { anchor: Some((ar, ac)) } = mode {
+        && row_idx == cursor.row
+        && col_idx == cursor.col;
+    let is_fref_range = if let Mode::FormulaSelect {
+        anchor: Some((ar, ac)),
+    } = mode
+    {
         let r_min = (*ar).min(cursor.row);
         let r_max = (*ar).max(cursor.row);
         let c_min = (*ac).min(cursor.col);
         let c_max = (*ac).max(cursor.col);
         row_idx >= r_min && row_idx <= r_max && col_idx >= c_min && col_idx <= c_max
-    } else { false };
+    } else {
+        false
+    };
 
     let is_visual = is_in_visual_selection(row_idx, col_idx, visual_anchor, cursor, mode);
 
@@ -335,17 +434,30 @@ fn render_data_cell(
     let raw_value = sheet.get_value(row_idx, col_idx);
 
     let cell_style = if is_fref_cursor {
-        Style::default().fg(Color::Black).bg(normal_color).add_modifier(Modifier::BOLD)
+        Style::default()
+            .fg(Color::Black)
+            .bg(normal_color)
+            .add_modifier(Modifier::BOLD)
     } else if is_fref_range {
-        Style::default().fg(Color::Black).bg(darken(insert_color, 0.55))
+        Style::default()
+            .fg(Color::Black)
+            .bg(darken(insert_color, 0.55))
     } else if is_cursor {
-        Style::default().fg(Color::Black).bg(cursor_bg).add_modifier(Modifier::BOLD)
+        Style::default()
+            .fg(Color::Black)
+            .bg(cursor_bg)
+            .add_modifier(Modifier::BOLD)
     } else if is_visual {
         Style::default().fg(Color::Black).bg(selection_bg)
     } else if search_hl == Some(true) {
-        Style::default().fg(Color::Black).bg(cmd_color).add_modifier(Modifier::BOLD)
+        Style::default()
+            .fg(Color::Black)
+            .bg(cmd_color)
+            .add_modifier(Modifier::BOLD)
     } else if search_hl == Some(false) {
-        Style::default().fg(Color::Black).bg(darken(vis_color, 0.75))
+        Style::default()
+            .fg(Color::Black)
+            .bg(darken(vis_color, 0.75))
     } else {
         let user_style: Option<&CellStyle> = sheet
             .get_cell(row_idx, col_idx)
@@ -367,25 +479,31 @@ fn render_data_cell(
             .unwrap_or(default_fg);
         let mut s = Style::default().fg(fg).bg(bg);
         if let Some(us) = user_style {
-            if us.bold          { s = s.add_modifier(Modifier::BOLD);        }
-            if us.italic        { s = s.add_modifier(Modifier::ITALIC);      }
-            if us.underline     { s = s.add_modifier(Modifier::UNDERLINED);  }
-            if us.strikethrough { s = s.add_modifier(Modifier::CROSSED_OUT); }
+            if us.bold {
+                s = s.add_modifier(Modifier::BOLD);
+            }
+            if us.italic {
+                s = s.add_modifier(Modifier::ITALIC);
+            }
+            if us.underline {
+                s = s.add_modifier(Modifier::UNDERLINED);
+            }
+            if us.strikethrough {
+                s = s.add_modifier(Modifier::CROSSED_OUT);
+            }
         }
         s
     };
 
     use asat_core::Alignment;
-    let user_align = sheet.get_cell(row_idx, col_idx)
+    let user_align = sheet
+        .get_cell(row_idx, col_idx)
         .and_then(|c| c.style.as_ref())
         .map(|s| s.align.clone());
     match user_align {
-        Some(Alignment::Right) =>
-            render_cell_right(buf, x, y, col_width, &display, cell_style),
-        Some(Alignment::Center) =>
-            render_cell_centered(buf, x, y, col_width, &display, cell_style),
-        Some(Alignment::Left) =>
-            render_cell_str(buf, x, y, col_width, &display, cell_style),
+        Some(Alignment::Right) => render_cell_right(buf, x, y, col_width, &display, cell_style),
+        Some(Alignment::Center) => render_cell_centered(buf, x, y, col_width, &display, cell_style),
+        Some(Alignment::Left) => render_cell_str(buf, x, y, col_width, &display, cell_style),
         _ => {
             if matches!(raw_value, CellValue::Number(_) | CellValue::Boolean(_)) {
                 render_cell_right(buf, x, y, col_width, &display, cell_style);
@@ -397,18 +515,20 @@ fn render_data_cell(
 }
 
 fn is_in_visual_selection(
-    row: u32, col: u32,
+    row: u32,
+    col: u32,
     anchor: Option<&VisualAnchor>,
     cursor: asat_input::Cursor,
     mode: &Mode,
 ) -> bool {
-    let anchor = match anchor { Some(a) => a, None => return false };
+    let anchor = match anchor {
+        Some(a) => a,
+        None => return false,
+    };
     let r_min = cursor.row.min(anchor.row);
     let r_max = cursor.row.max(anchor.row);
     match mode {
-        Mode::VisualLine => {
-            row >= r_min && row <= r_max
-        }
+        Mode::VisualLine => row >= r_min && row <= r_max,
         Mode::Visual { block: true } => {
             // Column select: all rows, bounded by column range only
             let c_min = cursor.col.min(anchor.col);
@@ -426,7 +546,9 @@ fn is_in_visual_selection(
 
 /// Render a fixed-width cell left-aligned. Appends "…" (single char) if content is wider.
 fn render_cell_str(buf: &mut Buffer, x: u16, y: u16, width: u16, content: &str, style: Style) {
-    if width == 0 { return; }
+    if width == 0 {
+        return;
+    }
     // Fill background
     for dx in 0..width {
         if let Some(cell) = buf.cell_mut((x + dx, y)) {
@@ -437,13 +559,21 @@ fn render_cell_str(buf: &mut Buffer, x: u16, y: u16, width: u16, content: &str, 
     let content_w = UnicodeWidthStr::width(content) as u16;
     let truncated = content_w > width;
     // Reserve 1 char for the ellipsis indicator when truncating
-    let text_budget = if truncated && width > 1 { width - 1 } else { width };
+    let text_budget = if truncated && width > 1 {
+        width - 1
+    } else {
+        width
+    };
 
     let mut dx = 0u16;
     for ch in content.chars() {
-        if dx >= text_budget { break; }
+        if dx >= text_budget {
+            break;
+        }
         let cw = unicode_width::UnicodeWidthChar::width(ch).unwrap_or(1) as u16;
-        if dx + cw > text_budget { break; }
+        if dx + cw > text_budget {
+            break;
+        }
         if let Some(cell) = buf.cell_mut((x + dx, y)) {
             cell.set_char(ch);
             cell.set_style(style);
@@ -462,7 +592,9 @@ fn render_cell_str(buf: &mut Buffer, x: u16, y: u16, width: u16, content: &str, 
 
 /// Right-aligned cell render. Shows "####" when a number won't fit (Excel convention).
 fn render_cell_right(buf: &mut Buffer, x: u16, y: u16, width: u16, content: &str, style: Style) {
-    if width == 0 { return; }
+    if width == 0 {
+        return;
+    }
     for dx in 0..width {
         if let Some(cell) = buf.cell_mut((x + dx, y)) {
             cell.set_char(' ');
@@ -472,7 +604,9 @@ fn render_cell_right(buf: &mut Buffer, x: u16, y: u16, width: u16, content: &str
     let display_width = UnicodeWidthStr::width(content) as u16;
     if display_width > width {
         // Too wide — show #### like Excel (reversed style = always readable)
-        let hash_style = style.add_modifier(Modifier::REVERSED).add_modifier(Modifier::BOLD);
+        let hash_style = style
+            .add_modifier(Modifier::REVERSED)
+            .add_modifier(Modifier::BOLD);
         for dx in 0..width {
             if let Some(cell) = buf.cell_mut((x + dx, y)) {
                 cell.set_char('#');
@@ -484,9 +618,13 @@ fn render_cell_right(buf: &mut Buffer, x: u16, y: u16, width: u16, content: &str
     let start_dx = width - display_width;
     let mut dx = start_dx;
     for ch in content.chars() {
-        if dx >= width { break; }
+        if dx >= width {
+            break;
+        }
         let cw = unicode_width::UnicodeWidthChar::width(ch).unwrap_or(1) as u16;
-        if dx + cw > width { break; }
+        if dx + cw > width {
+            break;
+        }
         if let Some(cell) = buf.cell_mut((x + dx, y)) {
             cell.set_char(ch);
             cell.set_style(style);
@@ -497,7 +635,9 @@ fn render_cell_right(buf: &mut Buffer, x: u16, y: u16, width: u16, content: &str
 
 /// Center-aligned cell render (for column headers)
 fn render_cell_centered(buf: &mut Buffer, x: u16, y: u16, width: u16, content: &str, style: Style) {
-    if width == 0 { return; }
+    if width == 0 {
+        return;
+    }
     for dx in 0..width {
         if let Some(cell) = buf.cell_mut((x + dx, y)) {
             cell.set_char(' ');
@@ -505,12 +645,20 @@ fn render_cell_centered(buf: &mut Buffer, x: u16, y: u16, width: u16, content: &
         }
     }
     let display_width = UnicodeWidthStr::width(content) as u16;
-    let start_dx = if display_width < width { (width - display_width) / 2 } else { 0 };
+    let start_dx = if display_width < width {
+        (width - display_width) / 2
+    } else {
+        0
+    };
     let mut dx = start_dx;
     for ch in content.chars() {
-        if dx >= width { break; }
+        if dx >= width {
+            break;
+        }
         let ch_width = unicode_width::UnicodeWidthChar::width(ch).unwrap_or(1) as u16;
-        if dx + ch_width > width { break; }
+        if dx + ch_width > width {
+            break;
+        }
         if let Some(cell) = buf.cell_mut((x + dx, y)) {
             cell.set_char(ch);
             cell.set_style(style);

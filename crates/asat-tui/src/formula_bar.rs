@@ -1,3 +1,4 @@
+use crate::{parse_hex_color, RenderState};
 use asat_core::cell_address;
 use asat_input::Mode;
 use ratatui::{
@@ -7,12 +8,11 @@ use ratatui::{
     widgets::Paragraph,
     Frame,
 };
-use crate::{parse_hex_color, RenderState};
 
 pub fn render(frame: &mut Frame, area: Rect, state: &RenderState<'_>) {
     let cursor = state.input.cursor;
-    let sheet  = state.workbook.active();
-    let theme  = &state.config.theme;
+    let sheet = state.workbook.active();
+    let theme = &state.config.theme;
 
     // In FormulaSelect mode, the address shows where we started editing (formula_origin),
     // not where the selection cursor is now.
@@ -22,14 +22,17 @@ pub fn render(frame: &mut Frame, area: Rect, state: &RenderState<'_>) {
         cell_address(cursor.row, cursor.col)
     };
 
-    let cursor_bg  = parse_hex_color(&theme.cursor_bg);
-    let header_bg  = parse_hex_color(&theme.header_bg);
-    let header_fg  = parse_hex_color(&theme.header_fg);
-    let normal_c   = parse_hex_color(&theme.normal_mode_color);
-    let insert_c   = parse_hex_color(&theme.insert_mode_color);
+    let cursor_bg = parse_hex_color(&theme.cursor_bg);
+    let header_bg = parse_hex_color(&theme.header_bg);
+    let header_fg = parse_hex_color(&theme.header_fg);
+    let normal_c = parse_hex_color(&theme.normal_mode_color);
+    let insert_c = parse_hex_color(&theme.insert_mode_color);
 
-    let addr_style    = Style::default().fg(Color::Black).bg(cursor_bg).add_modifier(Modifier::BOLD);
-    let sep_style     = Style::default().fg(header_fg).bg(header_bg);
+    let addr_style = Style::default()
+        .fg(Color::Black)
+        .bg(cursor_bg)
+        .add_modifier(Modifier::BOLD);
+    let sep_style = Style::default().fg(header_fg).bg(header_bg);
     let content_style = Style::default().fg(Color::White).bg(header_bg);
 
     let spans = match &state.input.mode {
@@ -48,9 +51,11 @@ pub fn render(frame: &mut Frame, area: Rect, state: &RenderState<'_>) {
 
             let preview_ref = if let Some((ar, ac)) = anchor {
                 // Range in progress
-                format!("{}:{}",
+                format!(
+                    "{}:{}",
                     cell_address(*ar, *ac),
-                    cell_address(cursor.row, cursor.col))
+                    cell_address(cursor.row, cursor.col)
+                )
             } else {
                 // Single cell
                 cell_address(cursor.row, cursor.col)
@@ -72,8 +77,11 @@ pub fn render(frame: &mut Frame, area: Rect, state: &RenderState<'_>) {
                 Span::styled(formula_so_far, content_style),
                 Span::styled(format!(" {}", preview_ref), ref_style),
                 Span::styled(
-                    if anchor.is_some() { "  [Enter] insert range  [:] re-anchor  [Esc] cancel" }
-                    else { "  [Enter] insert ref  [:] start range  [Esc] cancel" },
+                    if anchor.is_some() {
+                        "  [Enter] insert range  [:] re-anchor  [Esc] cancel"
+                    } else {
+                        "  [Enter] insert ref  [:] start range  [Esc] cancel"
+                    },
                     hint_style,
                 ),
             ]
@@ -81,7 +89,9 @@ pub fn render(frame: &mut Frame, area: Rect, state: &RenderState<'_>) {
 
         _ => {
             // Normal mode — show raw formula, not computed value
-            let raw = sheet.get_raw_value(cursor.row, cursor.col).formula_bar_display();
+            let raw = sheet
+                .get_raw_value(cursor.row, cursor.col)
+                .formula_bar_display();
             vec![
                 Span::styled(format!(" {:>6} ", addr), addr_style),
                 Span::styled(" │ ", sep_style),
