@@ -202,6 +202,8 @@ Enter command mode with `:`.
 | `:fmt <spec>` | Number format: `%`, `$`, `0.00`, `int`, `date`, `none` |
 | `:cs` | Clear all styles |
 | `:theme [name]` | Open theme picker or apply a theme by name |
+| `:sort [asc\|desc]` | Sort all rows by the current cursor column (undoable) |
+| `:s/pat/repl/[g][i]` | Find & replace in text cells — `g` = all occurrences, `i` = case-insensitive (undoable) |
 
 Tab-completion works in command mode — press `Tab` to cycle through matching commands.
 

@@ -1201,6 +1201,8 @@
             <tr><td class="keys"><span style="color:var(--text-muted);font-size:0.82rem">:dr [N] / :deleterow [N]</span></td><td>Delete row at cursor or line N (undoable)</td></tr>
             <tr><td class="keys"><span style="color:var(--text-muted);font-size:0.82rem">:cw &lt;N&gt; / :colwidth &lt;N&gt;</span></td><td>Set current column width to exactly N chars</td></tr>
             <tr><td class="keys"><span style="color:var(--text-muted);font-size:0.82rem">:rh &lt;N&gt; / :rowheight &lt;N&gt;</span></td><td>Set current row height to exactly N lines</td></tr>
+            <tr><td class="keys"><span style="color:var(--text-muted);font-size:0.82rem">:sort [asc|desc]</span></td><td>Sort all rows by cursor column (undoable)</td></tr>
+            <tr><td class="keys"><span style="color:var(--text-muted);font-size:0.82rem">:s/pat/repl/[g][i]</span></td><td>Find &amp; replace in text cells (undoable)</td></tr>
           </tbody>
         </table>
       </div>
@@ -1387,6 +1389,10 @@
             </tr>
             <tr><td><code style="color:var(--teal);font-family:var(--mono)">:theme &lt;name&gt;</code></td><td>Apply a named theme directly (Tab-completes available names)</td></tr>
             <tr><td><code style="color:var(--teal);font-family:var(--mono)">:set &lt;option&gt;</code></td><td>Set a configuration option at runtime</td></tr>
+            <tr style="border-top:1px solid var(--border2)">
+              <td><code style="color:var(--teal);font-family:var(--mono)">:sort [asc|desc]</code></td><td>Sort all rows by the current cursor column (undoable; default asc)</td>
+            </tr>
+            <tr><td><code style="color:var(--teal);font-family:var(--mono)">:s/pat/repl/[g][i]</code></td><td>Find &amp; replace in text cells — <code>g</code> = all occurrences, <code>i</code> = case-insensitive, undoable</td></tr>
           </tbody>
         </table>
       </div>
