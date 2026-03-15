@@ -1,6 +1,6 @@
 # ASAT — A Spreadsheet And Terminal
 
-> Terminal spreadsheet editor for Vim users. Modal editing (Normal/Insert/Visual/Command), 30+ live formulas, multi-sheet workbooks, CSV · XLSX · ODS support, full undo stack, system clipboard, macros, and marks. Written in Rust with ratatui.
+> Terminal spreadsheet editor for Vim users. Modal editing (Normal/Insert/Visual/Command), 40+ live formulas, multi-sheet workbooks, CSV · XLSX · ODS support, full undo stack, system clipboard, named ranges, filter/freeze panes, cell notes, conditional formatting, macros, and marks. Written in Rust with ratatui.
 
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Built with Rust](https://img.shields.io/badge/built%20with-Rust-orange.svg)](https://www.rust-lang.org)
@@ -12,12 +12,24 @@
 ## Features
 
 - **Modal editing** — Normal, Insert, Visual (char/line/block), Command, Search, and Macro Recording modes, exactly like Vim
-- **Live formula engine** — 30+ built-in functions across math, text, logic, and lookup. Formulas re-evaluate after every edit
+- **Live formula engine** — 40+ built-in functions across math, text, logic, lookup, statistical, and finance. Includes `AVERAGEIF`, `MAXIFS`, `MINIFS`, `RANK`, `PERCENTILE`, `QUARTILE`, `XLOOKUP`, and `CHOOSE`. Formulas re-evaluate after every edit (lazy dirty-cell tracking)
+- **Named ranges** — `:name SALES A1:C10` defines a named range usable in formulas as `=SUM(SALES)`
 - **Multi-sheet workbooks** — tab bar, `:tabnew`, `:tabclose`, `gt` / `gT` to switch sheets
-- **File format support** — read and write CSV, TSV, XLSX, and ODS (OpenDocument Spreadsheet); native `.asat` format with bincode + zstd compression
-- **System clipboard** — all yank operations (`yy`, `yc`, visual `y`) copy to your OS clipboard as tab-separated text
+- **File format support** — read and write CSV, TSV, XLSX, and ODS (OpenDocument Spreadsheet); native `.asat` format with bincode + zstd compression; ODS formula round-trip with cached computed values
+- **System clipboard** — yank (`yy`, `yc`, visual `y`) copies as TSV; `Ctrl+V` in Insert mode pastes from system clipboard
 - **Full undo stack** — 1000-deep undo/redo covering cell edits, row/column operations, pastes, and style changes
 - **Sort & find/replace** — `:sort asc/desc` sorts rows by the cursor column; `:s/pat/repl/g` does regex find & replace across cells; both undoable
+- **Filter rows** — `:filter <col> <op> <val>` hides non-matching rows (supports `=`, `!=`, `>`, `<`, `>=`, `<=`, `~`); `:filter off` restores all rows
+- **Freeze panes** — frozen rows and columns render as sticky headers with a visual separator; set via `:freeze rows N` / `:freeze cols N`
+- **Fill down / right** — `Ctrl+D` / `Ctrl+R` in Visual mode; also `:filldown` / `:fillright` ex-commands
+- **Goto cell** — `g<letter>` jumps to a column; `:goto B15` jumps to any cell address
+- **Transpose** — `:transpose` swaps rows and columns in the visual selection
+- **Remove duplicates** — `:dedup` removes duplicate rows by the current cursor column
+- **Cell notes** — `:note <text>` attaches a comment to the current cell; cells with notes show a `▸` corner marker; `:note` with no argument shows the current note; `:note!` clears it
+- **Conditional formatting** — `:colfmt <op> <val> <color>` applies a background colour to all cells in the column matching the condition (undoable)
+- **Thousands separator** — `:fmt thousands` formats numbers with comma separators (`#,##0`); `:fmt t2` adds two decimal places
+- **Formula tab-completion** — press `Tab` while typing a formula (`=SU…`) to cycle through matching function names
+- **Time-based autosave** — configurable autosave interval in seconds (edit `autosave_interval` in `config.toml`; 0 = disabled)
 - **Macros** — record key sequences to named registers (`qa` … `qz`), replay with `@a`, chain with `{N}@a`
 - **Marks** — set named positions (`ma`), jump back (`'a`), and swap with `''`
 - **Cell styling** — bold, italic, underline, strikethrough, foreground/background colour, alignment, and number formats
@@ -137,6 +149,8 @@ asat new_file.csv      # create a new file at this path
 | `Ctrl+u` | Delete to start of buffer |
 | `Ctrl+k` | Delete to end of buffer |
 | `Ctrl+r` | Enter F-REF mode to pick a cell reference (formulas only) |
+| `Ctrl+v` | Paste from system clipboard into edit buffer |
+| `Tab` / `Shift+Tab` | Cycle through formula function name completions (when buffer starts with `=`) |
 
 ### Visual Mode
 
@@ -150,6 +164,8 @@ asat new_file.csv      # create a new file at this path
 | `y` | Yank selection → register + system clipboard (TSV) |
 | `S` | Insert `=SUM(range)` below the selection |
 | `>` / `<` | Widen / narrow all columns in selection |
+| `Ctrl+d` | Fill down — copy anchor row to all selected rows |
+| `Ctrl+r` | Fill right — copy anchor column to all selected columns |
 
 ### Marks & Macros
 
@@ -209,6 +225,20 @@ Enter command mode with `:`.
 | `:theme [name]` | Open theme picker or apply a theme by name |
 | `:sort [asc\|desc]` | Sort all rows by the current cursor column (undoable) |
 | `:s/pat/repl/[g][i]` | Find & replace in text cells — `g` = all occurrences, `i` = case-insensitive (undoable) |
+| `:goto <addr>` / `:go <addr>` | Jump to cell address (e.g. `:goto B15`) |
+| `:name <NAME> <range>` | Define a named range (e.g. `:name SALES A1:C10`) |
+| `:filter <col> <op> <val>` | Hide rows where column does not match (ops: `=` `!=` `>` `<` `>=` `<=` `~`) |
+| `:filter off` | Unhide all filtered rows |
+| `:transpose` / `:tp` | Transpose the visual selection (swap rows and columns) |
+| `:dedup` | Remove duplicate rows by the current cursor column |
+| `:note [text]` | Set a note on current cell; `:note` shows it; `:note!` clears it |
+| `:colfmt <op> <val> <color>` / `:cf` | Conditional format — apply background colour to matching cells in column |
+| `:filldown` / `:fd` | Fill the cursor cell value down to the selection end |
+| `:fillright` / `:fr` | Fill the cursor cell value right to the selection end |
+| `:fmt thousands` / `:fmt t2` | Thousands-separator number format (`#,##0` or `#,##0.00`) |
+| `:freeze rows <N>` | Freeze top N rows as sticky header |
+| `:freeze cols <N>` | Freeze left N columns as sticky header |
+| `:freeze off` | Clear all frozen panes |
 
 Tab-completion works in command mode — press `Tab` to cycle through matching commands.
 
@@ -232,9 +262,9 @@ Start any cell with `=` to write a formula. Formulas re-evaluate automatically a
 | Math | `SUM`, `AVERAGE`, `MIN`, `MAX`, `ABS`, `ROUND`, `ROUNDUP`, `ROUNDDOWN`, `FLOOR`, `CEILING`, `MOD`, `POWER`, `SQRT`, `LN`, `LOG`, `LOG10`, `EXP`, `INT`, `TRUNC`, `SIGN` |
 | Text | `LEN`, `LEFT`, `RIGHT`, `MID`, `TRIM`, `UPPER`, `LOWER`, `PROPER`, `CONCATENATE`, `TEXT`, `VALUE`, `FIND`, `SEARCH`, `SUBSTITUTE`, `REPLACE`, `REPT` |
 | Logic | `IF`, `AND`, `OR`, `NOT`, `ISNUMBER`, `ISTEXT`, `ISBLANK`, `ISERROR`, `IFERROR`, `ISLOGICAL` |
-| Lookup | `VLOOKUP`, `HLOOKUP`, `INDEX`, `MATCH`, `OFFSET` |
+| Lookup | `VLOOKUP`, `HLOOKUP`, `XLOOKUP`, `INDEX`, `MATCH`, `OFFSET`, `CHOOSE` |
 | Date | `NOW`, `TODAY`, `DATE`, `YEAR`, `MONTH`, `DAY` |
-| Statistical | `COUNT`, `COUNTA`, `SUMIF`, `COUNTIF`, `SUMPRODUCT`, `MEDIAN`, `STDEV`, `VAR`, `LARGE`, `SMALL` |
+| Statistical | `COUNT`, `COUNTA`, `SUMIF`, `COUNTIF`, `AVERAGEIF`, `MAXIFS`, `MINIFS`, `SUMPRODUCT`, `MEDIAN`, `STDEV`, `VAR`, `LARGE`, `SMALL`, `RANK`, `PERCENTILE`, `QUARTILE` |
 | Finance | `PV`, `FV`, `PMT`, `NPER`, `RATE`, `NPV`, `IRR`, `MIRR`, `IPMT`, `PPMT`, `SLN`, `DDB`, `EFFECT`, `NOMINAL`, `CUMIPMT`, `CUMPRINC` |
 | Constants | `TRUE`, `FALSE`, `PI()` |
 
@@ -288,11 +318,54 @@ Start any cell with `=` to write a formula. Formulas re-evaluate automatically a
 
 ## Configuration
 
-ASAT reads a config file on startup. The default location is:
+ASAT reads a config file on startup at `~/.config/asat/config.toml` (respects `$XDG_CONFIG_HOME`).
 
-- Linux/macOS: `~/.config/asat/config.toml`
+Press `c` on the welcome screen to open it in your `$EDITOR`. The file is created automatically with all options commented on first open.
 
-Open the config from the welcome screen with `c`, or edit it directly. Changes to the theme take effect immediately; other options require a restart.
+```toml
+# Select a built-in theme by name — no hex values needed
+theme_name = "nord"
+
+# Display
+default_col_width    = 10
+min_col_width        = 3
+max_col_width        = 60
+scroll_padding       = 3
+show_line_numbers    = false
+relative_line_numbers = false
+highlight_cursor_row = false
+highlight_cursor_col = false
+show_formula_bar     = true
+show_tab_bar         = true
+show_status_bar      = true
+status_timeout       = 3      # seconds before status message fades (0 = never)
+
+# Editing
+undo_limit           = 1000
+autosave_interval    = 0      # seconds between auto-saves (0 = disabled)
+backup_on_save       = false  # write a .bak before overwriting
+confirm_delete       = false  # ask before dd / :dr / :dc
+wrap_navigation      = false  # wrap cursor at sheet edges
+
+# Number formatting
+number_precision     = 6      # max decimal places for unformatted numbers
+date_format          = "YYYY-MM-DD"
+
+# Files
+default_format       = "csv"  # fallback format when saving without extension
+csv_delimiter        = ","
+remember_recent      = 20     # files shown on welcome screen
+
+# Custom colors — only used when theme_name = "custom" or ""
+# [theme]
+# cursor_bg = "#268BD2"
+# cell_bg   = "#002B36"
+# ...
+```
+
+Built-in themes: `solarized-dark`, `solarized-light`, `nord`, `dracula`, `gruvbox-dark`, `gruvbox-light`, `tokyo-night`, `catppuccin-mocha`, `catppuccin-latte`, `one-dark`, `monokai`, `rose-pine`, `everforest-dark`, `kanagawa`, `cyberpunk`, `amber-terminal`, `ice`, `github-dark`
+
+Browse and apply themes interactively with `:theme`.
 
 ---
 
@@ -380,7 +453,7 @@ crates/
 - [x] Styles + formatting — bold, italic, colour, alignment, number formats
 - [x] Sort & find/replace — `:sort`, `:s/pat/repl/g`
 - [x] Plugin system — PyO3 backend, `init.py`, `@asat.on`, `@asat.function`, live reload with `:plugin reload` (build with `--features asat-plugins/python`)
-- [ ] Polish — filter/hide rows, autosave, ODS formula round-trip, column freeze
+- [x] Polish — filter rows, freeze panes, fill down/right, goto, transpose, dedup, named ranges, cell notes, conditional formatting, thousands separator, formula tab-completion, time-based autosave, ODS formula round-trip, XLOOKUP/AVERAGEIF/RANK/PERCENTILE/CHOOSE and more
 
 ---
 

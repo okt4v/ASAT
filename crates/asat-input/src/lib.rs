@@ -41,6 +41,34 @@ pub const EX_COMMANDS: &[(&str, &str)] = &[
     ("sort",          "Sort rows by cursor column (:sort asc / :sort desc)"),
     ("s /pat/repl/",  "Find & replace in text cells (:s/pat/repl/g)"),
     ("plugin",        "Plugin engine: :plugin reload | :plugin list"),
+    ("goto <cell>",   "Jump to cell address (e.g. :goto B15)"),
+    ("name <n> <r>",  "Define named range (e.g. :name sales A1:C10)"),
+    ("filter <c> <op> <v>", "Filter rows by column value (e.g. :filter A >100)"),
+    ("filter off",    "Clear row filter"),
+    ("transpose",     "Transpose current visual selection"),
+    ("dedup",         "Remove duplicate rows (by cursor column)"),
+    ("note <text>",   "Set a note/comment on the current cell"),
+    ("colfmt <op> <v> <color>", "Conditional format (e.g. :colfmt >100 red)"),
+    ("filldown",      "Fill selection down from top row"),
+    ("fillright",     "Fill selection right from leftmost column"),
+];
+
+/// All built-in formula function names, for Tab-completion in Insert mode.
+pub const FN_NAMES: &[&str] = &[
+    "SUM", "AVERAGE", "AVG", "COUNT", "COUNTA", "MIN", "MAX",
+    "IF", "AND", "OR", "NOT", "ABS", "ROUND", "ROUNDUP", "ROUNDDOWN",
+    "FLOOR", "CEILING", "MOD", "POWER", "SQRT", "LN", "LOG", "LOG10",
+    "EXP", "INT", "TRUNC", "SIGN",
+    "LEN", "LEFT", "RIGHT", "MID", "TRIM", "UPPER", "LOWER", "PROPER",
+    "CONCATENATE", "CONCAT", "TEXT", "VALUE", "FIND", "SEARCH",
+    "SUBSTITUTE", "REPLACE", "REPT",
+    "ISNUMBER", "ISTEXT", "ISBLANK", "ISERROR", "IFERROR", "ISLOGICAL",
+    "TRUE", "FALSE", "PI",
+    "SUMIF", "COUNTIF", "SUMPRODUCT", "LARGE", "SMALL", "MEDIAN",
+    "STDEV", "VAR", "AVERAGEIF", "MAXIFS", "MINIFS", "RANK",
+    "PERCENTILE", "QUARTILE", "XLOOKUP", "CHOOSE",
+    "PV", "FV", "PMT", "NPER", "RATE", "NPV", "IRR", "MIRR",
+    "IPMT", "PPMT", "SLN", "DDB", "EFFECT", "NOMINAL", "CUMIPMT", "CUMPRINC",
 ];
 
 /// Return completions whose command word starts with `prefix` (case-insensitive).
@@ -263,6 +291,20 @@ pub enum AppAction {
     FormulaSelectStartRange,    // mark current cell as range anchor (press ':')
     FormulaSelectCancel,        // return to Insert without inserting
 
+    // ── Clipboard ──
+    PasteFromClipboard,  // Ctrl+V in Insert — paste system clipboard text into edit buffer
+
+    // ── Fill ──
+    /// Fill the anchor row/col values down / right across the selection
+    FillDown { anchor_row: u32, col_start: u32, col_end: u32, row_end: u32 },
+    FillRight { anchor_col: u32, row_start: u32, row_end: u32, col_end: u32 },
+
+    // ── Goto ──
+    GotoCell(String),  // jump to a cell address like "B15"
+
+    // ── Cell notes ──
+    SetNote { row: u32, col: u32, text: String },
+
     // ── Commands ──
     ExecuteCommand2(String),
 
@@ -339,6 +381,11 @@ pub struct InputState {
     /// Index into subcmd_completions while cycling with Tab
     pub subcmd_completion_idx: Option<usize>,
 
+    // ── Formula function tab-completion ──
+    pub fn_completion_prefix: String,
+    pub fn_completion_candidates: Vec<String>,
+    pub fn_completion_idx: Option<usize>,
+
     key_buffer: Vec<KeyEvent>,
     count_buffer: String,
 }
@@ -376,6 +423,9 @@ impl InputState {
             formula_origin: None,
             subcmd_completions: Vec::new(),
             subcmd_completion_idx: None,
+            fn_completion_prefix: String::new(),
+            fn_completion_candidates: Vec::new(),
+            fn_completion_idx: None,
             key_buffer: Vec::new(),
             count_buffer: String::new(),
         }
@@ -443,6 +493,55 @@ impl InputState {
         self.prev_position = Some((sheet, self.cursor));
     }
 
+    /// Cycle through function name completions when editing a formula.
+    /// Finds the current identifier before the cursor and replaces it with
+    /// the next/prev match from the function name list.
+    fn cycle_fn_completion(&mut self, forward: bool) {
+        // Extract the identifier at the cursor position (letters/digits/underscore)
+        let buf = &self.edit_buffer[1..]; // skip leading '='
+        let cursor_in_buf = self.edit_cursor_pos.saturating_sub(1);
+        let cursor_in_buf = cursor_in_buf.min(buf.len());
+
+        // Walk backward to find start of identifier
+        let id_start = buf[..cursor_in_buf].rfind(|c: char| !c.is_alphanumeric() && c != '_')
+            .map(|p| p + 1).unwrap_or(0);
+        let prefix = buf[id_start..cursor_in_buf].to_uppercase();
+
+        if prefix.is_empty() {
+            return;
+        }
+
+        // Rebuild candidate list if prefix changed
+        if prefix != self.fn_completion_prefix {
+            self.fn_completion_prefix = prefix.clone();
+            self.fn_completion_candidates = FN_NAMES.iter()
+                .filter(|n| n.starts_with(&prefix))
+                .map(|n| n.to_string())
+                .collect();
+            self.fn_completion_idx = None;
+        }
+
+        if self.fn_completion_candidates.is_empty() {
+            return;
+        }
+
+        let len = self.fn_completion_candidates.len();
+        let next = match self.fn_completion_idx {
+            None    => if forward { 0 } else { len - 1 },
+            Some(i) => if forward { (i + 1) % len } else { if i == 0 { len - 1 } else { i - 1 } },
+        };
+        self.fn_completion_idx = Some(next);
+
+        let chosen = &self.fn_completion_candidates[next];
+        // Replace the prefix in the buffer with chosen + '('
+        let full_start = 1 + id_start; // +1 for the '='
+        let full_end = self.edit_cursor_pos;
+        self.edit_buffer.drain(full_start..full_end);
+        let replacement = format!("{}(", chosen);
+        self.edit_buffer.insert_str(full_start, &replacement);
+        self.edit_cursor_pos = full_start + replacement.len();
+    }
+
     pub fn handle_key(&mut self, key: KeyEvent, workbook: &Workbook) -> Vec<AppAction> {
         // Capture key while recording (before dispatch, so the stop-key handler
         // can pop it back off if it decides not to record it).
@@ -491,6 +590,13 @@ impl InputState {
                 }
                 (KeyCode::Char('g'), KeyCode::Char('t')) => vec![AppAction::NextSheet],
                 (KeyCode::Char('g'), KeyCode::Char('T')) => vec![AppAction::PrevSheet],
+
+                // g{A-Z} — goto column (single letter address shortcut)
+                (KeyCode::Char('g'), KeyCode::Char(c)) if c.is_ascii_uppercase() => {
+                    // Treat as goto column if no row digit follows — just jump to col
+                    let col = (c as u32).saturating_sub('A' as u32);
+                    vec![AppAction::MoveCursorTo { row: 0, col }]
+                }
 
                 // dd / yy / yc / yr / dC
                 (KeyCode::Char('d'), KeyCode::Char('d')) => {
@@ -906,6 +1012,21 @@ impl InputState {
                 vec![AppAction::EnterFormulaSelect]
             }
 
+            // Ctrl+V — paste from system clipboard into edit buffer
+            KeyCode::Char('v') if ctrl => {
+                vec![AppAction::PasteFromClipboard]
+            }
+
+            // Tab — when editing a formula (starts with '='), cycle function name completions
+            KeyCode::Tab if self.edit_buffer.starts_with('=') => {
+                self.cycle_fn_completion(true);
+                vec![AppAction::NoOp]
+            }
+            KeyCode::BackTab if self.edit_buffer.starts_with('=') => {
+                self.cycle_fn_completion(false);
+                vec![AppAction::NoOp]
+            }
+
             // Ctrl+A — beginning of edit buffer
             KeyCode::Char('a') if ctrl => {
                 self.edit_cursor_pos = 0;
@@ -1018,6 +1139,10 @@ impl InputState {
             KeyCode::Home => { self.edit_cursor_pos = 0; vec![AppAction::NoOp] }
             KeyCode::End  => { self.edit_cursor_pos = self.edit_buffer.len(); vec![AppAction::NoOp] }
             KeyCode::Char(c) => {
+                // Reset formula completion on any non-tab char
+                self.fn_completion_idx = None;
+                self.fn_completion_prefix.clear();
+                self.fn_completion_candidates.clear();
                 self.edit_buffer.insert(self.edit_cursor_pos, c);
                 self.edit_cursor_pos += c.len_utf8();
                 vec![AppAction::NoOp]
@@ -1029,6 +1154,35 @@ impl InputState {
     // ── Visual mode (shared for Visual and VisualLine) ────────────────────────
 
     fn handle_visual(&mut self, key: KeyEvent, is_line: bool) -> Vec<AppAction> {
+        let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
+
+        // Ctrl-key overrides must come before the plain char matches below
+        if ctrl {
+            match key.code {
+                // Fill down — Ctrl+D
+                KeyCode::Char('d') => {
+                    let (row_start, col_start, row_end, col_end) = self.visual_selection_bounds();
+                    let col_end_c = col_end.min(1000);
+                    self.visual_anchor = None;
+                    return vec![
+                        AppAction::FillDown { anchor_row: row_start, col_start, col_end: col_end_c, row_end },
+                        AppAction::ExitMode,
+                    ];
+                }
+                // Fill right — Ctrl+R
+                KeyCode::Char('r') => {
+                    let (row_start, col_start, row_end, col_end) = self.visual_selection_bounds();
+                    let row_end_c = row_end.min(100_000);
+                    self.visual_anchor = None;
+                    return vec![
+                        AppAction::FillRight { anchor_col: col_start, row_start, row_end: row_end_c, col_end },
+                        AppAction::ExitMode,
+                    ];
+                }
+                _ => {}
+            }
+        }
+
         match key.code {
             KeyCode::Esc => { self.visual_anchor = None; vec![AppAction::ExitMode] }
 

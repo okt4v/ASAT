@@ -127,7 +127,15 @@ fn build_content_xml(workbook: &Workbook) -> String {
             for row in 0..=max_row {
                 xml.push_str("<table:table-row>\n");
                 for col in 0..=max_col {
-                    let cell_xml = value_to_cell_xml(sheet.get_value(row, col));
+                    let raw = sheet.get_raw_value(row, col);
+                    // For formula cells, also pass the computed result so the
+                    // ODS file contains a valid cached value (office:value).
+                    let computed = if matches!(raw, CellValue::Formula(_)) {
+                        sheet.computed.get(&(row, col))
+                    } else {
+                        None
+                    };
+                    let cell_xml = value_to_cell_xml(raw, computed);
                     xml.push_str(&cell_xml);
                     xml.push('\n');
                 }
@@ -142,7 +150,7 @@ fn build_content_xml(workbook: &Workbook) -> String {
     xml
 }
 
-fn value_to_cell_xml(value: &CellValue) -> String {
+fn value_to_cell_xml(value: &CellValue, computed: Option<&CellValue>) -> String {
     match value {
         CellValue::Empty => "<table:table-cell/>".to_string(),
 
@@ -160,12 +168,33 @@ fn value_to_cell_xml(value: &CellValue) -> String {
             if *b { "TRUE" } else { "FALSE" }
         ),
 
-        // Formulas: stored with of:= prefix; LibreOffice will recalculate on open.
-        // Simple A1-style references are compatible between Excel and ODS formula syntax.
-        CellValue::Formula(f) => format!(
-            "<table:table-cell table:formula=\"of:={f}\" office:value-type=\"string\"><text:p>={f}</text:p></table:table-cell>",
-            f = xml_escape(f)
-        ),
+        // Formulas: write the formula string plus a cached computed value so
+        // LibreOffice shows the correct result without needing to recalculate,
+        // and so calamine can round-trip the cached result on re-read.
+        CellValue::Formula(f) => {
+            let formula_attr = format!("table:formula=\"of:={}\"", xml_escape(f));
+            match computed {
+                Some(CellValue::Number(n)) => format!(
+                    "<table:table-cell {formula_attr} office:value-type=\"float\" office:value=\"{n}\"><text:p>{n}</text:p></table:table-cell>"
+                ),
+                Some(CellValue::Boolean(b)) => format!(
+                    "<table:table-cell {formula_attr} office:value-type=\"boolean\" office:boolean-value=\"{b}\"><text:p>{}</text:p></table:table-cell>",
+                    if *b { "TRUE" } else { "FALSE" }
+                ),
+                Some(CellValue::Text(s)) => format!(
+                    "<table:table-cell {formula_attr} office:value-type=\"string\"><text:p>{}</text:p></table:table-cell>",
+                    xml_escape(s)
+                ),
+                Some(CellValue::Error(e)) => format!(
+                    "<table:table-cell {formula_attr} office:value-type=\"string\"><text:p>{}</text:p></table:table-cell>",
+                    xml_escape(&e.to_string())
+                ),
+                _ => format!(
+                    "<table:table-cell {formula_attr} office:value-type=\"string\"><text:p>={}</text:p></table:table-cell>",
+                    xml_escape(f)
+                ),
+            }
+        }
 
         CellValue::Error(e) => format!(
             "<table:table-cell office:value-type=\"string\"><text:p>{}</text:p></table:table-cell>",

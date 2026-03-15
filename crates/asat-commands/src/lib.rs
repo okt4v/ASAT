@@ -37,6 +37,10 @@ impl UndoStack {
         UndoStack { past: Vec::new(), future: Vec::new(), max_depth: 1000 }
     }
 
+    pub fn with_limit(max_depth: usize) -> Self {
+        UndoStack { past: Vec::new(), future: Vec::new(), max_depth: max_depth.max(1) }
+    }
+
     pub fn push(&mut self, cmd: Box<dyn Command>) {
         self.future.clear();
         // Try to merge with the most recent command

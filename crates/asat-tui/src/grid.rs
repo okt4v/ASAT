@@ -49,43 +49,85 @@ impl<'a> Widget for GridWidget<'a> {
         let insert_color = parse_hex_color(&theme.insert_mode_color);
         let normal_color = parse_hex_color(&theme.normal_mode_color);
 
-        // Layout: top row = column headers, rest = data rows
-        let header_y = area.y;
-        let data_y = area.y + 1;
-        let data_height = area.height.saturating_sub(1);
+        // ── Freeze pane metrics ──────────────────────────────────────────────
+        let freeze_rows = sheet.freeze_rows as u16;
+        let freeze_cols = sheet.freeze_cols as u32;
 
-        // Compute column widths that fit in available area
+        // Frozen column widths (always rendered at fixed left position)
         let available_width = area.width.saturating_sub(ROW_GUTTER_WIDTH);
-        let mut cols: Vec<(u32, u16)> = Vec::new(); // (col_idx, display_width)
-        let mut x_offset = 0u16;
+        let mut frozen_cols: Vec<(u32, u16)> = Vec::new();
+        let mut frozen_col_width: u16 = 0;
+        for fc in 0..freeze_cols {
+            let w = sheet.col_width(fc).max(MIN_COL_WIDTH);
+            let w = w.min(available_width.saturating_sub(frozen_col_width));
+            frozen_cols.push((fc, w));
+            frozen_col_width += w;
+            if frozen_col_width >= available_width { break; }
+        }
+        // 1-char separator between frozen and scrollable cols (only if freeze_cols > 0)
+        let freeze_col_sep = if freeze_cols > 0 && frozen_col_width < available_width { 1u16 } else { 0u16 };
+        let scroll_col_available = available_width
+            .saturating_sub(frozen_col_width)
+            .saturating_sub(freeze_col_sep);
 
-        let mut c = viewport.left_col;
-        loop {
-            if x_offset >= available_width { break; }
-            let col_width = sheet.col_width(c).max(MIN_COL_WIDTH);
-            cols.push((c, col_width.min(available_width - x_offset)));
-            x_offset += col_width.min(available_width - x_offset);
-            if x_offset >= available_width { break; }
-            c += 1;
-            if c > 10000 { break; } // safety
+        // Layout: top row = column headers, then freeze_rows frozen rows, then data rows
+        let header_y = area.y;
+        // 1-char separator row between frozen rows and scrollable rows
+        let freeze_row_sep: u16 = if freeze_rows > 0 { 1 } else { 0 };
+        let data_y = area.y + 1 + freeze_rows + freeze_row_sep;
+        let data_height = area.height.saturating_sub(1 + freeze_rows + freeze_row_sep);
+
+        // Scrollable column list (starts at viewport.left_col, must be >= freeze_cols)
+        let scroll_left = viewport.left_col.max(freeze_cols);
+        let mut scroll_cols: Vec<(u32, u16)> = Vec::new();
+        {
+            let mut x_offset = 0u16;
+            let mut c = scroll_left;
+            loop {
+                if x_offset >= scroll_col_available { break; }
+                let col_width = sheet.col_width(c).max(MIN_COL_WIDTH);
+                scroll_cols.push((c, col_width.min(scroll_col_available - x_offset)));
+                x_offset += col_width.min(scroll_col_available - x_offset);
+                if x_offset >= scroll_col_available { break; }
+                c += 1;
+                if c > 10000 { break; }
+            }
         }
 
-        // ── Header row ───────────────────────────────────────────────────────
+        // Combined column list for header rendering (frozen + separator + scroll)
         let corner_style = Style::default()
             .fg(header_fg)
             .bg(header_bg)
             .add_modifier(Modifier::BOLD);
+
+        // ── Header row ───────────────────────────────────────────────────────
         render_cell_str(buf, area.x, header_y, ROW_GUTTER_WIDTH, "     ", corner_style);
 
         let mut x = area.x + ROW_GUTTER_WIDTH;
-        for (col_idx, col_width) in &cols {
+        // Frozen col headers
+        for (col_idx, col_width) in &frozen_cols {
             let label = col_to_letter(*col_idx);
             let is_cursor_col = *col_idx == cursor.col;
             let hdr_style = if is_cursor_col {
-                Style::default()
-                    .fg(Color::Black)
-                    .bg(cursor_bg)
-                    .add_modifier(Modifier::BOLD)
+                Style::default().fg(Color::Black).bg(cursor_bg).add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(header_fg).bg(darken(header_bg, 0.7)).add_modifier(Modifier::BOLD)
+            };
+            render_cell_centered(buf, x, header_y, *col_width, &label, hdr_style);
+            x += col_width;
+        }
+        // Separator column header
+        if freeze_col_sep > 0 {
+            let sep_style = Style::default().fg(header_fg).bg(darken(header_bg, 0.5));
+            render_cell_str(buf, x, header_y, 1, "┃", sep_style);
+            x += 1;
+        }
+        // Scrollable col headers
+        for (col_idx, col_width) in &scroll_cols {
+            let label = col_to_letter(*col_idx);
+            let is_cursor_col = *col_idx == cursor.col;
+            let hdr_style = if is_cursor_col {
+                Style::default().fg(Color::Black).bg(cursor_bg).add_modifier(Modifier::BOLD)
             } else {
                 corner_style
             };
@@ -93,10 +135,78 @@ impl<'a> Widget for GridWidget<'a> {
             x += col_width;
         }
 
+        // Build combined column list used by both frozen rows and scrollable rows
+        let mut all_col_groups: Vec<(u32, u16)> = frozen_cols.clone();
+        if freeze_col_sep > 0 {
+            all_col_groups.push((u32::MAX, freeze_col_sep));
+        }
+        all_col_groups.extend(scroll_cols.iter().copied());
+
+        let note_marker_style = Style::default().fg(Color::Rgb(255, 200, 50));
+
+        // ── Frozen rows ───────────────────────────────────────────────────────
+        for frozen_r in 0..freeze_rows {
+            let row_idx = frozen_r as u32;
+            let screen_y = area.y + 1 + frozen_r;
+            let is_cursor_row = row_idx == cursor.row;
+            let gutter_style = if is_cursor_row {
+                Style::default().fg(Color::Black).bg(cursor_bg).add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(header_fg).bg(darken(header_bg, 0.7))
+            };
+            let gutter_text = format!("{:>4}┃", row_idx + 1);
+            render_cell_str(buf, area.x, screen_y, ROW_GUTTER_WIDTH, &gutter_text, gutter_style);
+
+            let mut x = area.x + ROW_GUTTER_WIDTH;
+            for &(col_idx, col_width) in &all_col_groups {
+                if col_idx == u32::MAX {
+                    let sep_style = Style::default().fg(darken(header_fg, 0.6)).bg(darken(header_bg, 0.5));
+                    render_cell_str(buf, x, screen_y, col_width, "┃", sep_style);
+                    x += col_width;
+                    continue;
+                }
+                render_data_cell(buf, x, screen_y, col_width, row_idx, col_idx, cursor,
+                    &input.mode, input.visual_anchor.as_ref(), input.search_highlight(row_idx, col_idx),
+                    sheet, &input.edit_buffer,
+                    cursor_bg, cell_bg, selection_bg, number_color, cmd_color, vis_color, insert_color, normal_color,
+                );
+                if sheet.notes.contains_key(&(row_idx, col_idx)) {
+                    if let Some(cell) = buf.cell_mut((x + col_width.saturating_sub(1), screen_y)) {
+                        cell.set_char('▸');
+                        cell.set_style(note_marker_style);
+                    }
+                }
+                x += col_width;
+            }
+        }
+
+        // ── Frozen row separator ─────────────────────────────────────────────
+        if freeze_rows > 0 && freeze_row_sep > 0 {
+            let sep_y = area.y + 1 + freeze_rows;
+            let sep_style = Style::default().fg(darken(header_fg, 0.6)).bg(darken(header_bg, 0.5));
+            for dx in 0..area.width {
+                if let Some(cell) = buf.cell_mut((area.x + dx, sep_y)) {
+                    cell.set_char('━');
+                    cell.set_style(sep_style);
+                }
+            }
+        }
+
         // ── Data rows ────────────────────────────────────────────────────────
         let mut screen_y = data_y;
-        let mut row_idx = viewport.top_row;
+        let mut row_idx = viewport.top_row.max(freeze_rows as u32);
         while screen_y < data_y + data_height {
+            // Skip hidden rows (filter)
+            if sheet.row_meta.get(&row_idx).map(|m| m.hidden).unwrap_or(false) {
+                row_idx += 1;
+                continue;
+            }
+            // Skip rows already shown in frozen pane
+            if row_idx < freeze_rows as u32 {
+                row_idx = freeze_rows as u32;
+                continue;
+            }
+
             let row_h = sheet.row_height(row_idx).max(1) as u16;
             let is_cursor_row = row_idx == cursor.row;
 
@@ -121,121 +231,25 @@ impl<'a> Widget for GridWidget<'a> {
             render_cell_str(buf, area.x, screen_y, ROW_GUTTER_WIDTH, &gutter_text, gutter_style);
 
             let mut x = area.x + ROW_GUTTER_WIDTH;
-            for (col_idx, col_width) in &cols {
-                let is_cursor = row_idx == cursor.row && *col_idx == cursor.col;
+            for (col_idx, col_width) in &all_col_groups {
+                if *col_idx == u32::MAX {
+                    // Freeze separator column
+                    let sep_style = Style::default().fg(darken(header_fg, 0.6)).bg(darken(header_bg, 0.5));
+                    render_cell_str(buf, x, screen_y, *col_width, "┃", sep_style);
+                    x += col_width;
+                    continue;
+                }
 
-                // Formula reference selection highlighting
-                let is_fref_cursor = matches!(&input.mode, Mode::FormulaSelect { .. })
-                    && row_idx == cursor.row && *col_idx == cursor.col;
-                let is_fref_range = if let Mode::FormulaSelect { anchor: Some((ar, ac)) } = &input.mode {
-                    let r_min = (*ar).min(cursor.row);
-                    let r_max = (*ar).max(cursor.row);
-                    let c_min = (*ac).min(cursor.col);
-                    let c_max = (*ac).max(cursor.col);
-                    row_idx >= r_min && row_idx <= r_max
-                        && *col_idx >= c_min && *col_idx <= c_max
-                } else { false };
-
-                let is_visual = is_in_visual_selection(
-                    row_idx, *col_idx,
-                    input.visual_anchor.as_ref(),
-                    cursor,
-                    &input.mode,
+                render_data_cell(buf, x, screen_y, *col_width, row_idx, *col_idx, cursor,
+                    &input.mode, input.visual_anchor.as_ref(), input.search_highlight(row_idx, *col_idx),
+                    sheet, &input.edit_buffer,
+                    cursor_bg, cell_bg, selection_bg, number_color, cmd_color, vis_color, insert_color, normal_color,
                 );
-                let search_hl = input.search_highlight(row_idx, *col_idx);
-
-                // In Insert/FormulaSelect mode, show the live edit buffer for the cursor cell
-                let live_edit = is_cursor && matches!(&input.mode, Mode::Insert { .. } | Mode::FormulaSelect { .. });
-                let display = if live_edit {
-                    input.edit_buffer.clone()
-                } else {
-                    sheet.display_value(row_idx, *col_idx)
-                };
-                let raw_value = sheet.get_value(row_idx, *col_idx);
-
-                let cell_style = if is_fref_cursor {
-                    // Formula reference picker — bright green (normal_color) for cursor cell
-                    Style::default()
-                        .fg(Color::Black)
-                        .bg(normal_color)
-                        .add_modifier(Modifier::BOLD)
-                } else if is_fref_range {
-                    // Range being selected for formula
-                    Style::default()
-                        .fg(Color::Black)
-                        .bg(darken(insert_color, 0.55))
-                } else if is_cursor {
-                    Style::default()
-                        .fg(Color::Black)
-                        .bg(cursor_bg)
-                        .add_modifier(Modifier::BOLD)
-                } else if is_visual {
-                    Style::default()
-                        .fg(Color::Black)
-                        .bg(selection_bg)
-                } else if search_hl == Some(true) {
-                    // Current search match — uses command_mode_color
-                    Style::default()
-                        .fg(Color::Black)
-                        .bg(cmd_color)
-                        .add_modifier(Modifier::BOLD)
-                } else if search_hl == Some(false) {
-                    // Other search matches — dimmed command_mode_color
-                    Style::default()
-                        .fg(Color::Black)
-                        .bg(darken(vis_color, 0.75))
-                } else {
-                    // Normal cell — apply CellStyle if present
-                    let user_style: Option<&CellStyle> = sheet
-                        .get_cell(row_idx, *col_idx)
-                        .and_then(|c| c.style.as_ref());
-
-                    let cell_bg = user_style
-                        .and_then(|s| s.bg.as_ref())
-                        .map(|c| Color::Rgb(c.r, c.g, c.b))
-                        .unwrap_or(cell_bg);
-
-                    let default_fg = if matches!(raw_value, CellValue::Error(_)) {
-                        cmd_color // errors use command colour (usually red/orange)
-                    } else if matches!(raw_value, CellValue::Number(_) | CellValue::Boolean(_)) {
-                        number_color
-                    } else {
-                        Color::White
-                    };
-
-                    let cell_fg = user_style
-                        .and_then(|s| s.fg.as_ref())
-                        .map(|c| Color::Rgb(c.r, c.g, c.b))
-                        .unwrap_or(default_fg);
-
-                    let mut s = Style::default().fg(cell_fg).bg(cell_bg);
-                    if let Some(us) = user_style {
-                        if us.bold          { s = s.add_modifier(Modifier::BOLD);        }
-                        if us.italic        { s = s.add_modifier(Modifier::ITALIC);      }
-                        if us.underline     { s = s.add_modifier(Modifier::UNDERLINED);  }
-                        if us.strikethrough { s = s.add_modifier(Modifier::CROSSED_OUT); }
-                    }
-                    s
-                };
-
-                // Alignment: user style overrides; default is right for numbers/booleans
-                use asat_core::Alignment;
-                let user_align = sheet.get_cell(row_idx, *col_idx)
-                    .and_then(|c| c.style.as_ref())
-                    .map(|s| s.align.clone());
-                match user_align {
-                    Some(Alignment::Right) =>
-                        render_cell_right(buf, x, screen_y, *col_width, &display, cell_style),
-                    Some(Alignment::Center) =>
-                        render_cell_centered(buf, x, screen_y, *col_width, &display, cell_style),
-                    Some(Alignment::Left) =>
-                        render_cell_str(buf, x, screen_y, *col_width, &display, cell_style),
-                    _ => {
-                        if matches!(raw_value, CellValue::Number(_) | CellValue::Boolean(_)) {
-                            render_cell_right(buf, x, screen_y, *col_width, &display, cell_style);
-                        } else {
-                            render_cell_str(buf, x, screen_y, *col_width, &display, cell_style);
-                        }
+                // Note indicator — small amber marker in top-right corner of the cell
+                if sheet.notes.contains_key(&(row_idx, *col_idx)) {
+                    if let Some(cell) = buf.cell_mut((x + col_width.saturating_sub(1), screen_y)) {
+                        cell.set_char('▸');
+                        cell.set_style(note_marker_style);
                     }
                 }
 
@@ -259,8 +273,10 @@ impl<'a> Widget for GridWidget<'a> {
 
                 // Fill cells with background
                 let mut ex = area.x + ROW_GUTTER_WIDTH;
-                for (_, col_width) in &cols {
-                    let bg_style = if is_cursor_row {
+                for (col_idx, col_width) in &all_col_groups {
+                    let bg_style = if *col_idx == u32::MAX {
+                        Style::default().fg(darken(header_fg, 0.6)).bg(darken(header_bg, 0.5))
+                    } else if is_cursor_row {
                         Style::default().fg(Color::Black).bg(cell_bg)
                     } else {
                         Style::default().fg(Color::White).bg(cell_bg)
@@ -272,6 +288,110 @@ impl<'a> Widget for GridWidget<'a> {
 
             screen_y += row_h;
             row_idx += 1;
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn render_data_cell(
+    buf: &mut Buffer,
+    x: u16, y: u16, col_width: u16,
+    row_idx: u32, col_idx: u32,
+    cursor: asat_input::Cursor,
+    mode: &Mode,
+    visual_anchor: Option<&asat_input::VisualAnchor>,
+    search_hl: Option<bool>,
+    sheet: &asat_core::Sheet,
+    edit_buffer: &str,
+    cursor_bg: Color,
+    cell_bg: Color,
+    selection_bg: Color,
+    number_color: Color,
+    cmd_color: Color,
+    vis_color: Color,
+    insert_color: Color,
+    normal_color: Color,
+) {
+    let is_cursor = row_idx == cursor.row && col_idx == cursor.col;
+
+    let is_fref_cursor = matches!(mode, Mode::FormulaSelect { .. })
+        && row_idx == cursor.row && col_idx == cursor.col;
+    let is_fref_range = if let Mode::FormulaSelect { anchor: Some((ar, ac)) } = mode {
+        let r_min = (*ar).min(cursor.row);
+        let r_max = (*ar).max(cursor.row);
+        let c_min = (*ac).min(cursor.col);
+        let c_max = (*ac).max(cursor.col);
+        row_idx >= r_min && row_idx <= r_max && col_idx >= c_min && col_idx <= c_max
+    } else { false };
+
+    let is_visual = is_in_visual_selection(row_idx, col_idx, visual_anchor, cursor, mode);
+
+    let live_edit = is_cursor && matches!(mode, Mode::Insert { .. } | Mode::FormulaSelect { .. });
+    let display = if live_edit {
+        edit_buffer.to_string()
+    } else {
+        sheet.display_value(row_idx, col_idx)
+    };
+    let raw_value = sheet.get_value(row_idx, col_idx);
+
+    let cell_style = if is_fref_cursor {
+        Style::default().fg(Color::Black).bg(normal_color).add_modifier(Modifier::BOLD)
+    } else if is_fref_range {
+        Style::default().fg(Color::Black).bg(darken(insert_color, 0.55))
+    } else if is_cursor {
+        Style::default().fg(Color::Black).bg(cursor_bg).add_modifier(Modifier::BOLD)
+    } else if is_visual {
+        Style::default().fg(Color::Black).bg(selection_bg)
+    } else if search_hl == Some(true) {
+        Style::default().fg(Color::Black).bg(cmd_color).add_modifier(Modifier::BOLD)
+    } else if search_hl == Some(false) {
+        Style::default().fg(Color::Black).bg(darken(vis_color, 0.75))
+    } else {
+        let user_style: Option<&CellStyle> = sheet
+            .get_cell(row_idx, col_idx)
+            .and_then(|c| c.style.as_ref());
+        let bg = user_style
+            .and_then(|s| s.bg.as_ref())
+            .map(|c| Color::Rgb(c.r, c.g, c.b))
+            .unwrap_or(cell_bg);
+        let default_fg = if matches!(raw_value, CellValue::Error(_)) {
+            cmd_color
+        } else if matches!(raw_value, CellValue::Number(_) | CellValue::Boolean(_)) {
+            number_color
+        } else {
+            Color::White
+        };
+        let fg = user_style
+            .and_then(|s| s.fg.as_ref())
+            .map(|c| Color::Rgb(c.r, c.g, c.b))
+            .unwrap_or(default_fg);
+        let mut s = Style::default().fg(fg).bg(bg);
+        if let Some(us) = user_style {
+            if us.bold          { s = s.add_modifier(Modifier::BOLD);        }
+            if us.italic        { s = s.add_modifier(Modifier::ITALIC);      }
+            if us.underline     { s = s.add_modifier(Modifier::UNDERLINED);  }
+            if us.strikethrough { s = s.add_modifier(Modifier::CROSSED_OUT); }
+        }
+        s
+    };
+
+    use asat_core::Alignment;
+    let user_align = sheet.get_cell(row_idx, col_idx)
+        .and_then(|c| c.style.as_ref())
+        .map(|s| s.align.clone());
+    match user_align {
+        Some(Alignment::Right) =>
+            render_cell_right(buf, x, y, col_width, &display, cell_style),
+        Some(Alignment::Center) =>
+            render_cell_centered(buf, x, y, col_width, &display, cell_style),
+        Some(Alignment::Left) =>
+            render_cell_str(buf, x, y, col_width, &display, cell_style),
+        _ => {
+            if matches!(raw_value, CellValue::Number(_) | CellValue::Boolean(_)) {
+                render_cell_right(buf, x, y, col_width, &display, cell_style);
+            } else {
+                render_cell_str(buf, x, y, col_width, &display, cell_style);
+            }
         }
     }
 }

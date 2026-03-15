@@ -89,6 +89,15 @@ pub fn call(name: &str, args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) ->
         "CUMIPMT"     => fn_cumipmt(args, ctx, ev),
         "CUMPRINC"    => fn_cumprinc(args, ctx, ev),
 
+        "AVERAGEIF"   => fn_averageif(args, ctx, ev),
+        "MAXIFS"      => fn_maxifs(args, ctx, ev),
+        "MINIFS"      => fn_minifs(args, ctx, ev),
+        "RANK"        => fn_rank(args, ctx, ev),
+        "PERCENTILE"  => fn_percentile(args, ctx, ev),
+        "QUARTILE"    => fn_quartile(args, ctx, ev),
+        "XLOOKUP"     => fn_xlookup(args, ctx, ev),
+        "CHOOSE"      => fn_choose(args, ctx, ev),
+
         _ => {
             // Fall through to plugin-registered custom functions before giving up.
             if asat_core::has_custom_fn(name) {
@@ -943,4 +952,217 @@ fn fn_cumprinc(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValu
         total += pmt - bal * rate;
     }
     CellValue::Number(total)
+}
+
+// ── Extended Statistical Functions ───────────────────────────────────────────
+
+/// AVERAGEIF(range, criteria, [avg_range])
+fn fn_averageif(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValue {
+    if args.len() < 2 { return CellValue::Error(CellError::Value); }
+    let test_vals = ev.expand_range(&args[0], ctx);
+    let criteria  = ev.eval(&args[1], ctx);
+    let avg_vals  = if args.len() > 2 { ev.expand_range(&args[2], ctx) } else { test_vals.clone() };
+    let mut sum = 0.0;
+    let mut cnt = 0u32;
+    for (tv, av) in test_vals.iter().zip(avg_vals.iter()) {
+        if criteria_match(tv, &criteria) {
+            if let Some(n) = to_number(av) { sum += n; cnt += 1; }
+        }
+    }
+    if cnt == 0 { CellValue::Error(CellError::Div0) } else { CellValue::Number(sum / cnt as f64) }
+}
+
+/// MAXIFS(max_range, criteria_range1, criteria1, [criteria_range2, criteria2, ...])
+fn fn_maxifs(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValue {
+    if args.len() < 3 { return CellValue::Error(CellError::Value); }
+    let max_vals = ev.expand_range(&args[0], ctx);
+    // Collect pairs of (criteria_range, criteria)
+    let mut criteria_pairs: Vec<(Vec<CellValue>, CellValue)> = Vec::new();
+    let mut i = 1;
+    while i + 1 < args.len() {
+        criteria_pairs.push((ev.expand_range(&args[i], ctx), ev.eval(&args[i + 1], ctx)));
+        i += 2;
+    }
+    let mut result = f64::NEG_INFINITY;
+    let mut found = false;
+    for (idx, mv) in max_vals.iter().enumerate() {
+        let all_match = criteria_pairs.iter().all(|(cr, crit)| {
+            cr.get(idx).map(|v| criteria_match(v, crit)).unwrap_or(false)
+        });
+        if all_match {
+            if let Some(n) = to_number(mv) {
+                if n > result { result = n; found = true; }
+            }
+        }
+    }
+    if found { CellValue::Number(result) } else { CellValue::Number(0.0) }
+}
+
+/// MINIFS(min_range, criteria_range1, criteria1, [criteria_range2, criteria2, ...])
+fn fn_minifs(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValue {
+    if args.len() < 3 { return CellValue::Error(CellError::Value); }
+    let min_vals = ev.expand_range(&args[0], ctx);
+    let mut criteria_pairs: Vec<(Vec<CellValue>, CellValue)> = Vec::new();
+    let mut i = 1;
+    while i + 1 < args.len() {
+        criteria_pairs.push((ev.expand_range(&args[i], ctx), ev.eval(&args[i + 1], ctx)));
+        i += 2;
+    }
+    let mut result = f64::INFINITY;
+    let mut found = false;
+    for (idx, mv) in min_vals.iter().enumerate() {
+        let all_match = criteria_pairs.iter().all(|(cr, crit)| {
+            cr.get(idx).map(|v| criteria_match(v, crit)).unwrap_or(false)
+        });
+        if all_match {
+            if let Some(n) = to_number(mv) {
+                if n < result { result = n; found = true; }
+            }
+        }
+    }
+    if found { CellValue::Number(result) } else { CellValue::Number(0.0) }
+}
+
+/// RANK(number, ref, [order=0])  — 0=descending (largest=1), 1=ascending
+fn fn_rank(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValue {
+    if args.len() < 2 { return CellValue::Error(CellError::Value); }
+    let num = match to_number(&ev.eval(&args[0], ctx)) {
+        Some(n) => n,
+        None    => return CellValue::Error(CellError::Value),
+    };
+    let vals: Vec<f64> = ev.expand_range(&args[1], ctx).into_iter().filter_map(|v| to_number(&v)).collect();
+    let order = args.get(2).and_then(|a| to_number(&ev.eval(a, ctx))).unwrap_or(0.0);
+    let ascending = order != 0.0;
+    // Count how many values are strictly better (larger if desc, smaller if asc)
+    let rank = vals.iter().filter(|&&v| {
+        if ascending { v < num } else { v > num }
+    }).count() + 1;
+    // Check num exists in vals
+    if !vals.iter().any(|&v| (v - num).abs() < 1e-10) {
+        return CellValue::Error(CellError::NA);
+    }
+    CellValue::Number(rank as f64)
+}
+
+/// PERCENTILE(range, k)  — k is 0..1 (inclusive)
+fn fn_percentile(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValue {
+    if args.len() < 2 { return CellValue::Error(CellError::Value); }
+    let mut nums: Vec<f64> = ev.expand_range(&args[0], ctx).into_iter().filter_map(|v| to_number(&v)).collect();
+    let k = match to_number(&ev.eval(&args[1], ctx)) {
+        Some(n) if (0.0..=1.0).contains(&n) => n,
+        _ => return CellValue::Error(CellError::Num),
+    };
+    if nums.is_empty() { return CellValue::Error(CellError::Num); }
+    nums.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    let n = nums.len() as f64;
+    let pos = k * (n - 1.0);
+    let lo = pos.floor() as usize;
+    let hi = pos.ceil() as usize;
+    if lo == hi {
+        CellValue::Number(nums[lo])
+    } else {
+        let frac = pos - lo as f64;
+        CellValue::Number(nums[lo] + frac * (nums[hi] - nums[lo]))
+    }
+}
+
+/// QUARTILE(range, quart)  — quart: 0=min, 1=Q1, 2=median, 3=Q3, 4=max
+fn fn_quartile(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValue {
+    if args.len() < 2 { return CellValue::Error(CellError::Value); }
+    let quart = match to_number(&ev.eval(&args[1], ctx)) {
+        Some(n) if (0.0..=4.0).contains(&n) => n as u8,
+        _ => return CellValue::Error(CellError::Num),
+    };
+    let k = match quart {
+        0 => 0.0,
+        1 => 0.25,
+        2 => 0.5,
+        3 => 0.75,
+        4 => 1.0,
+        _ => return CellValue::Error(CellError::Num),
+    };
+    // Reuse percentile logic
+    let percentile_args = &args[..1];
+    let mut nums: Vec<f64> = ev.expand_range(&args[0], ctx).into_iter().filter_map(|v| to_number(&v)).collect();
+    if nums.is_empty() { return CellValue::Error(CellError::Num); }
+    nums.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    let n = nums.len() as f64;
+    let pos = k * (n - 1.0);
+    let lo = pos.floor() as usize;
+    let hi = pos.ceil() as usize;
+    let _ = percentile_args; // suppress unused warning
+    if lo == hi {
+        CellValue::Number(nums[lo])
+    } else {
+        let frac = pos - lo as f64;
+        CellValue::Number(nums[lo] + frac * (nums[hi] - nums[lo]))
+    }
+}
+
+/// XLOOKUP(lookup, lookup_array, return_array, [not_found], [match_mode=0])
+/// match_mode: 0=exact, 1=next larger, -1=next smaller, 2=wildcard
+fn fn_xlookup(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValue {
+    if args.len() < 3 { return CellValue::Error(CellError::Value); }
+    let lookup    = ev.eval(&args[0], ctx);
+    let lookup_arr = ev.expand_range(&args[1], ctx);
+    let return_arr = ev.expand_range(&args[2], ctx);
+    let not_found  = args.get(3).map(|a| ev.eval(a, ctx));
+    let match_mode = args.get(4).and_then(|a| to_number(&ev.eval(a, ctx))).unwrap_or(0.0) as i64;
+
+    // Find position of match
+    let pos = match match_mode {
+        0 => {
+            // Exact match
+            lookup_arr.iter().position(|v| values_equal(v, &lookup))
+        }
+        1 => {
+            // Next larger or equal
+            let target = to_number(&lookup).unwrap_or(0.0);
+            lookup_arr.iter()
+                .enumerate()
+                .filter_map(|(i, v)| to_number(v).map(|n| (i, n)))
+                .filter(|(_, n)| *n >= target)
+                .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                .map(|(i, _)| i)
+        }
+        -1 => {
+            // Next smaller or equal
+            let target = to_number(&lookup).unwrap_or(0.0);
+            lookup_arr.iter()
+                .enumerate()
+                .filter_map(|(i, v)| to_number(v).map(|n| (i, n)))
+                .filter(|(_, n)| *n <= target)
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                .map(|(i, _)| i)
+        }
+        _ => lookup_arr.iter().position(|v| values_equal(v, &lookup)),
+    };
+
+    match pos {
+        Some(i) => return_arr.get(i).cloned().unwrap_or(CellValue::Error(CellError::NA)),
+        None    => not_found.unwrap_or(CellValue::Error(CellError::NA)),
+    }
+}
+
+/// CHOOSE(index, val1, val2, ...)  — 1-based index
+fn fn_choose(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValue {
+    if args.len() < 2 { return CellValue::Error(CellError::Value); }
+    let idx = match to_number(&ev.eval(&args[0], ctx)) {
+        Some(n) if n >= 1.0 => n as usize,
+        _ => return CellValue::Error(CellError::Value),
+    };
+    let choices = &args[1..];
+    if idx > choices.len() { return CellValue::Error(CellError::Value); }
+    ev.eval(&choices[idx - 1], ctx)
+}
+
+/// Helper: check if two CellValues are equal for XLOOKUP exact match
+fn values_equal(a: &CellValue, b: &CellValue) -> bool {
+    match (a, b) {
+        (CellValue::Number(x), CellValue::Number(y)) => (x - y).abs() < 1e-10,
+        (CellValue::Text(x), CellValue::Text(y))     => x.eq_ignore_ascii_case(y),
+        (CellValue::Boolean(x), CellValue::Boolean(y)) => x == y,
+        (CellValue::Empty, CellValue::Empty) => true,
+        _ => false,
+    }
 }

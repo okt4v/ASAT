@@ -75,6 +75,20 @@ impl Evaluator {
             Expr::Gte(a, b) => self.compare(a, b, ctx, |o| o != std::cmp::Ordering::Less),
 
             Expr::Call { name, args } => {
+                // Check if this is a named range used as a scalar (zero args)
+                if args.is_empty() {
+                    let upper = name.to_ascii_uppercase();
+                    if let Some(range) = ctx.workbook.named_ranges.get(&upper) {
+                        // Single-cell named range → return that cell's value
+                        if range.row_start == range.row_end && range.col_start == range.col_end {
+                            if let Some(s) = ctx.workbook.sheet(range.sheet) {
+                                return s.get_value(range.row_start, range.col_start).clone();
+                            }
+                        }
+                        // Multi-cell: return #VALUE — use in a function like SUM(rangeName)
+                        return CellValue::Error(CellError::Value);
+                    }
+                }
                 functions::call(name, args, ctx, self)
             }
         }
@@ -82,6 +96,23 @@ impl Evaluator {
 
     /// Expand a range expression into individual CellValues
     pub fn expand_range(&self, expr: &Expr, ctx: &EvalContext<'_>) -> Vec<CellValue> {
+        // Handle named ranges: a Call with no args whose name matches a named range
+        if let Expr::Call { name, args } = expr {
+            if args.is_empty() {
+                let upper = name.to_ascii_uppercase();
+                if let Some(range) = ctx.workbook.named_ranges.get(&upper) {
+                    if let Some(s) = ctx.workbook.sheet(range.sheet) {
+                        let mut vals = Vec::new();
+                        for r in range.row_start..=range.row_end {
+                            for c in range.col_start..=range.col_end {
+                                vals.push(s.get_value(r, c).clone());
+                            }
+                        }
+                        return vals;
+                    }
+                }
+            }
+        }
         match expr {
             Expr::RangeRef { sheet, col1, row1, col2, row2 } => {
                 let sheet_idx = self.resolve_sheet(sheet, ctx);

@@ -112,6 +112,8 @@ pub enum NumberFormat {
     Currency(String),  // symbol
     Date(String),      // strftime-style pattern
     Custom(String),
+    Thousands,             // #,##0
+    ThousandsDecimals(u8), // #,##0.00
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -238,6 +240,7 @@ pub struct Sheet {
     pub freeze_cols: u32,
     pub computed: HashMap<(u32, u32), CellValue>,
     pub dirty: HashSet<(u32, u32)>,
+    pub notes: HashMap<(u32, u32), String>,
 }
 
 impl Sheet {
@@ -251,6 +254,7 @@ impl Sheet {
             freeze_cols: 0,
             computed: HashMap::new(),
             dirty: HashSet::new(),
+            notes: HashMap::new(),
         }
     }
 
@@ -437,6 +441,41 @@ pub fn apply_number_format(val: &CellValue, fmt: &NumberFormat) -> String {
             format!("{}-{:02}-{:02}", y, d_in_year / 30 + 1, d_in_year % 30 + 1)
         }
         NumberFormat::Custom(_) => val.display(),
+        NumberFormat::Thousands => {
+            let n_int = n.round() as i64;
+            // Format with thousands separator
+            let abs = n_int.abs();
+            let s = abs.to_string();
+            let with_sep: String = s.chars().rev().enumerate()
+                .flat_map(|(i, c)| {
+                    if i > 0 && i % 3 == 0 { vec![',', c] } else { vec![c] }
+                })
+                .collect::<String>()
+                .chars()
+                .rev()
+                .collect();
+            if n_int < 0 { format!("-{}", with_sep) } else { with_sep }
+        }
+        NumberFormat::ThousandsDecimals(d) => {
+            let factor = 10f64.powi(*d as i32);
+            let rounded = (n * factor).round() / factor;
+            let int_part = rounded.abs() as i64;
+            let s = int_part.to_string();
+            let with_sep: String = s.chars().rev().enumerate()
+                .flat_map(|(i, c)| {
+                    if i > 0 && i % 3 == 0 { vec![',', c] } else { vec![c] }
+                })
+                .collect::<String>()
+                .chars()
+                .rev()
+                .collect();
+            let frac_str = if *d > 0 {
+                format!(".{:0>prec$}", ((rounded.abs() - int_part as f64) * factor).round() as u64, prec = *d as usize)
+            } else {
+                String::new()
+            };
+            if n < 0.0 { format!("-{}{}", with_sep, frac_str) } else { format!("{}{}", with_sep, frac_str) }
+        }
     }
 }
 

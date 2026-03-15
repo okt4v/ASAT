@@ -827,7 +827,7 @@
       <div class="feature-card">
         <span class="feature-icon">ƒ</span>
         <div class="feature-title">Formula Engine</div>
-        <p class="feature-desc">30+ built-in functions across math, text, and logic. Start any cell with <code>=</code> to write a live formula.</p>
+        <p class="feature-desc">40+ built-in functions across math, text, logic, lookup, statistical, and finance. Includes <code>XLOOKUP</code>, <code>AVERAGEIF</code>, <code>MAXIFS</code>, <code>RANK</code>, <code>PERCENTILE</code>, and <code>CHOOSE</code>. Tab-completion as you type.</p>
       </div>
       <div class="feature-card">
         <span class="feature-icon">⊞</span>
@@ -852,7 +852,7 @@
       <div class="feature-card">
         <span class="feature-icon">🎨</span>
         <div class="feature-title">Theming</div>
-        <p class="feature-desc">Every color configurable via <code>~/.config/asat/config.toml</code>. Full hex color support, solarized dark by default.</p>
+        <p class="feature-desc">18 built-in themes selectable with <code>:theme</code>. Set <code>theme_name = "nord"</code> in config for a clean one-liner — no hex values needed. Full custom color override support.</p>
       </div>
       <div class="feature-card">
         <span class="feature-icon">🐍</span>
@@ -863,6 +863,31 @@
         <span class="feature-icon">⇅</span>
         <div class="feature-title">Sort &amp; Replace</div>
         <p class="feature-desc">Sort rows by any column (<code>:sort asc/desc</code>). Regex find &amp; replace across cells (<code>:s/pat/repl/g</code>). Both are fully undoable.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">▼</span>
+        <div class="feature-title">Filter &amp; Freeze</div>
+        <p class="feature-desc">Hide rows matching a condition with <code>:filter col op val</code>. Freeze top rows or left columns as sticky pane headers.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">◈</span>
+        <div class="feature-title">Named Ranges</div>
+        <p class="feature-desc">Define named ranges with <code>:name SALES A1:C10</code> and use them directly in formulas — <code>=SUM(SALES)</code>.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">✎</span>
+        <div class="feature-title">Cell Notes</div>
+        <p class="feature-desc">Attach comments to any cell with <code>:note</code>. A corner marker (▸) indicates noted cells at a glance.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">⬛</span>
+        <div class="feature-title">Conditional Formatting</div>
+        <p class="feature-desc">Apply background colour to cells matching a rule with <code>:colfmt &gt; 1000 #FF6B6B</code>. Fully undoable.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">📋</span>
+        <div class="feature-title">System Clipboard</div>
+        <p class="feature-desc">Yank operations copy as TSV to your OS clipboard. <code>Ctrl+V</code> in Insert mode pastes from the system clipboard.</p>
       </div>
     </div>
   </div>
@@ -1402,6 +1427,20 @@
               <td><code style="color:var(--teal);font-family:var(--mono)">:sort [asc|desc]</code></td><td>Sort all rows by the current cursor column (undoable; default asc)</td>
             </tr>
             <tr><td><code style="color:var(--teal);font-family:var(--mono)">:s/pat/repl/[g][i]</code></td><td>Find &amp; replace in text cells — <code>g</code> = all occurrences, <code>i</code> = case-insensitive, undoable</td></tr>
+            <tr><td><code style="color:var(--teal);font-family:var(--mono)">:goto &lt;addr&gt;</code></td><td>Jump to a cell address, e.g. <code>:goto B15</code></td></tr>
+            <tr><td><code style="color:var(--teal);font-family:var(--mono)">:name &lt;NAME&gt; &lt;range&gt;</code></td><td>Define a named range usable in formulas, e.g. <code>:name SALES A1:C10</code></td></tr>
+            <tr><td><code style="color:var(--teal);font-family:var(--mono)">:filter &lt;col&gt; &lt;op&gt; &lt;val&gt;</code></td><td>Hide rows where column doesn't match — ops: <code>= != &gt; &lt; &gt;= &lt;= ~</code></td></tr>
+            <tr><td><code style="color:var(--teal);font-family:var(--mono)">:filter off</code></td><td>Unhide all filtered rows</td></tr>
+            <tr><td><code style="color:var(--teal);font-family:var(--mono)">:freeze rows &lt;N&gt;</code></td><td>Freeze top N rows as a sticky header</td></tr>
+            <tr><td><code style="color:var(--teal);font-family:var(--mono)">:freeze cols &lt;N&gt;</code></td><td>Freeze left N columns as a sticky header</td></tr>
+            <tr><td><code style="color:var(--teal);font-family:var(--mono)">:freeze off</code></td><td>Clear all frozen panes</td></tr>
+            <tr><td><code style="color:var(--teal);font-family:var(--mono)">:note [text]</code></td><td>Attach a comment to the current cell; <code>:note</code> shows it; <code>:note!</code> clears it</td></tr>
+            <tr><td><code style="color:var(--teal);font-family:var(--mono)">:colfmt &lt;op&gt; &lt;val&gt; &lt;color&gt;</code></td><td>Conditional format — apply background color to matching cells in the column</td></tr>
+            <tr><td><code style="color:var(--teal);font-family:var(--mono)">:transpose</code></td><td>Transpose rows and columns in the visual selection</td></tr>
+            <tr><td><code style="color:var(--teal);font-family:var(--mono)">:dedup</code></td><td>Remove duplicate rows by the current cursor column</td></tr>
+            <tr><td><code style="color:var(--teal);font-family:var(--mono)">:filldown</code></td><td>Fill the anchor cell's value down through the selection</td></tr>
+            <tr><td><code style="color:var(--teal);font-family:var(--mono)">:fillright</code></td><td>Fill the anchor cell's value right through the selection</td></tr>
+            <tr><td><code style="color:var(--teal);font-family:var(--mono)">:fmt thousands</code></td><td>Thousands-separator number format (#,##0); <code>:fmt t2</code> adds 2 decimal places</td></tr>
           </tbody>
         </table>
       </div>
@@ -1433,9 +1472,21 @@
         <div class="fn-group-title">Statistical</div>
         <div class="fn-chips">
           <span class="fn-chip">COUNT()</span><span class="fn-chip">COUNTA()</span><span class="fn-chip">SUMIF()</span>
-          <span class="fn-chip">COUNTIF()</span><span class="fn-chip">SUMPRODUCT()</span><span class="fn-chip">MEDIAN()</span>
+          <span class="fn-chip">COUNTIF()</span><span class="fn-chip">AVERAGEIF()</span><span class="fn-chip">MAXIFS()</span>
+          <span class="fn-chip">MINIFS()</span><span class="fn-chip">SUMPRODUCT()</span><span class="fn-chip">MEDIAN()</span>
           <span class="fn-chip">STDEV()</span><span class="fn-chip">VAR()</span><span class="fn-chip">LARGE()</span>
-          <span class="fn-chip">SMALL()</span>
+          <span class="fn-chip">SMALL()</span><span class="fn-chip">RANK()</span><span class="fn-chip">PERCENTILE()</span>
+          <span class="fn-chip">QUARTILE()</span>
+        </div>
+      </div>
+      <div class="fn-group">
+        <div class="fn-group-title">Lookup &amp; Reference</div>
+        <div class="fn-chips">
+          <span class="fn-chip" title="Vertical lookup">VLOOKUP()</span>
+          <span class="fn-chip" title="Horizontal lookup">HLOOKUP()</span>
+          <span class="fn-chip" title="Extended lookup with match modes">XLOOKUP()</span>
+          <span class="fn-chip">INDEX()</span><span class="fn-chip">MATCH()</span>
+          <span class="fn-chip">OFFSET()</span><span class="fn-chip">CHOOSE()</span>
         </div>
       </div>
       <div class="fn-group">
