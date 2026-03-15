@@ -67,7 +67,6 @@ const MENU: &[MenuItem] = &[
 pub fn render_welcome(frame: &mut Frame, area: Rect, state: &RenderState<'_>) {
     let theme = &state.config.theme;
     let amber = parse_hex_color(&theme.cursor_bg);
-    let header_bg = parse_hex_color(&theme.header_bg);
     let header_fg = parse_hex_color(&theme.header_fg);
     let bg = parse_hex_color(&theme.cell_bg);
     let dim = darken(header_fg, 0.55);
@@ -200,7 +199,7 @@ pub fn render_welcome(frame: &mut Frame, area: Rect, state: &RenderState<'_>) {
             Paragraph::new(Line::from(vec![
                 Span::styled(format!(" {} ", item.icon), Style::default().fg(key_color)),
                 Span::styled(
-                    format!("{}", item.key),
+                    item.key.to_string(),
                     Style::default().fg(key_color).add_modifier(Modifier::BOLD),
                 ),
                 Span::styled("  ", Style::default()),

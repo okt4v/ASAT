@@ -51,7 +51,7 @@ impl<'a> Widget for GridWidget<'a> {
 
         // ── Freeze pane metrics ──────────────────────────────────────────────
         let freeze_rows = sheet.freeze_rows as u16;
-        let freeze_cols = sheet.freeze_cols as u32;
+        let freeze_cols = sheet.freeze_cols;
 
         // Frozen column widths (always rendered at fixed left position)
         let available_width = area.width.saturating_sub(ROW_GUTTER_WIDTH);
@@ -271,7 +271,7 @@ impl<'a> Widget for GridWidget<'a> {
                 continue;
             }
 
-            let row_h = sheet.row_height(row_idx).max(1) as u16;
+            let row_h = sheet.row_height(row_idx).max(1);
             let is_cursor_row = row_idx == cursor.row;
 
             // ── First line: gutter + cell content ────────────────────────────
@@ -499,7 +499,7 @@ fn render_data_cell(
     let user_align = sheet
         .get_cell(row_idx, col_idx)
         .and_then(|c| c.style.as_ref())
-        .map(|s| s.align.clone());
+        .map(|s| s.align);
     match user_align {
         Some(Alignment::Right) => render_cell_right(buf, x, y, col_width, &display, cell_style),
         Some(Alignment::Center) => render_cell_centered(buf, x, y, col_width, &display, cell_style),

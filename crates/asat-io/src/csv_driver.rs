@@ -93,8 +93,8 @@ fn parse_csv_value(s: &str) -> CellValue {
         return CellValue::Empty;
     }
     // Formula
-    if s.starts_with('=') {
-        return CellValue::Formula(s[1..].to_string());
+    if let Some(formula) = s.strip_prefix('=') {
+        return CellValue::Formula(formula.to_string());
     }
     // Number
     if let Ok(n) = s.parse::<f64>() {

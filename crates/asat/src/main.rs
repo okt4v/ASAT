@@ -62,7 +62,7 @@ fn main() -> Result<()> {
     let config = Config::load().unwrap_or_default();
 
     // Load workbook
-    let mut workbook = if let Some(ref path) = file_path {
+    let workbook = if let Some(ref path) = file_path {
         if path.exists() {
             match asat_io::load(path) {
                 Ok(wb) => wb,
@@ -195,7 +195,7 @@ fn run_app(
         {
             last_autosave = std::time::Instant::now();
             if let Some(path) = workbook.file_path.clone() {
-                if let Ok(_) = asat_io::save(&workbook, &path) {
+                if asat_io::save(&workbook, &path).is_ok() {
                     workbook.dirty = false;
                     set_status(
                         &mut status_message,
@@ -440,6 +440,7 @@ fn compare_cell_values(a: &CellValue, b: &CellValue) -> std::cmp::Ordering {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn process_action(
     action: AppAction,
     workbook: &mut Workbook,
@@ -1831,6 +1832,7 @@ fn do_paste(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn replay_macro(
     keys: Vec<KeyEvent>,
     workbook: &mut Workbook,
@@ -2010,6 +2012,7 @@ fn apply_style_sel(
 }
 
 /// Fetch the current CellStyle for a cell (or default), apply `f`, then push as a SetCell command.
+#[allow(clippy::too_many_arguments)]
 fn apply_style(
     workbook: &mut Workbook,
     undo: &mut UndoStack,
@@ -2399,7 +2402,7 @@ fn handle_ex_command(
                 input,
                 undo,
                 status,
-                &move |s| s.align = al.clone(),
+                &move |s| s.align = al,
                 &format!("Align: {:?}", al),
             );
         }

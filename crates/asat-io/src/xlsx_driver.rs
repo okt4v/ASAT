@@ -67,28 +67,28 @@ impl FileDriver for XlsxDriver {
                         CellValue::Empty => {}
                         CellValue::Text(s) => {
                             worksheet
-                                .write_string(row as u32, col as u16, s)
+                                .write_string(row, col as u16, s)
                                 .map_err(|e| IoError::Xlsx(e.to_string()))?;
                         }
                         CellValue::Number(n) => {
                             worksheet
-                                .write_number(row as u32, col as u16, *n)
+                                .write_number(row, col as u16, *n)
                                 .map_err(|e| IoError::Xlsx(e.to_string()))?;
                         }
                         CellValue::Boolean(b) => {
                             worksheet
-                                .write_boolean(row as u32, col as u16, *b)
+                                .write_boolean(row, col as u16, *b)
                                 .map_err(|e| IoError::Xlsx(e.to_string()))?;
                         }
                         CellValue::Formula(f) => {
                             let formula = Formula::new(format!("={}", f));
                             worksheet
-                                .write_formula(row as u32, col as u16, formula)
+                                .write_formula(row, col as u16, formula)
                                 .map_err(|e| IoError::Xlsx(e.to_string()))?;
                         }
                         CellValue::Error(e) => {
                             worksheet
-                                .write_string(row as u32, col as u16, &e.to_string())
+                                .write_string(row, col as u16, e.to_string())
                                 .map_err(|e2| IoError::Xlsx(e2.to_string()))?;
                         }
                     }
@@ -109,8 +109,8 @@ fn calamine_data_to_cell_value(dt: &Data) -> CellValue {
     match dt {
         Data::Empty => CellValue::Empty,
         Data::String(s) => {
-            if s.starts_with('=') {
-                CellValue::Formula(s[1..].to_string())
+            if let Some(formula) = s.strip_prefix('=') {
+                CellValue::Formula(formula.to_string())
             } else {
                 CellValue::Text(s.clone())
             }

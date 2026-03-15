@@ -164,10 +164,7 @@ pub fn get_command_completions(prefix: &str) -> Vec<(&'static str, &'static str)
         .iter()
         .filter(|(cmd, _)| {
             // Compare only up to the first space or '<' (the argument placeholder)
-            let word = cmd
-                .split(|c: char| c == ' ' || c == '<')
-                .next()
-                .unwrap_or(cmd);
+            let word = cmd.split([' ', '<']).next().unwrap_or(cmd);
             word.to_ascii_lowercase().starts_with(&p)
         })
         .copied()
@@ -633,10 +630,7 @@ impl InputState {
 
     /// Returns the current partial key sequence as a display string
     pub fn key_prefix(&self) -> String {
-        self.key_buffer
-            .iter()
-            .map(|k| key_event_to_str(k))
-            .collect()
+        self.key_buffer.iter().map(key_event_to_str).collect()
     }
 
     /// Current visual selection bounds (row_start, col_start, row_end, col_end).
@@ -728,12 +722,10 @@ impl InputState {
             Some(i) => {
                 if forward {
                     (i + 1) % len
+                } else if i == 0 {
+                    len - 1
                 } else {
-                    if i == 0 {
-                        len - 1
-                    } else {
-                        i - 1
-                    }
+                    i - 1
                 }
             }
         };
@@ -786,7 +778,7 @@ impl InputState {
         // ── Pending multi-key sequence ────────────────────────────────────────
         if !self.key_buffer.is_empty() {
             let first = self.key_buffer[0].code;
-            let first_ctrl = self.key_buffer[0].modifiers.contains(KeyModifiers::CONTROL);
+            let _first_ctrl = self.key_buffer[0].modifiers.contains(KeyModifiers::CONTROL);
             self.key_buffer.clear();
             let n = self.take_count();
 
@@ -838,7 +830,7 @@ impl InputState {
 
                 // >> / <<
                 (KeyCode::Char('>'), KeyCode::Char('>')) => {
-                    let col = workbook.active().max_col().min(self.cursor.col);
+                    let _col = workbook.active().max_col().min(self.cursor.col);
                     (0..n)
                         .map(|_| AppAction::IncreaseColWidth {
                             col: self.cursor.col,
@@ -937,7 +929,7 @@ impl InputState {
             KeyCode::Char('w') => (0..n)
                 .map(|_| AppAction::MoveToNextNonEmptyH { forward: true })
                 .collect(),
-            KeyCode::Char('b') => (0..n)
+            KeyCode::Char('b') if !ctrl => (0..n)
                 .map(|_| AppAction::MoveToNextNonEmptyH { forward: false })
                 .collect(),
             KeyCode::Char('W') => (0..n)
@@ -1801,10 +1793,7 @@ impl InputState {
 
                 // Fill command buffer with the selected command's name (word part only)
                 let chosen = matches[next].0;
-                let word = chosen
-                    .split(|c: char| c == ' ' || c == '<')
-                    .next()
-                    .unwrap_or(chosen);
+                let word = chosen.split([' ', '<']).next().unwrap_or(chosen);
                 self.command_buffer = word.to_string();
 
                 vec![AppAction::NoOp]

@@ -4,8 +4,9 @@ use std::path::PathBuf;
 
 // ── Cell Value ─────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub enum CellValue {
+    #[default]
     Empty,
     Text(String),
     Number(f64),
@@ -49,12 +50,6 @@ impl CellValue {
             CellValue::Formula(f) => format!("={}", f),
             other => other.display(),
         }
-    }
-}
-
-impl Default for CellValue {
-    fn default() -> Self {
-        CellValue::Empty
     }
 }
 
@@ -181,38 +176,18 @@ impl Default for Cell {
 
 // ── Row / Col Metadata ──────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct RowMeta {
     pub height: Option<u16>, // None = auto
     pub hidden: bool,
     pub style: Option<CellStyle>,
 }
 
-impl Default for RowMeta {
-    fn default() -> Self {
-        RowMeta {
-            height: None,
-            hidden: false,
-            style: None,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ColMeta {
     pub width: Option<u16>, // None = auto (chars)
     pub hidden: bool,
     pub style: Option<CellStyle>,
-}
-
-impl Default for ColMeta {
-    fn default() -> Self {
-        ColMeta {
-            width: None,
-            hidden: false,
-            style: None,
-        }
-    }
 }
 
 // ── Cell Range ──────────────────────────────────────────────────────────────

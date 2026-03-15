@@ -78,6 +78,7 @@ impl<'a> Parser<'a> {
         t
     }
 
+    #[allow(dead_code)]
     fn expect_ident(&mut self) -> Result<String, ParseError> {
         match self.advance().clone() {
             Token::Ident(s) => Ok(s),

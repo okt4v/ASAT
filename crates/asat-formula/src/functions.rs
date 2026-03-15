@@ -132,6 +132,7 @@ fn first_two_nums(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> Optio
     Some((a, b))
 }
 
+#[allow(dead_code)]
 fn require_args(args: &[Expr], n: usize) -> Result<(), CellValue> {
     if args.len() < n {
         Err(CellValue::Error(CellError::Value))
@@ -201,20 +202,20 @@ fn fn_counta(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValue 
 
 fn fn_min(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValue {
     let vals = expand_args(args, ctx, ev);
-    let nums: Vec<f64> = vals.iter().filter_map(|v| to_number(v)).collect();
+    let nums: Vec<f64> = vals.iter().filter_map(to_number).collect();
     if nums.is_empty() {
         return CellValue::Error(CellError::Value);
     }
-    CellValue::Number(nums.iter().cloned().fold(f64::INFINITY, f64::min))
+    CellValue::Number(nums.iter().copied().fold(f64::INFINITY, f64::min))
 }
 
 fn fn_max(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValue {
     let vals = expand_args(args, ctx, ev);
-    let nums: Vec<f64> = vals.iter().filter_map(|v| to_number(v)).collect();
+    let nums: Vec<f64> = vals.iter().filter_map(to_number).collect();
     if nums.is_empty() {
         return CellValue::Error(CellError::Value);
     }
-    CellValue::Number(nums.iter().cloned().fold(f64::NEG_INFINITY, f64::max))
+    CellValue::Number(nums.iter().copied().fold(f64::NEG_INFINITY, f64::max))
 }
 
 fn fn_abs(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValue {
@@ -759,15 +760,8 @@ fn criteria_match(val: &CellValue, criteria: &CellValue) -> bool {
         CellValue::Boolean(b) => matches!(val, CellValue::Boolean(v) if v == b),
         CellValue::Text(s) => {
             // Try comparison operators first: ">5", "<=10", "<>0", ">=3"
-            for (op, rest) in [
-                (">=", &s[..]),
-                ("<=", s.as_str()),
-                ("<>", s.as_str()),
-                (">", s.as_str()),
-                ("<", s.as_str()),
-            ] {
-                if s.starts_with(op) {
-                    let rhs = &s[op.len()..];
+            for op in [">=", "<=", "<>", ">", "<"] {
+                if let Some(rhs) = s.strip_prefix(op) {
                     if let Ok(rhs_n) = rhs.parse::<f64>() {
                         if let Some(lhs_n) = to_number(val) {
                             return match op {
@@ -780,7 +774,6 @@ fn criteria_match(val: &CellValue, criteria: &CellValue) -> bool {
                             };
                         }
                     }
-                    let _ = rest; // suppress unused warning
                     break;
                 }
             }
@@ -866,7 +859,7 @@ fn fn_median(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValue 
     }
     nums.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     let mid = nums.len() / 2;
-    let median = if nums.len() % 2 == 0 {
+    let median = if nums.len().is_multiple_of(2) {
         (nums[mid - 1] + nums[mid]) / 2.0
     } else {
         nums[mid]

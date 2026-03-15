@@ -222,8 +222,8 @@ fn data_to_value(dt: &Data) -> CellValue {
     match dt {
         Data::Empty => CellValue::Empty,
         Data::String(s) => {
-            if s.starts_with('=') {
-                CellValue::Formula(s[1..].to_string())
+            if let Some(formula) = s.strip_prefix('=') {
+                CellValue::Formula(formula.to_string())
             } else {
                 CellValue::Text(s.clone())
             }

@@ -112,7 +112,6 @@ pub fn render(frame: &mut Frame, area: Rect, state: &RenderState<'_>) {
     let header_fg = parse_hex_color(&t.header_fg);
     let cell_bg = parse_hex_color(&t.cell_bg);
     let sel_bg = parse_hex_color(&t.selection_bg);
-    let normal_c = parse_hex_color(&t.normal_mode_color);
     let insert_c = parse_hex_color(&t.insert_mode_color);
     let visual_c = parse_hex_color(&t.visual_mode_color);
     let command_c = parse_hex_color(&t.command_mode_color);
@@ -229,6 +228,7 @@ pub fn render(frame: &mut Frame, area: Rect, state: &RenderState<'_>) {
 }
 
 /// Draw a tiny mock spreadsheet using the theme's colours.
+#[allow(clippy::too_many_arguments)]
 fn render_mock_grid(
     frame: &mut Frame,
     area: Rect,
@@ -266,6 +266,7 @@ fn render_mock_grid(
         .add_modifier(Modifier::BOLD);
 
     // Column widths: gutter(4) + A(12) + B(10) + C(9)
+    #[allow(clippy::type_complexity)]
     let rows: &[(u16, &str, &[(Style, &str, bool)])] = &[
         // (gutter_style_idx, gutter_label, [(cell_style, text, right_align)])
         (

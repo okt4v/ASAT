@@ -9,6 +9,7 @@ pub struct EvalContext<'a> {
     pub col: u32,
 }
 
+#[derive(Default)]
 pub struct Evaluator;
 
 impl Evaluator {

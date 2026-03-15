@@ -187,7 +187,7 @@ pub fn lex(input: &str) -> Result<Vec<Token>, LexError> {
                         if i < chars.len() && chars[i] == ':' {
                             i += 1;
                             // Collect next ref
-                            let ref2_start = i;
+                            let _ref2_start = i;
                             let mut abs_col2 = false;
                             let mut abs_row2 = false;
                             if i < chars.len() && chars[i] == '$' {
@@ -245,7 +245,7 @@ pub fn lex(input: &str) -> Result<Vec<Token>, LexError> {
 
             // We have a sheet prefix — parse cell ref after it
             let sheet = sheet_prefix;
-            let cell_start = i;
+            let _cell_start = i;
             let mut abs_col = false;
             let mut abs_row = false;
             if i < chars.len() && chars[i] == '$' {
@@ -331,7 +331,7 @@ pub fn lex(input: &str) -> Result<Vec<Token>, LexError> {
         // $ prefix for absolute refs: collect as part of cell ref
         if c == '$' {
             i += 1;
-            let mut abs_col = true;
+            let abs_col = true;
             let col_start = i;
             while i < chars.len() && chars[i].is_ascii_alphabetic() {
                 i += 1;
