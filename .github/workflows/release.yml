@@ -207,7 +207,8 @@ jobs:
       - name: Set up SSH for AUR
         run: |
           mkdir -p ~/.ssh
-          printf '%s' "${{ secrets.AUR_SSH_KEY }}" > ~/.ssh/aur_key
+          echo "${{ secrets.AUR_SSH_KEY }}" | tr -d '\r' > ~/.ssh/aur_key
+          echo "" >> ~/.ssh/aur_key
           chmod 600 ~/.ssh/aur_key
           ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts
           printf 'Host aur.archlinux.org\n  IdentityFile ~/.ssh/aur_key\n  User aur\n' >> ~/.ssh/config
@@ -315,7 +316,16 @@ jobs:
 
       - name: Upload to Buildkite registry
         run: |
-          curl -f -X POST \
+          HTTP_STATUS=$(curl -s -o /tmp/bk_response.json -w "%{http_code}" -X POST \
             "https://api.buildkite.com/v2/packages/organizations/oktavian-m/registries/asat/packages" \
             -H "Authorization: Bearer ${{ secrets.BUILDKITE_API_TOKEN }}" \
-            -F "file=@${DEB_PATH}"
+            -F "file=@${DEB_PATH}")
+          cat /tmp/bk_response.json
+          if [ "$HTTP_STATUS" = "409" ]; then
+            echo "Package version already exists (409) — skipping."
+          elif [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
+            echo "Upload failed with HTTP $HTTP_STATUS"
+            exit 1
+          else
+            echo "Upload succeeded (HTTP $HTTP_STATUS)"
+          fi
