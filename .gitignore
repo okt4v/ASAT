@@ -8,6 +8,7 @@
 /testdata/
 /testing/
 /packaging/aur-repo/
+/packaging/homebrew-tap/
 
 # ── OS files ──────────────────────────────────────────────────────────────────
 .DS_Store
