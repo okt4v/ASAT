@@ -165,11 +165,9 @@ jobs:
     needs: release
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
       - name: Download SHA256SUMS
         run: |
-          gh release download ${{ github.ref_name }} --pattern SHA256SUMS.txt -D /tmp/sums
+          gh release download ${{ github.ref_name }} --repo okt4v/ASAT --pattern SHA256SUMS.txt -D /tmp/sums
           cat /tmp/sums/SHA256SUMS.txt
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -183,10 +181,10 @@ jobs:
 
       - name: Write PKGBUILD
         run: |
-          cat > /tmp/PKGBUILD <<EOF
+          cat > /tmp/PKGBUILD <<'PKGEOF'
           # Maintainer: okt4v
           pkgname=asat-bin
-          pkgver=${PKGVER}
+          pkgver=PKGVER_PLACEHOLDER
           pkgrel=1
           pkgdesc="Terminal spreadsheet editor for Vim users — modal editing, 40+ formulas, CSV/XLSX/ODS"
           arch=('x86_64')
@@ -194,34 +192,31 @@ jobs:
           license=('GPL-3.0-or-later')
           provides=('asat')
           conflicts=('asat' 'asat-git')
-          source_x86_64=("\${pkgname}-\${pkgver}-x86_64.tar.gz::https://github.com/okt4v/ASAT/releases/download/v\${pkgver}/asat-v\${pkgver}-x86_64-unknown-linux-gnu.tar.gz")
-          sha256sums_x86_64=('${SHA256}')
+          source_x86_64=("${pkgname}-${pkgver}-x86_64.tar.gz::https://github.com/okt4v/ASAT/releases/download/v${pkgver}/asat-v${pkgver}-x86_64-unknown-linux-gnu.tar.gz")
+          sha256sums_x86_64=('SHA256_PLACEHOLDER')
 
           package() {
-              install -Dm755 "asat-v\${pkgver}-x86_64-unknown-linux-gnu/asat" "\${pkgdir}/usr/bin/asat"
-              install -Dm644 "asat-v\${pkgver}-x86_64-unknown-linux-gnu/README.md" \\
-                  "\${pkgdir}/usr/share/doc/\${pkgname}/README.md"
+              install -Dm755 "asat-v${pkgver}-x86_64-unknown-linux-gnu/asat" "${pkgdir}/usr/bin/asat"
+              install -Dm644 "asat-v${pkgver}-x86_64-unknown-linux-gnu/README.md" \
+                  "${pkgdir}/usr/share/doc/${pkgname}/README.md"
           }
-          EOF
+          PKGEOF
+          sed -i "s/PKGVER_PLACEHOLDER/${PKGVER}/" /tmp/PKGBUILD
+          sed -i "s/SHA256_PLACEHOLDER/${SHA256}/" /tmp/PKGBUILD
 
       - name: Set up SSH for AUR
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.AUR_SSH_KEY }}" > ~/.ssh/aur
-          chmod 600 ~/.ssh/aur
-          ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts
-          cat >> ~/.ssh/config <<EOF
-          Host aur.archlinux.org
-            IdentityFile ~/.ssh/aur
-            User aur
-          EOF
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.AUR_SSH_KEY }}
+
+      - name: Add AUR to known hosts
+        run: ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts
 
       - name: Push to AUR
         run: |
           git clone ssh://aur@aur.archlinux.org/asat-bin.git /tmp/aur-asat-bin
           cp /tmp/PKGBUILD /tmp/aur-asat-bin/PKGBUILD
           cd /tmp/aur-asat-bin
-          # Generate .SRCINFO using a Docker image with makepkg
           docker run --rm -v "$PWD:/pkg" archlinux:latest bash -c \
             "pacman -Sy --noconfirm base-devel && cd /pkg && HOME=/tmp makepkg --printsrcinfo > .SRCINFO"
           git config user.name "okt4v"
@@ -238,7 +233,7 @@ jobs:
     steps:
       - name: Download SHA256SUMS
         run: |
-          gh release download ${{ github.ref_name }} --pattern SHA256SUMS.txt -D /tmp/sums
+          gh release download ${{ github.ref_name }} --repo okt4v/ASAT --pattern SHA256SUMS.txt -D /tmp/sums
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -312,7 +307,7 @@ jobs:
     steps:
       - name: Download .deb from release
         run: |
-          gh release download ${{ github.ref_name }} --pattern "*.deb" -D /tmp/deb
+          gh release download ${{ github.ref_name }} --repo okt4v/ASAT --pattern "*.deb" -D /tmp/deb
           DEB=$(ls /tmp/deb/*.deb)
           echo "DEB_PATH=$DEB" >> $GITHUB_ENV
         env:
