@@ -14,14 +14,16 @@
 - **Modal editing** — Normal, Insert, Visual (char/line/block), Command, Search, and Macro Recording modes, exactly like Vim
 - **Live formula engine** — 30+ built-in functions across math, text, logic, and lookup. Formulas re-evaluate after every edit
 - **Multi-sheet workbooks** — tab bar, `:tabnew`, `:tabclose`, `gt` / `gT` to switch sheets
-- **File format support** — read and write CSV, TSV, XLSX, and ODS; native `.asat` format with bincode + zstd compression
+- **File format support** — read and write CSV, TSV, XLSX, and ODS (OpenDocument Spreadsheet); native `.asat` format with bincode + zstd compression
 - **System clipboard** — all yank operations (`yy`, `yc`, visual `y`) copy to your OS clipboard as tab-separated text
 - **Full undo stack** — 1000-deep undo/redo covering cell edits, row/column operations, pastes, and style changes
+- **Sort & find/replace** — `:sort asc/desc` sorts rows by the cursor column; `:s/pat/repl/g` does regex find & replace across cells; both undoable
 - **Macros** — record key sequences to named registers (`qa` … `qz`), replay with `@a`, chain with `{N}@a`
 - **Marks** — set named positions (`ma`), jump back (`'a`), and swap with `''`
 - **Cell styling** — bold, italic, underline, strikethrough, foreground/background colour, alignment, and number formats
 - **Themes** — built-in theme picker (`:theme`) with multiple colour presets, saved to config
 - **Formula reference picker** — press `Ctrl+R` inside a formula to navigate the grid and insert cell/range references interactively
+- **Plugin system** — extend ASAT with Python via PyO3; hook into cell changes, mode transitions, and file events; register custom formula functions from `~/.config/asat/init.py`
 
 ---
 
@@ -254,6 +256,50 @@ Open the config from the welcome screen with `c`, or edit it directly. Changes t
 
 ---
 
+## Plugin System
+
+ASAT supports Python plugins via PyO3. Build with the feature enabled:
+
+```bash
+cargo build --release --features asat-plugins/python
+```
+
+Place your script at `~/.config/asat/init.py`. It is loaded on startup and can be reloaded live with `:plugin reload`.
+
+```python
+import asat
+
+# React to events
+@asat.on("cell_change")
+def on_change(sheet, row, col, old, new):
+    if isinstance(new, (int, float)) and new > 1_000_000:
+        asat.notify("Very large value!")
+
+@asat.on("mode_change")
+def on_mode(mode):
+    if mode == "INSERT":
+        asat.notify("Editing...")
+
+# Register custom formula functions (callable as =DOUBLE(A1))
+@asat.function("DOUBLE")
+def double(x):
+    return x * 2
+
+# Read/write cells by address
+@asat.on("open")
+def on_open(path):
+    asat.write("A1", "Loaded: " + str(path))
+    val = asat.read("B2")
+```
+
+**Available events:** `open`, `pre_save`, `post_save`, `cell_change`, `mode_change`, `sheet_change`
+
+**Plugin API:** `asat.notify(msg)`, `asat.command(cmd)`, `asat.read("A1")`, `asat.write("A1", val)`, `asat.get_cell(row, col)`, `asat.set_cell(row, col, val)`
+
+**Commands:** `:plugin list` — show loaded handlers and functions; `:plugin reload` — hot-reload `init.py`
+
+---
+
 ## File Formats
 
 | Format | Read | Write | Notes |
@@ -278,7 +324,7 @@ crates/
   asat-tui/       — ratatui widgets: grid, formula bar, status bar, tab bar, command line
   asat-input/     — Modal state machine, InputState, AppAction enum
   asat-commands/  — Command trait, UndoStack, SetCell, InsertRow/Col, DeleteRow/Col
-  asat-plugins/   — Plugin manager stub + PluginEvent (PyO3 in a future release)
+  asat-plugins/   — Plugin manager: PyO3 Python backend (opt-in with --features asat-plugins/python)
   asat-config/    — Config struct, config.toml parsing, ThemeConfig
   asat/           — Binary: main loop, AppAction dispatch, ex-command handler
 ```
@@ -289,11 +335,12 @@ crates/
 
 - [x] MVP — CSV, navigation, insert, undo, `:w` / `:q`
 - [x] Full Vim feel — `dd`/`yy`/`p`, marks, registers, visual mode, macros
-- [x] Multi-sheet + XLSX / ODS
+- [x] Multi-sheet + XLSX / ODS (read & write)
 - [x] Formula engine — 30+ functions, live evaluation, F-REF picker
 - [x] Styles + formatting — bold, italic, colour, alignment, number formats
-- [ ] Plugin system — PyO3, `init.py`, `asat.function` / `asat.on` / `asat.bind`
-- [ ] Polish — sort/filter, autosave, ODS formula round-trip, column freeze
+- [x] Sort & find/replace — `:sort`, `:s/pat/repl/g`
+- [x] Plugin system — PyO3 backend, `init.py`, `@asat.on`, `@asat.function`, live reload with `:plugin reload` (build with `--features asat-plugins/python`)
+- [ ] Polish — filter/hide rows, autosave, ODS formula round-trip, column freeze
 
 ---
 

@@ -837,7 +837,7 @@
       <div class="feature-card">
         <span class="feature-icon">◈</span>
         <div class="feature-title">File Formats</div>
-        <p class="feature-desc">Read and write CSV, TSV, and XLSX. Native <code>.asat</code> format with bincode + zstd compression.</p>
+        <p class="feature-desc">Read and write CSV, TSV, XLSX, and ODS (OpenDocument). Native <code>.asat</code> format with bincode + zstd compression.</p>
       </div>
       <div class="feature-card">
         <span class="feature-icon">↩</span>
@@ -854,10 +854,15 @@
         <div class="feature-title">Theming</div>
         <p class="feature-desc">Every color configurable via <code>~/.config/asat/config.toml</code>. Full hex color support, solarized dark by default.</p>
       </div>
-      <div class="feature-card coming-soon">
+      <div class="feature-card">
         <span class="feature-icon">🐍</span>
         <div class="feature-title">Plugin System</div>
-        <p class="feature-desc">Extend ASAT with Python via PyO3. Hook into cell changes, file events, and custom functions via <code>init.py</code>.</p>
+        <p class="feature-desc">Extend ASAT with Python via PyO3. Hook into cell changes, mode transitions, file events, and register custom formula functions via <code>~/.config/asat/init.py</code>.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">⇅</span>
+        <div class="feature-title">Sort &amp; Replace</div>
+        <p class="feature-desc">Sort rows by any column (<code>:sort asc/desc</code>). Regex find &amp; replace across cells (<code>:s/pat/repl/g</code>). Both are fully undoable.</p>
       </div>
     </div>
   </div>
@@ -904,8 +909,12 @@
             <div><span class="prompt">$</span><span>./target/release/asat myfile.csv</span></div>
             <button class="copy-btn" onclick="copyCode(this)">copy</button>
           </div>
-          <div class="code-block">
+          <div class="code-block" style="margin-bottom:0.6rem">
             <div><span class="prompt">$</span><span>./target/release/asat report.xlsx</span></div>
+            <button class="copy-btn" onclick="copyCode(this)">copy</button>
+          </div>
+          <div class="code-block">
+            <div><span class="prompt">$</span><span>./target/release/asat spreadsheet.ods</span></div>
             <button class="copy-btn" onclick="copyCode(this)">copy</button>
           </div>
           <div class="step-desc" style="margin-top:0.6rem">Optionally, copy the binary to <code style="color:var(--teal)">/usr/local/bin/asat</code> for system-wide access.</div>
