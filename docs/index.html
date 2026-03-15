@@ -1112,16 +1112,20 @@
       <!-- Cell picker card -->
       <div class="fg-card fg-card-highlight">
         <div class="fg-card-title">Interactive cell picker ✦</div>
-        <p class="fg-text">While typing a formula, press <kbd>Ctrl+R</kbd> to enter <strong>F-REF mode</strong>. Navigate the grid with <kbd>h</kbd><kbd>j</kbd><kbd>k</kbd><kbd>l</kbd> and the formula bar shows a live preview of the reference. Press <kbd>Enter</kbd> to insert it.</p>
+        <p class="fg-text">While typing a formula, press <kbd>Ctrl+R</kbd> to enter <strong>F-REF mode</strong>. Navigate the grid with <kbd>h</kbd><kbd>j</kbd><kbd>k</kbd><kbd>l</kbd>. Your formula stays visible in the formula bar the whole time. Press <kbd>Enter</kbd> to insert a single-cell reference, or use <kbd>v</kbd> to anchor a range then navigate to the end and press <kbd>Enter</kbd>.</p>
         <div class="fg-example">
-          <div class="fg-ex-label">F-REF workflow</div>
+          <div class="fg-ex-label">Single cell</div>
           <div class="fg-ex-row"><kbd>i</kbd> <span>start editing a cell</span></div>
           <div class="fg-ex-row"><code>=SUM(</code><span>type the start of a formula</span></div>
-          <div class="fg-ex-row"><kbd>Ctrl+R</kbd><span>enter cell-pick mode (F-REF)</span></div>
+          <div class="fg-ex-row"><kbd>Ctrl+R</kbd><span>enter F-REF mode</span></div>
           <div class="fg-ex-row"><kbd>h</kbd><kbd>j</kbd><kbd>k</kbd><kbd>l</kbd><span>navigate to desired cell</span></div>
-          <div class="fg-ex-row"><kbd>:</kbd><span>mark range start (→ F-RANGE)</span></div>
-          <div class="fg-ex-row"><kbd>h</kbd><kbd>j</kbd><kbd>k</kbd><kbd>l</kbd><span>extend range selection</span></div>
-          <div class="fg-ex-row"><kbd>Enter</kbd><span>insert ref and return to editing</span></div>
+          <div class="fg-ex-row"><kbd>Enter</kbd><span>insert cell ref (e.g. B3) and resume editing</span></div>
+          <div class="fg-ex-label" style="margin-top:0.75rem">Range selection</div>
+          <div class="fg-ex-row"><kbd>Ctrl+R</kbd><span>enter F-REF mode</span></div>
+          <div class="fg-ex-row"><kbd>h</kbd><kbd>j</kbd><kbd>k</kbd><kbd>l</kbd><span>navigate to range start</span></div>
+          <div class="fg-ex-row"><kbd>v</kbd><span>anchor range start (→ F-RANGE)</span></div>
+          <div class="fg-ex-row"><kbd>h</kbd><kbd>j</kbd><kbd>k</kbd><kbd>l</kbd><span>extend selection to range end</span></div>
+          <div class="fg-ex-row"><kbd>Enter</kbd><span>insert range ref (e.g. B1:D5)</span></div>
           <div class="fg-ex-row"><kbd>Esc</kbd><span>cancel without inserting</span></div>
         </div>
       </div>

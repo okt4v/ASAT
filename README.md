@@ -181,7 +181,7 @@ asat new_file.csv      # create a new file at this path
 | `Ctrl+w` | Delete word backward |
 | `Ctrl+u` | Delete to start of buffer |
 | `Ctrl+k` | Delete to end of buffer |
-| `Ctrl+r` | Enter F-REF mode to pick a cell reference (formulas only) |
+| `Ctrl+r` | Enter F-REF mode to pick a cell/range reference (formulas only) |
 | `Ctrl+v` | Paste from system clipboard into edit buffer |
 | `Tab` / `Shift+Tab` | Cycle through formula function name completions (when buffer starts with `=`) |
 
@@ -310,7 +310,7 @@ Start any cell with `=` to write a formula. Formulas re-evaluate automatically a
 | `A1:B10` | Range |
 | `Sheet2.C4` | Cross-sheet reference |
 
-**Interactive reference picking:** While editing a formula, press `Ctrl+R` to enter F-REF mode. Navigate with `hjkl`, press `:` to start a range, and `Enter` to insert the reference back into your formula.
+**Interactive reference picking:** While editing a formula, press `Ctrl+R` to enter F-REF mode. Navigate with `hjkl`/arrows. Press `v` (or `:`) to anchor a range start, then move to the end cell and press `Enter` to insert the range reference (e.g. `A1:C5`). Press `Enter` without anchoring to insert a single cell reference. Press `Esc` to cancel. The formula bar continues to show your in-progress formula throughout.
 
 ### Financial Functions
 

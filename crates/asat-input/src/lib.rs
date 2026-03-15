@@ -1289,8 +1289,10 @@ impl InputState {
             // Cancel — return to Insert without inserting
             KeyCode::Esc => vec![AppAction::FormulaSelectCancel],
 
-            // Start range selection
-            KeyCode::Char(':') | KeyCode::Char('.') => vec![AppAction::FormulaSelectStartRange],
+            // Start range selection — ':' (classic) or 'v' (visual-style)
+            KeyCode::Char(':') | KeyCode::Char('.') | KeyCode::Char('v') => {
+                vec![AppAction::FormulaSelectStartRange]
+            }
 
             // Navigate with hjkl and arrow keys (grid cursor moves)
             KeyCode::Char('h') | KeyCode::Left => vec![AppAction::MoveCursor {

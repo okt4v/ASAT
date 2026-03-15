@@ -218,6 +218,7 @@ impl<'a> Widget for GridWidget<'a> {
                     input.search_highlight(row_idx, col_idx),
                     sheet,
                     &input.edit_buffer,
+                    input.formula_origin,
                     cursor_bg,
                     cell_bg,
                     selection_bg,
@@ -324,6 +325,7 @@ impl<'a> Widget for GridWidget<'a> {
                     input.search_highlight(row_idx, *col_idx),
                     sheet,
                     &input.edit_buffer,
+                    input.formula_origin,
                     cursor_bg,
                     cell_bg,
                     selection_bg,
@@ -396,6 +398,7 @@ fn render_data_cell(
     search_hl: Option<bool>,
     sheet: &asat_core::Sheet,
     edit_buffer: &str,
+    formula_origin: Option<(u32, u32)>,
     cursor_bg: Color,
     cell_bg: Color,
     selection_bg: Color,
@@ -425,7 +428,11 @@ fn render_data_cell(
 
     let is_visual = is_in_visual_selection(row_idx, col_idx, visual_anchor, cursor, mode);
 
-    let live_edit = is_cursor && matches!(mode, Mode::Insert { .. } | Mode::FormulaSelect { .. });
+    // In FormulaSelect, show edit_buffer on the cell being edited (formula_origin),
+    // not on the navigator cursor which has moved away.
+    let is_formula_origin =
+        matches!(mode, Mode::FormulaSelect { .. }) && formula_origin == Some((row_idx, col_idx));
+    let live_edit = (is_cursor && matches!(mode, Mode::Insert { .. })) || is_formula_origin;
     let display = if live_edit {
         edit_buffer.to_string()
     } else {
