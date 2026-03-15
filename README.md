@@ -38,12 +38,15 @@
 ```bash
 git clone https://github.com/okt4v/ASAT.git
 cd ASAT
-cargo build --release
+bash install.sh
 ```
 
-The binary is at `target/release/asat`. Copy it somewhere on your `$PATH`:
+The install script builds in release mode and copies the binary to `~/.local/bin/asat`. It will warn you if that directory is not on your `$PATH`.
+
+To build manually instead:
 
 ```bash
+cargo build --release
 cp target/release/asat ~/.local/bin/
 ```
 

@@ -892,10 +892,10 @@
       <div class="step">
         <div class="step-num">2</div>
         <div class="step-body">
-          <div class="step-title">Build in release mode</div>
-          <div class="step-desc">Cargo handles all dependencies automatically.</div>
+          <div class="step-title">Build &amp; install</div>
+          <div class="step-desc">Builds in release mode and copies the binary to <code style="color:var(--teal)">~/.local/bin/asat</code>.</div>
           <div class="code-block">
-            <div><span class="prompt">$</span><span>cargo build --release</span></div>
+            <div><span class="prompt">$</span><span>bash install.sh</span></div>
             <button class="copy-btn" onclick="copyCode(this)">copy</button>
           </div>
         </div>
@@ -904,20 +904,20 @@
         <div class="step-num">3</div>
         <div class="step-body">
           <div class="step-title">Run ASAT</div>
-          <div class="step-desc">Pass a file path to open an existing file, or omit it to start a blank workbook.</div>
+          <div class="step-desc">Pass a file to open it, or omit for a blank workbook.</div>
           <div class="code-block" style="margin-bottom:0.6rem">
-            <div><span class="prompt">$</span><span>./target/release/asat myfile.csv</span></div>
+            <div><span class="prompt">$</span><span>asat myfile.csv</span></div>
             <button class="copy-btn" onclick="copyCode(this)">copy</button>
           </div>
           <div class="code-block" style="margin-bottom:0.6rem">
-            <div><span class="prompt">$</span><span>./target/release/asat report.xlsx</span></div>
+            <div><span class="prompt">$</span><span>asat report.xlsx</span></div>
             <button class="copy-btn" onclick="copyCode(this)">copy</button>
           </div>
           <div class="code-block">
-            <div><span class="prompt">$</span><span>./target/release/asat spreadsheet.ods</span></div>
+            <div><span class="prompt">$</span><span>asat spreadsheet.ods</span></div>
             <button class="copy-btn" onclick="copyCode(this)">copy</button>
           </div>
-          <div class="step-desc" style="margin-top:0.6rem">Optionally, copy the binary to <code style="color:var(--teal)">/usr/local/bin/asat</code> for system-wide access.</div>
+          <div class="step-desc" style="margin-top:0.6rem">Make sure <code style="color:var(--teal)">~/.local/bin</code> is on your <code style="color:var(--teal)">$PATH</code> — the script will warn you if it isn't.</div>
         </div>
       </div>
     </div>
