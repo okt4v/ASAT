@@ -1,0 +1,1636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ASAT — A Spreadsheet And Terminal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ─── Reset & Variables ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:           #060a10;
+      --surface:      #0b1220;
+      --surface2:     #111c30;
+      --surface3:     #172440;
+      --border:       #192640;
+      --border2:      #243650;
+      --amber:        #f0a832;
+      --amber-soft:   #c88a28;
+      --amber-glow:   rgba(240,168,50,0.15);
+      --amber-glow2:  rgba(240,168,50,0.06);
+      --teal:         #2dd4bf;
+      --teal-glow:    rgba(45,212,191,0.12);
+      --red:          #f87171;
+      --green:        #4ade80;
+      --text:         #c8d8ec;
+      --text-muted:   #5a7090;
+      --text-dim:     #304060;
+      --mono:         'JetBrains Mono', 'Fira Code', monospace;
+      --sans:         'Syne', sans-serif;
+      --radius:       8px;
+      --radius-lg:    14px;
+      --glow-amber:   0 0 20px rgba(240,168,50,0.25), 0 0 60px rgba(240,168,50,0.08);
+      --glow-teal:    0 0 20px rgba(45,212,191,0.2);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      line-height: 1.65;
+      overflow-x: hidden;
+    }
+
+    ::selection { background: var(--amber-glow); color: var(--amber); }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--amber-soft); }
+
+    /* ─── Typography ────────────────────────────────────────────────── */
+    h1, h2, h3 { font-family: var(--sans); line-height: 1.15; }
+    code, kbd, .mono { font-family: var(--mono); }
+
+    /* ─── Nav ───────────────────────────────────────────────────────── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 2.5rem;
+      height: 58px;
+      background: rgba(6,10,16,0.85);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      transition: border-color 0.3s;
+    }
+    nav.scrolled { border-color: var(--border2); }
+
+    .nav-logo {
+      font-family: var(--mono);
+      font-weight: 700;
+      font-size: 1.2rem;
+      color: var(--amber);
+      letter-spacing: -0.02em;
+      text-decoration: none;
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .nav-logo span { color: var(--text-muted); font-weight: 400; font-size: 0.85rem; }
+
+    .nav-links {
+      display: flex; align-items: center; gap: 0.25rem;
+      list-style: none;
+    }
+    .nav-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.875rem;
+      font-weight: 500;
+      padding: 0.4rem 0.8rem;
+      border-radius: 6px;
+      transition: color 0.2s, background 0.2s;
+    }
+    .nav-links a:hover { color: var(--text); background: var(--surface); }
+
+    .nav-gh {
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      color: var(--text) !important;
+      display: flex; align-items: center; gap: 0.4rem;
+      font-size: 0.8rem !important;
+      padding: 0.35rem 0.9rem !important;
+    }
+    .nav-gh:hover { border-color: var(--amber-soft) !important; color: var(--amber) !important; background: var(--amber-glow2) !important; }
+
+    /* ─── Hero ──────────────────────────────────────────────────────── */
+    #hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      padding: 100px 2rem 80px;
+      overflow: hidden;
+    }
+
+    .hero-bg {
+      position: absolute; inset: 0; z-index: 0;
+      pointer-events: none;
+    }
+
+    /* Animated spreadsheet grid in background */
+    .spreadsheet-bg {
+      position: absolute; inset: 0;
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      grid-template-rows: repeat(9, 1fr);
+      opacity: 0.035;
+    }
+    .spreadsheet-bg .cell {
+      border-right: 1px solid var(--amber);
+      border-bottom: 1px solid var(--amber);
+      font-family: var(--mono);
+      font-size: 0.65rem;
+      color: var(--amber);
+      padding: 3px 6px;
+      overflow: hidden;
+      white-space: nowrap;
+      animation: cell-flicker 8s ease-in-out infinite;
+    }
+    @keyframes cell-flicker {
+      0%, 90%, 100% { opacity: 0.3; }
+      45% { opacity: 1; }
+    }
+
+    /* Radial fade over the grid */
+    .hero-vignette {
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse 80% 70% at 50% 50%, transparent 20%, var(--bg) 75%);
+    }
+
+    /* Glow orbs */
+    .glow-orb {
+      position: absolute; border-radius: 50%;
+      filter: blur(80px); opacity: 0.12;
+      animation: orb-drift 12s ease-in-out infinite alternate;
+    }
+    .glow-orb-1 { width: 500px; height: 500px; background: var(--amber); top: -10%; left: -5%; animation-duration: 14s; }
+    .glow-orb-2 { width: 350px; height: 350px; background: var(--teal); top: 30%; right: -5%; animation-duration: 10s; animation-delay: -5s; }
+    .glow-orb-3 { width: 280px; height: 280px; background: var(--amber); bottom: -5%; left: 30%; animation-duration: 16s; animation-delay: -3s; }
+
+    @keyframes orb-drift {
+      from { transform: translate(0, 0) scale(1); }
+      to   { transform: translate(30px, -20px) scale(1.1); }
+    }
+
+    .hero-content {
+      position: relative; z-index: 1;
+      text-align: center;
+      max-width: 780px;
+    }
+
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      background: var(--amber-glow2);
+      border: 1px solid var(--amber-soft);
+      border-radius: 100px;
+      padding: 0.3rem 1rem;
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      color: var(--amber);
+      margin-bottom: 2rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      animation: fade-up 0.6s ease both;
+    }
+    .hero-badge::before { content: '■'; font-size: 0.5rem; animation: blink 1.2s step-end infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+    h1.hero-title {
+      font-size: clamp(4.5rem, 12vw, 8rem);
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 0.95;
+      margin-bottom: 1.25rem;
+      animation: fade-up 0.6s 0.1s ease both;
+    }
+    .title-asat { color: var(--amber); }
+    .title-cursor {
+      display: inline-block; width: 0.08em; height: 0.85em;
+      background: var(--amber);
+      vertical-align: baseline;
+      margin-left: 0.08em;
+      animation: blink 1s step-end infinite;
+    }
+
+    .hero-tagline {
+      font-family: var(--mono);
+      font-size: clamp(1rem, 2.5vw, 1.3rem);
+      color: var(--teal);
+      margin-bottom: 1.5rem;
+      animation: fade-up 0.6s 0.2s ease both;
+    }
+
+    .hero-desc {
+      font-size: 1.05rem;
+      color: var(--text-muted);
+      line-height: 1.75;
+      max-width: 560px;
+      margin: 0 auto 2.5rem;
+      animation: fade-up 0.6s 0.3s ease both;
+    }
+
+    .hero-actions {
+      display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;
+      animation: fade-up 0.6s 0.4s ease both;
+    }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      padding: 0.75rem 1.75rem;
+      border-radius: var(--radius);
+      font-family: var(--mono);
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+    }
+    .btn-primary {
+      background: var(--amber);
+      color: #060a10;
+      box-shadow: 0 0 0 0 var(--amber-glow);
+    }
+    .btn-primary:hover {
+      background: #f5b84a;
+      box-shadow: var(--glow-amber);
+      transform: translateY(-2px);
+    }
+    .btn-secondary {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border2);
+    }
+    .btn-secondary:hover {
+      border-color: var(--teal);
+      color: var(--teal);
+      background: var(--teal-glow);
+      transform: translateY(-2px);
+    }
+
+    /* Terminal mini-demo */
+    .hero-terminal {
+      margin-top: 3.5rem;
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      max-width: 580px;
+      margin-left: auto; margin-right: auto;
+      animation: fade-up 0.6s 0.5s ease both;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.5), 0 0 0 1px var(--border);
+    }
+    .terminal-bar {
+      display: flex; align-items: center; gap: 0.5rem;
+      background: var(--surface2);
+      padding: 0.7rem 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .dot { width: 12px; height: 12px; border-radius: 50%; }
+    .dot-r { background: #f87171; }
+    .dot-y { background: #fbbf24; }
+    .dot-g { background: #4ade80; }
+    .terminal-title { font-family: var(--mono); font-size: 0.72rem; color: var(--text-muted); margin-left: auto; margin-right: auto; }
+    .terminal-body {
+      display: block;
+      padding: 1.1rem 1.4rem;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      line-height: 1.85;
+      min-height: 120px;
+      overflow-x: auto;
+      white-space: pre;
+    }
+    .t-header { color: var(--text-dim); }
+    .t-addr   { color: var(--amber); }
+    .t-row-num { color: var(--text-dim); }
+    .t-cursor-cell { background: var(--amber); color: #060a10; }
+    .t-formula { color: var(--green); }
+    .t-number  { color: var(--teal); }
+    .t-mode { display: inline; background: #4ade80; color: #060a10; font-weight: 700; padding: 0 5px; border-radius: 3px; }
+    .t-muted { color: var(--text-muted); }
+
+    @keyframes fade-up {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ─── Sections ──────────────────────────────────────────────────── */
+    section { padding: 5rem 2rem; }
+    .container { max-width: 1100px; margin: 0 auto; }
+
+    .section-label {
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      letter-spacing: 0.04em;
+      color: var(--amber);
+      margin-bottom: 0.75rem;
+      opacity: 0.8;
+    }
+    .section-title {
+      font-size: clamp(2rem, 4vw, 2.8rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      margin-bottom: 1rem;
+      color: var(--text);
+    }
+    .section-sub {
+      font-size: 1rem;
+      color: var(--text-muted);
+      max-width: 540px;
+    }
+    .section-head { margin-bottom: 3rem; }
+
+    /* ─── Features ──────────────────────────────────────────────────── */
+    #features { background: var(--bg); border-top: 1px solid var(--border); }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    .feature-card {
+      background: var(--surface);
+      padding: 1.75rem;
+      transition: background 0.25s;
+      position: relative;
+    }
+    .feature-card:hover { background: var(--surface2); }
+    .feature-card.coming-soon { opacity: 0.6; }
+    .feature-card.coming-soon::after {
+      content: 'soon';
+      position: absolute; top: 1rem; right: 1rem;
+      font-family: var(--mono);
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      border: 1px solid var(--border2);
+      border-radius: 100px;
+      padding: 0.1rem 0.5rem;
+    }
+
+    .feature-icon {
+      font-size: 1.6rem;
+      margin-bottom: 1rem;
+      display: block;
+    }
+    .feature-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 0.5rem;
+    }
+    .feature-desc {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* ─── Install ───────────────────────────────────────────────────── */
+    #install {
+      background: linear-gradient(180deg, var(--bg) 0%, var(--surface) 50%, var(--bg) 100%);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .install-steps { display: flex; flex-direction: column; gap: 1.25rem; max-width: 680px; }
+
+    .step {
+      display: flex; gap: 1.25rem; align-items: flex-start;
+    }
+    .step-num {
+      flex-shrink: 0;
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      border: 1px solid var(--border2);
+      background: var(--surface2);
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--amber);
+      margin-top: 0.6rem;
+    }
+    .step-body { flex: 1; }
+    .step-title {
+      font-weight: 600;
+      font-size: 1rem;
+      color: var(--text);
+      margin-bottom: 0.5rem;
+    }
+    .step-desc { font-size: 0.875rem; color: var(--text-muted); margin-bottom: 0.6rem; }
+
+    .code-block {
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      padding: 0.75rem 1rem;
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      color: var(--green);
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 1rem;
+      position: relative;
+    }
+    .code-block .prompt { color: var(--amber); margin-right: 0.5rem; user-select: none; }
+    .copy-btn {
+      background: none; border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      transition: color 0.2s, background 0.2s;
+      white-space: nowrap;
+    }
+    .copy-btn:hover { color: var(--amber); background: var(--amber-glow2); }
+    .copy-btn.copied { color: var(--green); }
+
+    /* ─── Reference ─────────────────────────────────────────────────── */
+    #reference { background: var(--bg); }
+
+    .search-wrap {
+      position: relative;
+      max-width: 480px;
+      margin-bottom: 2rem;
+    }
+    .search-icon {
+      position: absolute; left: 1rem; top: 50%; transform: translateY(-50%);
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      pointer-events: none;
+      font-family: var(--mono);
+    }
+    #ref-search {
+      width: 100%;
+      padding: 0.75rem 1rem 0.75rem 2.5rem;
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 0.88rem;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    #ref-search::placeholder { color: var(--text-dim); }
+    #ref-search:focus {
+      border-color: var(--amber-soft);
+      box-shadow: 0 0 0 3px var(--amber-glow);
+    }
+
+    .ref-tabs {
+      display: flex; gap: 0.25rem; flex-wrap: wrap;
+      margin-bottom: 1.75rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .ref-tab {
+      padding: 0.4rem 1rem;
+      border-radius: var(--radius);
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.18s;
+      background: none;
+    }
+    .ref-tab:hover { color: var(--text); background: var(--surface); }
+    .ref-tab.active {
+      color: var(--amber);
+      background: var(--amber-glow2);
+      border-color: var(--amber-soft);
+    }
+
+    .ref-panel { display: none; }
+    .ref-panel.active { display: block; }
+
+    .ref-table-wrap {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+    .ref-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .ref-table thead tr {
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border2);
+    }
+    .ref-table th {
+      text-align: left;
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-dim);
+      padding: 0.7rem 1.2rem;
+      font-weight: 500;
+    }
+    .ref-table td {
+      padding: 0.65rem 1.2rem;
+      font-size: 0.9rem;
+      vertical-align: middle;
+      border-bottom: 1px solid var(--border);
+    }
+    .ref-table tr:last-child td { border-bottom: none; }
+    .ref-table tbody tr {
+      background: var(--surface);
+      transition: background 0.15s;
+    }
+    .ref-table tbody tr:hover { background: var(--surface2); }
+    .ref-table tbody tr.hidden { display: none; }
+
+    .ref-table td:first-child { width: 42%; }
+    .ref-table td:last-child { color: var(--text-muted); font-size: 0.875rem; }
+
+    /* Keycap badges */
+    .keys { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; }
+    kbd {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 24px;
+      padding: 0.2rem 0.5rem;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-bottom: 2px solid var(--text-dim);
+      border-radius: 5px;
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--amber);
+      white-space: nowrap;
+      line-height: 1;
+      box-shadow: 0 1px 0 0 var(--text-dim);
+      letter-spacing: 0;
+    }
+    .key-sep { color: var(--text-dim); font-size: 0.75rem; font-family: var(--mono); }
+
+    /* Functions section */
+    .fn-group { margin-bottom: 2rem; }
+    .fn-group-title {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--amber);
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .fn-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .fn-chip {
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: 6px;
+      padding: 0.3rem 0.7rem;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      color: var(--teal);
+      transition: border-color 0.18s, background 0.18s;
+    }
+    .fn-chip:hover { border-color: var(--teal); background: var(--teal-glow); }
+
+    .no-results {
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-dim);
+      font-family: var(--mono);
+      font-size: 0.875rem;
+      display: none;
+    }
+
+    /* "All" tab accent */
+    .ref-tab-all { color: var(--amber) !important; }
+    .ref-tab-all.active { background: var(--amber-glow) !important; border-color: var(--amber-soft) !important; }
+
+    /* Section divider rows in the All table */
+    .all-section-header td {
+      background: var(--surface2) !important;
+      color: var(--amber) !important;
+      font-family: var(--mono) !important;
+      font-size: 0.72rem !important;
+      text-transform: uppercase !important;
+      letter-spacing: 0.1em !important;
+      padding: 0.55rem 1.2rem !important;
+      border-bottom: 1px solid var(--border2) !important;
+      border-top: 2px solid var(--border2) !important;
+    }
+    .all-section-header:first-child td { border-top: none !important; }
+
+    /* ─── Footer ────────────────────────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 2.5rem 2rem;
+      background: var(--surface);
+    }
+    .footer-inner {
+      max-width: 1100px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 1.5rem; flex-wrap: wrap;
+    }
+    .footer-left { font-size: 0.875rem; color: var(--text-muted); }
+    .footer-left strong { color: var(--amber); font-family: var(--mono); }
+    .footer-built {
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .footer-pill {
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: 100px;
+      padding: 0.2rem 0.7rem;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .footer-pill:hover { border-color: var(--amber-soft); color: var(--amber); }
+
+    /* ─── Responsive ────────────────────────────────────────────────── */
+    @media (max-width: 700px) {
+      nav { padding: 0 1rem; }
+      .nav-links li:not(:last-child) { display: none; }
+      section { padding: 3.5rem 1.25rem; }
+      .hero-actions { flex-direction: column; align-items: center; }
+      .ref-tabs { gap: 0.2rem; }
+      .ref-tab { font-size: 0.7rem; padding: 0.35rem 0.7rem; }
+      .footer-inner { flex-direction: column; text-align: center; }
+    }
+
+    /* ─── Formula Guide ─────────────────────────────────────────────── */
+    #formulas { background: var(--bg); }
+
+    .fg-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1rem;
+    }
+
+    .fg-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      transition: border-color 0.2s;
+    }
+    .fg-card:hover { border-color: var(--border2); }
+    .fg-card-highlight {
+      border-color: var(--amber-soft);
+      background: var(--amber-glow2);
+    }
+    .fg-card-highlight:hover { border-color: var(--amber); }
+
+    .fg-card-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 0.75rem;
+    }
+    .fg-text {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      line-height: 1.65;
+      margin-bottom: 1rem;
+    }
+
+    .fg-example { margin-top: 0.75rem; }
+    .fg-ex-label {
+      font-family: var(--mono);
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-dim);
+      margin-bottom: 0.4rem;
+    }
+    .fg-ex-row {
+      display: flex;
+      align-items: baseline;
+      gap: 0.75rem;
+      padding: 0.25rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.82rem;
+    }
+    .fg-ex-row:last-child { border-bottom: none; }
+    .fg-ex-row code {
+      color: var(--teal);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .fg-ex-row span { color: var(--text-muted); font-size: 0.78rem; }
+
+    .fg-fn-table { margin-top: 0.25rem; }
+    .fg-fn-table > div {
+      display: flex;
+      gap: 0.75rem;
+      align-items: baseline;
+      padding: 0.25rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.82rem;
+    }
+    .fg-fn-table > div:last-child { border-bottom: none; }
+    .fg-fn-table code {
+      color: var(--amber);
+      white-space: nowrap;
+      flex-shrink: 0;
+      min-width: 160px;
+    }
+    .fg-fn-table span { color: var(--text-muted); font-size: 0.78rem; }
+
+    /* ─── Divider ────────────────────────────────────────────────────── */
+    .divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border2), transparent);
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ─── NAV ──────────────────────────────────────────────────────────── -->
+<nav id="nav">
+  <a href="#" class="nav-logo">ASAT <span>/ terminal spreadsheet</span></a>
+  <ul class="nav-links">
+    <li><a href="#features">Features</a></li>
+    <li><a href="#install">Install</a></li>
+    <li><a href="#formulas">Formulas</a></li>
+    <li><a href="#reference">Reference</a></li>
+    <li><a href="https://github.com/okt4v/ASAT" class="nav-gh">⎇ GitHub</a></li>
+  </ul>
+</nav>
+
+<!-- ─── HERO ─────────────────────────────────────────────────────────── -->
+<section id="hero">
+  <div class="hero-bg">
+    <div class="glow-orb glow-orb-1"></div>
+    <div class="glow-orb glow-orb-2"></div>
+    <div class="glow-orb glow-orb-3"></div>
+    <div class="spreadsheet-bg" id="sheet-bg"></div>
+    <div class="hero-vignette"></div>
+  </div>
+
+  <div class="hero-content">
+    <div class="hero-badge">v0.1.0 — Written in Rust</div>
+    <h1 class="hero-title">
+      <span class="title-asat">ASAT</span><span class="title-cursor"></span>
+    </h1>
+    <p class="hero-tagline">// A spreadsheet editor that speaks Vim</p>
+    <p class="hero-desc">
+      Edit spreadsheets at the speed of thought. Modal keybindings, live formula evaluation,
+      multi-sheet workbooks, and a full undo stack — all in your terminal.
+    </p>
+    <div class="hero-actions">
+      <a href="#install" class="btn btn-primary">▶ Get Started</a>
+      <a href="#reference" class="btn btn-secondary">⌨ Keybind Reference</a>
+    </div>
+
+    <div class="hero-terminal">
+      <div class="terminal-bar">
+        <span class="dot dot-r"></span>
+        <span class="dot dot-y"></span>
+        <span class="dot dot-g"></span>
+        <span class="terminal-title">asat budget.xlsx</span>
+      </div>
+      <div class="terminal-body"><span class="t-muted">ASAT v0.1.0 — Advanced Spreadsheet Alteration Tool</span>
+<span class="t-addr">B3</span>  <span class="t-formula">=SUM(B1:B2)</span>
+<span class="t-header">     ┄┄┄┄┄┄ A ┄┄┄┄┄┄┄  ┄┄┄┄┄┄ B ┄┄┄┄┄┄</span>
+<span class="t-row-num">  1 </span> Revenue          <span class="t-number">84,200</span>
+<span class="t-row-num">  2 </span> Expenses        <span class="t-number">-31,450</span>
+<span class="t-row-num">  3 </span> <span class="t-cursor-cell">Net</span>              <span class="t-number">52,750</span>
+<span class="t-row-num">  4 </span>
+
+<span class="t-mode">NORMAL</span>  <span class="t-muted">budget.xlsx  ·  B3 / Sheet1</span></div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ─── FEATURES ─────────────────────────────────────────────────────── -->
+<section id="features">
+  <div class="container">
+    <div class="section-head">
+      <p class="section-label">// capabilities</p>
+      <h2 class="section-title">Everything you need.<br>Nothing you don't.</h2>
+      <p class="section-sub">Built from the ground up for keyboard-driven workflows.</p>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card">
+        <span class="feature-icon">⌨</span>
+        <div class="feature-title">Modal Editing</div>
+        <p class="feature-desc">Normal, Insert, Visual, Command, Search, and Recording modes — just like Vim. Every keystroke has purpose.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">ƒ</span>
+        <div class="feature-title">Formula Engine</div>
+        <p class="feature-desc">30+ built-in functions across math, text, and logic. Start any cell with <code>=</code> to write a live formula.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">⊞</span>
+        <div class="feature-title">Multi-Sheet</div>
+        <p class="feature-desc">Tab bar navigation, <code>:tabnew</code>, <code>:tabclose</code>, and quick-switch with <code>gt</code> / <code>gT</code>.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">◈</span>
+        <div class="feature-title">File Formats</div>
+        <p class="feature-desc">Read and write CSV, TSV, and XLSX. Native <code>.asat</code> format with bincode + zstd compression.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">↩</span>
+        <div class="feature-title">Undo / Redo</div>
+        <p class="feature-desc">1000-command undo stack with merge support. Row/column operations, cell edits, pastes — all undoable.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">⏺</span>
+        <div class="feature-title">Macro Recording</div>
+        <p class="feature-desc">Record key sequences into named registers with <code>q{a-z}</code>. Replay with <code>@{reg}</code> or <code>N@@</code>.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">🎨</span>
+        <div class="feature-title">Theming</div>
+        <p class="feature-desc">Every color configurable via <code>~/.config/asat/config.toml</code>. Full hex color support, solarized dark by default.</p>
+      </div>
+      <div class="feature-card coming-soon">
+        <span class="feature-icon">🐍</span>
+        <div class="feature-title">Plugin System</div>
+        <p class="feature-desc">Extend ASAT with Python via PyO3. Hook into cell changes, file events, and custom functions via <code>init.py</code>.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ─── INSTALL ───────────────────────────────────────────────────────── -->
+<section id="install">
+  <div class="container">
+    <div class="section-head">
+      <p class="section-label">// getting started</p>
+      <h2 class="section-title">Up and running<br>in three steps.</h2>
+    </div>
+    <div class="install-steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">Clone the repository</div>
+          <div class="step-desc">You'll need Rust 1.75+ with Cargo installed.</div>
+          <div class="code-block">
+            <div><span class="prompt">$</span><span>git clone https://github.com/okt4v/ASAT && cd ASAT</span></div>
+            <button class="copy-btn" onclick="copyCode(this)">copy</button>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">Build in release mode</div>
+          <div class="step-desc">Cargo handles all dependencies automatically.</div>
+          <div class="code-block">
+            <div><span class="prompt">$</span><span>cargo build --release</span></div>
+            <button class="copy-btn" onclick="copyCode(this)">copy</button>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">Run ASAT</div>
+          <div class="step-desc">Pass a file path to open an existing file, or omit it to start a blank workbook.</div>
+          <div class="code-block" style="margin-bottom:0.6rem">
+            <div><span class="prompt">$</span><span>./target/release/asat myfile.csv</span></div>
+            <button class="copy-btn" onclick="copyCode(this)">copy</button>
+          </div>
+          <div class="code-block">
+            <div><span class="prompt">$</span><span>./target/release/asat report.xlsx</span></div>
+            <button class="copy-btn" onclick="copyCode(this)">copy</button>
+          </div>
+          <div class="step-desc" style="margin-top:0.6rem">Optionally, copy the binary to <code style="color:var(--teal)">/usr/local/bin/asat</code> for system-wide access.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ─── FORMULA GUIDE ────────────────────────────────────────────────────── -->
+<section id="formulas">
+  <div class="container">
+    <div class="section-head">
+      <p class="section-label">// formula guide</p>
+      <h2 class="section-title">Spreadsheet formulas<br>from first principles.</h2>
+      <p class="section-sub">Everything you need to write powerful formulas — syntax, references, functions, and the interactive cell picker.</p>
+    </div>
+
+    <div class="fg-grid">
+
+      <!-- Basics card -->
+      <div class="fg-card">
+        <div class="fg-card-title">Writing a formula</div>
+        <p class="fg-text">Start any cell with <code>=</code> to enter formula mode. Formulas are evaluated live — the result appears in the cell, and the raw formula shows in the formula bar.</p>
+        <div class="fg-example">
+          <div class="fg-ex-label">Examples</div>
+          <div class="fg-ex-row"><code>=42+8</code><span>→ 50</span></div>
+          <div class="fg-ex-row"><code>="Hello "&"World"</code><span>→ Hello World</span></div>
+          <div class="fg-ex-row"><code>=A1*B1</code><span>→ product of A1 and B1</span></div>
+          <div class="fg-ex-row"><code>=SUM(A1:A10)</code><span>→ sum of 10 cells</span></div>
+        </div>
+      </div>
+
+      <!-- References card -->
+      <div class="fg-card">
+        <div class="fg-card-title">Cell references</div>
+        <p class="fg-text">Reference individual cells, ranges, or cells on other sheets. Use <code>$</code> to make a reference absolute (it won't shift when copying).</p>
+        <div class="fg-example">
+          <div class="fg-ex-label">Reference types</div>
+          <div class="fg-ex-row"><code>A1</code><span>relative — shifts when copied</span></div>
+          <div class="fg-ex-row"><code>$A$1</code><span>absolute — never shifts</span></div>
+          <div class="fg-ex-row"><code>$A1</code><span>col fixed, row relative</span></div>
+          <div class="fg-ex-row"><code>A1:C10</code><span>range from A1 to C10</span></div>
+          <div class="fg-ex-row"><code>Sheet2.B4</code><span>cell B4 on Sheet2</span></div>
+        </div>
+      </div>
+
+      <!-- Cell picker card -->
+      <div class="fg-card fg-card-highlight">
+        <div class="fg-card-title">Interactive cell picker ✦</div>
+        <p class="fg-text">While typing a formula, press <kbd>Ctrl+R</kbd> to enter <strong>F-REF mode</strong>. Navigate the grid with <kbd>h</kbd><kbd>j</kbd><kbd>k</kbd><kbd>l</kbd> and the formula bar shows a live preview of the reference. Press <kbd>Enter</kbd> to insert it.</p>
+        <div class="fg-example">
+          <div class="fg-ex-label">F-REF workflow</div>
+          <div class="fg-ex-row"><kbd>i</kbd> <span>start editing a cell</span></div>
+          <div class="fg-ex-row"><code>=SUM(</code><span>type the start of a formula</span></div>
+          <div class="fg-ex-row"><kbd>Ctrl+R</kbd><span>enter cell-pick mode (F-REF)</span></div>
+          <div class="fg-ex-row"><kbd>h</kbd><kbd>j</kbd><kbd>k</kbd><kbd>l</kbd><span>navigate to desired cell</span></div>
+          <div class="fg-ex-row"><kbd>:</kbd><span>mark range start (→ F-RANGE)</span></div>
+          <div class="fg-ex-row"><kbd>h</kbd><kbd>j</kbd><kbd>k</kbd><kbd>l</kbd><span>extend range selection</span></div>
+          <div class="fg-ex-row"><kbd>Enter</kbd><span>insert ref and return to editing</span></div>
+          <div class="fg-ex-row"><kbd>Esc</kbd><span>cancel without inserting</span></div>
+        </div>
+      </div>
+
+      <!-- Operators card -->
+      <div class="fg-card">
+        <div class="fg-card-title">Operators</div>
+        <p class="fg-text">Standard arithmetic, comparison, and text operators work across all formula contexts.</p>
+        <div class="fg-example">
+          <div class="fg-ex-label">Arithmetic</div>
+          <div class="fg-ex-row"><code>+ - * /</code><span>add, subtract, multiply, divide</span></div>
+          <div class="fg-ex-row"><code>^</code><span>power &nbsp; <code>=2^10</code> → 1024</span></div>
+          <div class="fg-ex-label" style="margin-top:0.75rem">Comparison</div>
+          <div class="fg-ex-row"><code>= &lt;&gt; &lt; &lt;= &gt; &gt;=</code><span>return TRUE or FALSE</span></div>
+          <div class="fg-ex-label" style="margin-top:0.75rem">Text</div>
+          <div class="fg-ex-row"><code>&amp;</code><span>concatenate &nbsp; <code>="Hi"&amp;" "&amp;A1</code></span></div>
+        </div>
+      </div>
+
+      <!-- Math functions card -->
+      <div class="fg-card">
+        <div class="fg-card-title">Math functions</div>
+        <div class="fg-fn-table">
+          <div><code>SUM(range)</code><span>total of a range</span></div>
+          <div><code>AVERAGE(range)</code><span>mean value</span></div>
+          <div><code>MIN(range)</code><span>smallest value</span></div>
+          <div><code>MAX(range)</code><span>largest value</span></div>
+          <div><code>ROUND(n, d)</code><span>round to d decimal places</span></div>
+          <div><code>ABS(n)</code><span>absolute value</span></div>
+          <div><code>MOD(n, d)</code><span>remainder after division</span></div>
+          <div><code>POWER(n, e)</code><span>n raised to the power e</span></div>
+          <div><code>SQRT(n)</code><span>square root</span></div>
+          <div><code>INT(n)</code><span>truncate to integer</span></div>
+          <div><code>FLOOR(n, s)</code><span>round down to multiple of s</span></div>
+          <div><code>CEILING(n, s)</code><span>round up to multiple of s</span></div>
+        </div>
+      </div>
+
+      <!-- Text functions card -->
+      <div class="fg-card">
+        <div class="fg-card-title">Text functions</div>
+        <div class="fg-fn-table">
+          <div><code>LEN(text)</code><span>character count</span></div>
+          <div><code>LEFT(text, n)</code><span>first n characters</span></div>
+          <div><code>RIGHT(text, n)</code><span>last n characters</span></div>
+          <div><code>MID(text, s, n)</code><span>n chars starting at s</span></div>
+          <div><code>TRIM(text)</code><span>remove leading/trailing spaces</span></div>
+          <div><code>UPPER(text)</code><span>convert to uppercase</span></div>
+          <div><code>LOWER(text)</code><span>convert to lowercase</span></div>
+          <div><code>PROPER(text)</code><span>Title Case</span></div>
+          <div><code>CONCATENATE(…)</code><span>join multiple values</span></div>
+          <div><code>SUBSTITUTE(t,o,n)</code><span>replace old text with new</span></div>
+          <div><code>FIND(find, in)</code><span>position of substring (case sensitive)</span></div>
+          <div><code>TEXT(n, fmt)</code><span>number to formatted string</span></div>
+        </div>
+      </div>
+
+      <!-- Logic functions card -->
+      <div class="fg-card">
+        <div class="fg-card-title">Logic &amp; conditional</div>
+        <div class="fg-fn-table">
+          <div><code>IF(cond, t, f)</code><span>branch on condition</span></div>
+          <div><code>AND(a, b, …)</code><span>true if all are true</span></div>
+          <div><code>OR(a, b, …)</code><span>true if any is true</span></div>
+          <div><code>NOT(cond)</code><span>invert a boolean</span></div>
+          <div><code>IFERROR(val, alt)</code><span>fallback if val is an error</span></div>
+          <div><code>ISBLANK(ref)</code><span>true if cell is empty</span></div>
+          <div><code>ISNUMBER(val)</code><span>true if val is numeric</span></div>
+          <div><code>ISTEXT(val)</code><span>true if val is text</span></div>
+          <div><code>ISERROR(val)</code><span>true if val is an error</span></div>
+        </div>
+      </div>
+
+      <!-- Common patterns card -->
+      <div class="fg-card">
+        <div class="fg-card-title">Common patterns</div>
+        <div class="fg-example">
+          <div class="fg-ex-label">Running total</div>
+          <div class="fg-ex-row"><code>=SUM($A$1:A1)</code><span>expanding range</span></div>
+          <div class="fg-ex-label" style="margin-top:0.75rem">Conditional sum</div>
+          <div class="fg-ex-row"><code>=IF(B1&gt;0, B1, 0)</code><span>clamp negatives to zero</span></div>
+          <div class="fg-ex-label" style="margin-top:0.75rem">Percentage</div>
+          <div class="fg-ex-row"><code>=ROUND(A1/B1*100, 1)</code><span>% to 1 decimal</span></div>
+          <div class="fg-ex-label" style="margin-top:0.75rem">Safe division</div>
+          <div class="fg-ex-row"><code>=IFERROR(A1/B1, 0)</code><span>0 instead of #DIV/0!</span></div>
+          <div class="fg-ex-label" style="margin-top:0.75rem">Cross-sheet</div>
+          <div class="fg-ex-row"><code>=Sheet2.B4*1.2</code><span>reference + calculation</span></div>
+        </div>
+      </div>
+
+    </div><!-- /fg-grid -->
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ─── REFERENCE ─────────────────────────────────────────────────────── -->
+<section id="reference">
+  <div class="container">
+    <div class="section-head">
+      <p class="section-label">// keybind reference</p>
+      <h2 class="section-title">Every key.<br>Every command.</h2>
+      <p class="section-sub">The complete reference for all modes, keybindings, ex-commands, and formula functions.</p>
+    </div>
+
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="ref-search" placeholder="Filter keybinds and commands…" autocomplete="off" />
+    </div>
+
+    <div class="ref-tabs" id="ref-tabs">
+      <button class="ref-tab ref-tab-all active" data-tab="all">★ All</button>
+      <button class="ref-tab" data-tab="navigation">Navigation</button>
+      <button class="ref-tab" data-tab="editing">Editing</button>
+      <button class="ref-tab" data-tab="rowcol">Rows &amp; Cols</button>
+      <button class="ref-tab" data-tab="yank">Yank &amp; Paste</button>
+      <button class="ref-tab" data-tab="visual">Visual Mode</button>
+      <button class="ref-tab" data-tab="undomarks">Undo &amp; Marks</button>
+      <button class="ref-tab" data-tab="search">Search</button>
+      <button class="ref-tab" data-tab="sheets">Sheets</button>
+      <button class="ref-tab" data-tab="macros">Macros</button>
+      <button class="ref-tab" data-tab="commands">Ex Commands</button>
+      <button class="ref-tab" data-tab="formulas">Formulas</button>
+    </div>
+
+    <div id="no-results" class="no-results">No keybinds match your search.</div>
+
+    <!-- ALL (dynamically populated by JS) -->
+    <div class="ref-panel active" id="panel-all">
+      <div class="ref-table-wrap">
+        <table class="ref-table" id="all-table">
+          <thead><tr><th>Keys</th><th>Action</th></tr></thead>
+          <tbody id="all-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- NAVIGATION -->
+    <div class="ref-panel" id="panel-navigation">
+      <div class="ref-table-wrap">
+        <table class="ref-table">
+          <thead><tr><th>Keys</th><th>Action</th></tr></thead>
+          <tbody>
+            <tr><td class="keys"><kbd>h</kbd> <span class="key-sep">/</span> <kbd>←</kbd></td><td>Move cursor left</td></tr>
+            <tr><td class="keys"><kbd>j</kbd> <span class="key-sep">/</span> <kbd>↓</kbd></td><td>Move cursor down</td></tr>
+            <tr><td class="keys"><kbd>k</kbd> <span class="key-sep">/</span> <kbd>↑</kbd></td><td>Move cursor up</td></tr>
+            <tr><td class="keys"><kbd>l</kbd> <span class="key-sep">/</span> <kbd>→</kbd></td><td>Move cursor right</td></tr>
+            <tr><td class="keys"><kbd>w</kbd></td><td>Jump to next non-empty cell (horizontal)</td></tr>
+            <tr><td class="keys"><kbd>b</kbd></td><td>Jump to previous non-empty cell (horizontal)</td></tr>
+            <tr><td class="keys"><kbd>W</kbd></td><td>Jump to next non-empty cell (vertical)</td></tr>
+            <tr><td class="keys"><kbd>B</kbd></td><td>Jump to previous non-empty cell (vertical)</td></tr>
+            <tr><td class="keys"><kbd>&#123;</kbd></td><td>Jump to previous paragraph boundary (empty row)</td></tr>
+            <tr><td class="keys"><kbd>&#125;</kbd></td><td>Jump to next paragraph boundary (empty row)</td></tr>
+            <tr><td class="keys"><kbd>0</kbd> <span class="key-sep">/</span> <kbd>Home</kbd></td><td>Jump to first column</td></tr>
+            <tr><td class="keys"><kbd>$</kbd> <span class="key-sep">/</span> <kbd>End</kbd></td><td>Jump to last column with data</td></tr>
+            <tr><td class="keys"><kbd>g</kbd><kbd>g</kbd></td><td>Jump to first row</td></tr>
+            <tr><td class="keys"><kbd>G</kbd></td><td>Jump to last row with data</td></tr>
+            <tr><td class="keys"><kbd>H</kbd></td><td>Jump to top of visible area</td></tr>
+            <tr><td class="keys"><kbd>M</kbd></td><td>Jump to middle of visible area</td></tr>
+            <tr><td class="keys"><kbd>L</kbd></td><td>Jump to bottom of visible area</td></tr>
+            <tr><td class="keys"><kbd>Ctrl</kbd><kbd>d</kbd> <span class="key-sep">/</span> <kbd>Ctrl</kbd><kbd>f</kbd> <span class="key-sep">/</span> <kbd>PgDn</kbd></td><td>Page down</td></tr>
+            <tr><td class="keys"><kbd>Ctrl</kbd><kbd>u</kbd> <span class="key-sep">/</span> <kbd>Ctrl</kbd><kbd>b</kbd> <span class="key-sep">/</span> <kbd>PgUp</kbd></td><td>Page up</td></tr>
+            <tr><td class="keys"><kbd>z</kbd><kbd>z</kbd></td><td>Scroll so cursor is vertically centered</td></tr>
+            <tr><td class="keys"><kbd>z</kbd><kbd>t</kbd></td><td>Scroll so cursor is at top of screen</td></tr>
+            <tr><td class="keys"><kbd>z</kbd><kbd>b</kbd></td><td>Scroll so cursor is at bottom of screen</td></tr>
+            <tr><td class="keys"><kbd>f</kbd><kbd>{A–Z}</kbd></td><td>Jump to column by letter (e.g. <kbd>f</kbd><kbd>C</kbd> jumps to column C)</td></tr>
+            <tr><td class="keys"><kbd>{N}</kbd> + motion</td><td>Repeat motion N times (e.g. <kbd>5</kbd><kbd>j</kbd> moves down 5 rows)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- EDITING -->
+    <div class="ref-panel" id="panel-editing">
+      <div class="ref-table-wrap">
+        <table class="ref-table">
+          <thead><tr><th>Keys</th><th>Action</th></tr></thead>
+          <tbody>
+            <tr><td colspan="2" style="color:var(--amber);font-family:var(--mono);font-size:0.78rem;padding:0.5rem 1.2rem;letter-spacing:0.06em">NORMAL MODE — enter / modify cells</td></tr>
+            <tr><td class="keys"><kbd>i</kbd> <span class="key-sep">/</span> <kbd>Enter</kbd> <span class="key-sep">/</span> <kbd>F2</kbd></td><td>Edit current cell (cursor at end of content)</td></tr>
+            <tr><td class="keys"><kbd>a</kbd></td><td>Append: edit current cell with cursor at end</td></tr>
+            <tr><td class="keys"><kbd>s</kbd></td><td>Substitute: clear cell and enter edit mode</td></tr>
+            <tr><td class="keys"><kbd>r</kbd></td><td>Replace mode: overwrite characters</td></tr>
+            <tr><td class="keys"><kbd>c</kbd><kbd>c</kbd></td><td>Change: clear cell and enter edit mode</td></tr>
+            <tr><td class="keys"><kbd>~</kbd></td><td>Toggle case of text cell (upper ↔ lower)</td></tr>
+            <tr><td class="keys"><kbd>x</kbd> <span class="key-sep">/</span> <kbd>Del</kbd> <span class="key-sep">/</span> <kbd>D</kbd></td><td>Delete cell content (clear to empty)</td></tr>
+            <tr><td class="keys"><kbd>J</kbd></td><td>Join: concatenate cell below into current cell (space-separated), then clear the cell below</td></tr>
+            <tr><td class="keys"><kbd>Ctrl</kbd><kbd>a</kbd></td><td>Increment number in current cell by 1 (creates 1 if empty)</td></tr>
+            <tr><td class="keys"><kbd>Ctrl</kbd><kbd>x</kbd></td><td>Decrement number in current cell by 1 (creates −1 if empty)</td></tr>
+
+            <tr><td colspan="2" style="color:var(--amber);font-family:var(--mono);font-size:0.78rem;padding:0.8rem 1.2rem 0.5rem;letter-spacing:0.06em;border-top:1px solid var(--border2)">INSERT MODE — while editing a cell</td></tr>
+            <tr><td class="keys"><kbd>Esc</kbd></td><td>Confirm edit and return to Normal mode</td></tr>
+            <tr><td class="keys"><kbd>Enter</kbd></td><td>Confirm edit and move down one row</td></tr>
+            <tr><td class="keys"><kbd>Tab</kbd></td><td>Confirm edit and move right one column</td></tr>
+            <tr><td class="keys"><kbd>←</kbd> <kbd>→</kbd></td><td>Move edit cursor left / right within cell text</td></tr>
+            <tr><td class="keys"><kbd>Home</kbd></td><td>Move edit cursor to start of cell text</td></tr>
+            <tr><td class="keys"><kbd>End</kbd></td><td>Move edit cursor to end of cell text</td></tr>
+            <tr><td class="keys"><kbd>Backspace</kbd></td><td>Delete character before edit cursor</td></tr>
+            <tr><td class="keys"><kbd>Delete</kbd></td><td>Delete character after edit cursor</td></tr>
+            <tr><td class="keys"><kbd>Ctrl</kbd><kbd>a</kbd></td><td>Move edit cursor to <em>start</em> of cell text</td></tr>
+            <tr><td class="keys"><kbd>Ctrl</kbd><kbd>e</kbd></td><td>Move edit cursor to <em>end</em> of cell text</td></tr>
+            <tr><td class="keys"><kbd>Ctrl</kbd><kbd>w</kbd></td><td>Delete word backward (to previous whitespace)</td></tr>
+            <tr><td class="keys"><kbd>Ctrl</kbd><kbd>u</kbd></td><td>Delete everything from edit cursor to start of text</td></tr>
+            <tr><td class="keys"><kbd>Ctrl</kbd><kbd>k</kbd></td><td>Delete everything from edit cursor to end of text</td></tr>
+            <tr><td class="keys"><kbd>Ctrl</kbd><kbd>r</kbd></td><td>Enter F-REF mode to pick a cell reference (formulas only)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ROW/COL -->
+    <div class="ref-panel" id="panel-rowcol">
+      <div class="ref-table-wrap">
+        <table class="ref-table">
+          <thead><tr><th>Keys</th><th>Action</th></tr></thead>
+          <tbody>
+            <tr><td class="keys"><kbd>o</kbd></td><td>Insert row below cursor and enter insert mode</td></tr>
+            <tr><td class="keys"><kbd>O</kbd></td><td>Insert row above cursor and enter insert mode</td></tr>
+            <tr><td class="keys"><kbd>d</kbd><kbd>d</kbd></td><td>Delete current row (undoable)</td></tr>
+            <tr><td class="keys"><kbd>d</kbd><kbd>C</kbd></td><td>Delete current column (undoable)</td></tr>
+            <tr><td class="keys"><kbd>></kbd><kbd>></kbd></td><td>Increase current column width (+2 chars)</td></tr>
+            <tr><td class="keys"><kbd>&lt;</kbd><kbd>&lt;</kbd></td><td>Decrease current column width (-2 chars, min 3)</td></tr>
+            <tr><td class="keys"><kbd>=</kbd></td><td>Auto-fit current column to its widest content</td></tr>
+            <tr><td class="keys"><kbd>+</kbd></td><td>Increase current row height (+1 terminal line)</td></tr>
+            <tr><td class="keys"><kbd>-</kbd></td><td>Decrease current row height (-1 terminal line, min 1)</td></tr>
+            <tr><td class="keys"><kbd>_</kbd></td><td>Reset row height to auto (1 line)</td></tr>
+            <tr><td class="keys"><span style="color:var(--text-muted);font-size:0.82rem">:ic / :insertcol</span></td><td>Insert column to the left of cursor (undoable)</td></tr>
+            <tr><td class="keys"><span style="color:var(--text-muted);font-size:0.82rem">:icr / :insertcolright</span></td><td>Insert column to the right of cursor (undoable)</td></tr>
+            <tr><td class="keys"><span style="color:var(--text-muted);font-size:0.82rem">:dc / :deletecol</span></td><td>Delete current column (undoable)</td></tr>
+            <tr><td class="keys"><span style="color:var(--text-muted);font-size:0.82rem">:ir [N] / :insertrow [N]</span></td><td>Insert row at cursor or line N (undoable)</td></tr>
+            <tr><td class="keys"><span style="color:var(--text-muted);font-size:0.82rem">:dr [N] / :deleterow [N]</span></td><td>Delete row at cursor or line N (undoable)</td></tr>
+            <tr><td class="keys"><span style="color:var(--text-muted);font-size:0.82rem">:cw &lt;N&gt; / :colwidth &lt;N&gt;</span></td><td>Set current column width to exactly N chars</td></tr>
+            <tr><td class="keys"><span style="color:var(--text-muted);font-size:0.82rem">:rh &lt;N&gt; / :rowheight &lt;N&gt;</span></td><td>Set current row height to exactly N lines</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- YANK & PASTE -->
+    <div class="ref-panel" id="panel-yank">
+      <p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:1.2rem;line-height:1.7">
+        All yank operations copy to the <strong style="color:var(--amber)">system clipboard</strong> as tab-separated text, in addition to ASAT's internal register. Paste into any external app with your usual <kbd style="font-family:var(--mono);background:var(--surface2);padding:1px 5px;border-radius:3px">Ctrl+V</kbd>.
+      </p>
+      <div class="ref-table-wrap">
+        <table class="ref-table">
+          <thead><tr><th>Keys</th><th>Action</th></tr></thead>
+          <tbody>
+            <tr><td class="keys"><kbd>y</kbd><kbd>y</kbd> <span class="key-sep">/</span> <kbd>y</kbd><kbd>r</kbd></td><td>Yank entire current row → register + system clipboard</td></tr>
+            <tr><td class="keys"><kbd>y</kbd><kbd>c</kbd></td><td>Yank current cell value only → register + system clipboard</td></tr>
+            <tr><td class="keys"><kbd>y</kbd> <span style="font-size:0.8rem;color:var(--text-dim)">(in visual)</span></td><td>Yank selected cells → register + system clipboard (as TSV)</td></tr>
+            <tr><td class="keys"><kbd>p</kbd></td><td>Paste after cursor (next row for line yanks)</td></tr>
+            <tr><td class="keys"><kbd>P</kbd></td><td>Paste before cursor (current row for line yanks)</td></tr>
+            <tr><td class="keys"><kbd>{N}</kbd><kbd>p</kbd></td><td>Paste N times</td></tr>
+            <tr><td class="keys"><kbd>y</kbd><kbd>S</kbd></td><td>Copy current cell's <em>style</em> to style clipboard</td></tr>
+            <tr><td class="keys"><kbd>p</kbd><kbd>S</kbd></td><td>Paste style clipboard onto current cell / visual selection</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- VISUAL -->
+    <div class="ref-panel" id="panel-visual">
+      <div class="ref-table-wrap">
+        <table class="ref-table">
+          <thead><tr><th>Keys</th><th>Action</th></tr></thead>
+          <tbody>
+            <tr><td class="keys"><kbd>v</kbd></td><td>Enter character/cell visual mode (rectangular selection)</td></tr>
+            <tr><td class="keys"><kbd>V</kbd></td><td>Enter line (full-row) visual mode</td></tr>
+            <tr><td class="keys"><kbd>Ctrl</kbd><kbd>v</kbd></td><td>Enter column block (vertical) visual mode</td></tr>
+            <tr><td class="keys"><kbd>Esc</kbd> <span class="key-sep">/</span> <kbd>v</kbd> <span style="font-size:0.8rem;color:var(--text-dim)">(again)</span></td><td>Exit visual mode without action</td></tr>
+            <tr><td class="keys"><kbd>V</kbd> <span style="font-size:0.8rem;color:var(--text-dim)">(in char visual)</span></td><td>Switch to line visual mode</td></tr>
+            <tr style="border-top:1px solid var(--border2)">
+              <td colspan="2" style="color:var(--amber);font-family:var(--mono);font-size:0.78rem;padding:0.5rem 1.2rem;letter-spacing:0.06em">MOVEMENT (while selecting)</td>
+            </tr>
+            <tr><td class="keys"><kbd>h</kbd><kbd>j</kbd><kbd>k</kbd><kbd>l</kbd> <span class="key-sep">/</span> arrows</td><td>Extend selection</td></tr>
+            <tr><td class="keys"><kbd>w</kbd> <span class="key-sep">/</span> <kbd>b</kbd></td><td>Extend to next / previous non-empty cell (horizontal)</td></tr>
+            <tr><td class="keys"><kbd>W</kbd> <span class="key-sep">/</span> <kbd>B</kbd></td><td>Extend to next / previous non-empty cell (vertical)</td></tr>
+            <tr><td class="keys"><kbd>0</kbd> <span class="key-sep">/</span> <kbd>$</kbd></td><td>Extend selection to first / last column</td></tr>
+            <tr><td class="keys"><kbd>g</kbd> <span class="key-sep">/</span> <kbd>G</kbd></td><td>Extend selection to first / last row</td></tr>
+            <tr style="border-top:1px solid var(--border2)">
+              <td colspan="2" style="color:var(--amber);font-family:var(--mono);font-size:0.78rem;padding:0.5rem 1.2rem;letter-spacing:0.06em">ACTIONS ON SELECTION</td>
+            </tr>
+            <tr><td class="keys"><kbd>d</kbd> <span class="key-sep">/</span> <kbd>x</kbd> <span class="key-sep">/</span> <kbd>Del</kbd></td><td>Delete all cells in selection (undoable)</td></tr>
+            <tr><td class="keys"><kbd>c</kbd> <span class="key-sep">/</span> <kbd>s</kbd></td><td>Clear selection and enter insert mode at top-left cell</td></tr>
+            <tr><td class="keys"><kbd>y</kbd></td><td>Yank selection → register + system clipboard (tab-separated)</td></tr>
+            <tr><td class="keys"><kbd>S</kbd></td><td>Insert <code style="color:var(--teal)">= SUM(range)</code> formula into the cell immediately below the selection</td></tr>
+            <tr><td class="keys"><kbd>></kbd></td><td>Widen all columns in the selection (+2 chars each)</td></tr>
+            <tr><td class="keys"><kbd>&lt;</kbd></td><td>Narrow all columns in the selection (−2 chars each, min 3)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- UNDO & MARKS -->
+    <div class="ref-panel" id="panel-undomarks">
+      <div class="ref-table-wrap">
+        <table class="ref-table">
+          <thead><tr><th>Keys</th><th>Action</th></tr></thead>
+          <tbody>
+            <tr><td class="keys"><kbd>u</kbd></td><td>Undo last change (up to 1000 deep)</td></tr>
+            <tr><td class="keys"><kbd>Ctrl</kbd><kbd>r</kbd></td><td>Redo undone change</td></tr>
+            <tr><td class="keys"><kbd>{N}</kbd><kbd>u</kbd></td><td>Undo N changes at once</td></tr>
+            <tr><td class="keys" style="border-top:1px solid var(--border2);padding-top:0.65rem"><kbd>m</kbd><kbd>{a–z}</kbd></td><td>Set named mark at current position (e.g. <kbd>m</kbd><kbd>a</kbd>)</td></tr>
+            <tr><td class="keys"><kbd>'</kbd><kbd>{a–z}</kbd></td><td>Jump to named mark (e.g. <kbd>'</kbd><kbd>a</kbd>)</td></tr>
+            <tr><td class="keys"><kbd>'</kbd><kbd>'</kbd></td><td>Jump back to position before last mark jump</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SEARCH -->
+    <div class="ref-panel" id="panel-search">
+      <div class="ref-table-wrap">
+        <table class="ref-table">
+          <thead><tr><th>Keys</th><th>Action</th></tr></thead>
+          <tbody>
+            <tr><td class="keys"><kbd>/</kbd></td><td>Open forward search prompt (supports regex)</td></tr>
+            <tr><td class="keys"><kbd>?</kbd></td><td>Open backward search prompt (supports regex)</td></tr>
+            <tr><td class="keys"><kbd>Enter</kbd> <span style="font-size:0.8rem;color:var(--text-dim)">(in search)</span></td><td>Execute search, jump to first match</td></tr>
+            <tr><td class="keys"><kbd>Esc</kbd> <span style="font-size:0.8rem;color:var(--text-dim)">(in search)</span></td><td>Cancel search</td></tr>
+            <tr><td class="keys"><kbd>n</kbd></td><td>Jump to next search match</td></tr>
+            <tr><td class="keys"><kbd>N</kbd></td><td>Jump to previous search match</td></tr>
+            <tr><td class="keys"><kbd>*</kbd></td><td>Search for the content of the current cell</td></tr>
+            <tr><td colspan="2" style="color:var(--text-dim);font-family:var(--mono);font-size:0.78rem;padding:0.8rem 1.2rem">
+              Tip: search patterns are case-insensitive regex. Use <code style="color:var(--teal)">^Total</code> to match cells starting with "Total", or <code style="color:var(--teal)">\d+\.\d{2}</code> to match decimals. Invalid regex falls back to literal substring match.
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SHEETS -->
+    <div class="ref-panel" id="panel-sheets">
+      <div class="ref-table-wrap">
+        <table class="ref-table">
+          <thead><tr><th>Keys</th><th>Action</th></tr></thead>
+          <tbody>
+            <tr><td class="keys"><kbd>Tab</kbd> <span class="key-sep">/</span> <kbd>g</kbd><kbd>t</kbd> <span class="key-sep">/</span> <kbd>Ctrl</kbd><kbd>t</kbd></td><td>Switch to next sheet</td></tr>
+            <tr><td class="keys"><kbd>⇧Tab</kbd> <span class="key-sep">/</span> <kbd>g</kbd><kbd>T</kbd> <span class="key-sep">/</span> <kbd>Ctrl</kbd><kbd>T</kbd></td><td>Switch to previous sheet</td></tr>
+            <tr><td class="keys"><span style="color:var(--text-muted);font-size:0.82rem">:tabnew [name]</span></td><td>Create a new sheet (optional name)</td></tr>
+            <tr><td class="keys"><span style="color:var(--text-muted);font-size:0.82rem">:tabedit [name]</span></td><td>Alias for :tabnew</td></tr>
+            <tr><td class="keys"><span style="color:var(--text-muted);font-size:0.82rem">:tabclose</span></td><td>Close current sheet (must have at least one remaining)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- MACROS -->
+    <div class="ref-panel" id="panel-macros">
+      <div class="ref-table-wrap">
+        <table class="ref-table">
+          <thead><tr><th>Keys</th><th>Action</th></tr></thead>
+          <tbody>
+            <tr><td class="keys"><kbd>q</kbd><kbd>{a–z}</kbd></td><td>Start recording macro to named register (e.g. <kbd>q</kbd><kbd>a</kbd>). Mode shows <strong style="color:var(--red)">REC</strong>.</td></tr>
+            <tr><td class="keys"><kbd>q</kbd> <span style="font-size:0.8rem;color:var(--text-dim)">(while recording)</span></td><td>Stop recording, save key sequence to register</td></tr>
+            <tr><td class="keys"><kbd>@</kbd><kbd>{a–z}</kbd></td><td>Play macro from named register (e.g. <kbd>@</kbd><kbd>a</kbd>)</td></tr>
+            <tr><td class="keys"><kbd>@</kbd><kbd>@</kbd></td><td>Replay the most recently played macro</td></tr>
+            <tr><td class="keys"><kbd>{N}</kbd><kbd>@</kbd><kbd>{reg}</kbd></td><td>Play macro N times in a row (e.g. <kbd>5</kbd><kbd>@</kbd><kbd>a</kbd>)</td></tr>
+            <tr><td colspan="2" style="color:var(--text-dim);font-family:var(--mono);font-size:0.78rem;padding:0.8rem 1.2rem">
+              Macros record raw key events including mode transitions. Recursive macro playback is safely prevented.
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- EX COMMANDS -->
+    <div class="ref-panel" id="panel-commands">
+      <div class="ref-table-wrap">
+        <table class="ref-table">
+          <thead><tr><th>Command</th><th>Action</th></tr></thead>
+          <tbody>
+            <tr><td class="keys"><kbd>:</kbd></td><td>Enter command mode</td></tr>
+            <tr><td class="keys"><kbd>Esc</kbd></td><td>Cancel command mode</td></tr>
+            <tr style="border-top:2px solid var(--border2)">
+              <td><code style="color:var(--amber);font-family:var(--mono)">:q</code></td>
+              <td>Quit — warns if there are unsaved changes</td>
+            </tr>
+            <tr><td><code style="color:var(--amber);font-family:var(--mono)">:q!</code></td><td>Force quit, discarding all unsaved changes</td></tr>
+            <tr><td><code style="color:var(--amber);font-family:var(--mono)">:w [file]</code></td><td>Save current workbook (optionally to a new path)</td></tr>
+            <tr><td><code style="color:var(--amber);font-family:var(--mono)">:wq</code> / <code style="color:var(--amber);font-family:var(--mono)">:x</code></td><td>Save and quit</td></tr>
+            <tr><td><code style="color:var(--amber);font-family:var(--mono)">:e &lt;file&gt;</code></td><td>Open a file, replacing current workbook</td></tr>
+            <tr style="border-top:1px solid var(--border2)">
+              <td><code style="color:var(--teal);font-family:var(--mono)">:tabnew [name]</code></td><td>Create new sheet</td>
+            </tr>
+            <tr><td><code style="color:var(--teal);font-family:var(--mono)">:tabclose</code></td><td>Close current sheet</td></tr>
+            <tr style="border-top:1px solid var(--border2)">
+              <td><code style="color:var(--teal);font-family:var(--mono)">:ic</code> / <code style="color:var(--teal);font-family:var(--mono)">:insertcol</code></td><td>Insert column at cursor (left)</td>
+            </tr>
+            <tr><td><code style="color:var(--teal);font-family:var(--mono)">:icr</code> / <code style="color:var(--teal);font-family:var(--mono)">:insertcolright</code></td><td>Insert column to the right of cursor</td></tr>
+            <tr><td><code style="color:var(--teal);font-family:var(--mono)">:dc</code> / <code style="color:var(--teal);font-family:var(--mono)">:deletecol</code></td><td>Delete current column (undoable)</td></tr>
+            <tr><td><code style="color:var(--teal);font-family:var(--mono)">:ir [N]</code> / <code style="color:var(--teal);font-family:var(--mono)">:insertrow [N]</code></td><td>Insert row at cursor or at line N</td></tr>
+            <tr><td><code style="color:var(--teal);font-family:var(--mono)">:dr [N]</code> / <code style="color:var(--teal);font-family:var(--mono)">:deleterow [N]</code></td><td>Delete row at cursor or at line N (undoable)</td></tr>
+            <tr style="border-top:1px solid var(--border2)">
+              <td><code style="color:var(--teal);font-family:var(--mono)">:cw &lt;N&gt;</code> / <code style="color:var(--teal);font-family:var(--mono)">:colwidth &lt;N&gt;</code></td><td>Set current column width to exactly N characters</td>
+            </tr>
+            <tr><td><code style="color:var(--teal);font-family:var(--mono)">:rh &lt;N&gt;</code> / <code style="color:var(--teal);font-family:var(--mono)">:rowheight &lt;N&gt;</code></td><td>Set current row height to exactly N terminal lines</td></tr>
+
+            <tr style="border-top:1px solid var(--border2)">
+              <td><code style="color:var(--teal);font-family:var(--mono)">:bold</code></td><td>Toggle <strong>bold</strong> on current cell / visual selection</td>
+            </tr>
+            <tr><td><code style="color:var(--teal);font-family:var(--mono)">:italic</code></td><td>Toggle <em>italic</em> on current cell / visual selection</td></tr>
+            <tr><td><code style="color:var(--teal);font-family:var(--mono)">:underline</code></td><td>Toggle underline on current cell / visual selection</td></tr>
+            <tr><td><code style="color:var(--teal);font-family:var(--mono)">:strike</code></td><td>Toggle strikethrough on current cell / visual selection</td></tr>
+            <tr><td><code style="color:var(--teal);font-family:var(--mono)">:fg &lt;color&gt;</code></td><td>Set foreground (text) colour — hex <code style="color:var(--amber)">#rrggbb</code> or named (red, blue, green…)</td></tr>
+            <tr><td><code style="color:var(--teal);font-family:var(--mono)">:bg &lt;color&gt;</code></td><td>Set background colour — hex or named</td></tr>
+            <tr><td><code style="color:var(--teal);font-family:var(--mono)">:hl &lt;color&gt;</code></td><td>Highlight: set background with auto-contrast foreground</td></tr>
+            <tr><td><code style="color:var(--teal);font-family:var(--mono)">:hl</code></td><td>Clear highlight (remove fg and bg colours)</td></tr>
+            <tr><td><code style="color:var(--teal);font-family:var(--mono)">:align &lt;l/c/r&gt;</code></td><td>Set cell alignment: <code>l</code>eft, <code>c</code>enter, or <code>r</code>ight</td></tr>
+            <tr><td><code style="color:var(--teal);font-family:var(--mono)">:fmt &lt;spec&gt;</code></td><td>Number format: <code>%</code>, <code>$</code>, <code>0.00</code>, <code>int</code>, <code>date</code>, <code>none</code></td></tr>
+            <tr><td><code style="color:var(--teal);font-family:var(--mono)">:cs</code></td><td>Clear all styles from current cell / visual selection</td></tr>
+            <tr><td><code style="color:var(--teal);font-family:var(--mono)">:copystyle</code></td><td>Copy current cell's style to style clipboard (same as <kbd style="font-family:var(--mono)">yS</kbd>)</td></tr>
+            <tr><td><code style="color:var(--teal);font-family:var(--mono)">:pastestyle</code></td><td>Paste style clipboard to cell / selection (same as <kbd style="font-family:var(--mono)">pS</kbd>)</td></tr>
+
+            <tr style="border-top:1px solid var(--border2)">
+              <td><code style="color:var(--teal);font-family:var(--mono)">:theme</code></td><td>Open the interactive theme picker</td>
+            </tr>
+            <tr><td><code style="color:var(--teal);font-family:var(--mono)">:theme &lt;name&gt;</code></td><td>Apply a named theme directly (Tab-completes available names)</td></tr>
+            <tr><td><code style="color:var(--teal);font-family:var(--mono)">:set &lt;option&gt;</code></td><td>Set a configuration option at runtime</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="color:var(--text-muted);font-size:0.82rem;margin-top:1rem;line-height:1.6">
+        Tip: press <kbd style="font-family:var(--mono);background:var(--surface2);padding:1px 5px;border-radius:3px">Tab</kbd> in command mode to cycle completions. <kbd style="font-family:var(--mono);background:var(--surface2);padding:1px 5px;border-radius:3px">Shift+Tab</kbd> goes backwards. All structural operations are undoable with <kbd style="font-family:var(--mono);background:var(--surface2);padding:1px 5px;border-radius:3px">u</kbd>.
+      </p>
+    </div>
+
+    <!-- FORMULAS -->
+    <div class="ref-panel" id="panel-formulas">
+      <p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:1.5rem;line-height:1.7">
+        Start any cell value with <kbd>=</kbd> to enter a formula. Formulas are re-evaluated automatically after every edit.
+        Reference cells with <code style="color:var(--teal)">A1</code>, ranges with <code style="color:var(--teal)">A1:B10</code>, and other sheets with <code style="color:var(--teal)">Sheet2.C4</code>.
+        Both absolute (<code style="color:var(--teal)">$A$1</code>) and relative references are supported.
+      </p>
+      <div class="fn-group">
+        <div class="fn-group-title">Math &amp; Statistics</div>
+        <div class="fn-chips">
+          <span class="fn-chip">SUM()</span><span class="fn-chip">AVERAGE()</span><span class="fn-chip">MIN()</span>
+          <span class="fn-chip">MAX()</span><span class="fn-chip">ABS()</span><span class="fn-chip">ROUND()</span>
+          <span class="fn-chip">ROUNDUP()</span><span class="fn-chip">ROUNDDOWN()</span><span class="fn-chip">FLOOR()</span>
+          <span class="fn-chip">CEILING()</span><span class="fn-chip">MOD()</span><span class="fn-chip">POWER()</span>
+          <span class="fn-chip">SQRT()</span><span class="fn-chip">LN()</span><span class="fn-chip">LOG()</span>
+          <span class="fn-chip">LOG10()</span><span class="fn-chip">EXP()</span><span class="fn-chip">INT()</span>
+          <span class="fn-chip">TRUNC()</span><span class="fn-chip">SIGN()</span>
+        </div>
+      </div>
+      <div class="fn-group">
+        <div class="fn-group-title">Text</div>
+        <div class="fn-chips">
+          <span class="fn-chip">LEN()</span><span class="fn-chip">LEFT()</span><span class="fn-chip">RIGHT()</span>
+          <span class="fn-chip">MID()</span><span class="fn-chip">TRIM()</span><span class="fn-chip">UPPER()</span>
+          <span class="fn-chip">LOWER()</span><span class="fn-chip">PROPER()</span><span class="fn-chip">CONCATENATE()</span>
+          <span class="fn-chip">TEXT()</span><span class="fn-chip">VALUE()</span><span class="fn-chip">FIND()</span>
+          <span class="fn-chip">SEARCH()</span><span class="fn-chip">SUBSTITUTE()</span><span class="fn-chip">REPLACE()</span>
+          <span class="fn-chip">REPT()</span>
+        </div>
+      </div>
+      <div class="fn-group">
+        <div class="fn-group-title">Logic &amp; Conditionals</div>
+        <div class="fn-chips">
+          <span class="fn-chip">IF()</span><span class="fn-chip">AND()</span><span class="fn-chip">OR()</span>
+          <span class="fn-chip">NOT()</span><span class="fn-chip">ISNUMBER()</span><span class="fn-chip">ISTEXT()</span>
+          <span class="fn-chip">ISBLANK()</span><span class="fn-chip">ISERROR()</span><span class="fn-chip">IFERROR()</span>
+          <span class="fn-chip">ISLOGICAL()</span>
+        </div>
+      </div>
+      <div class="fn-group">
+        <div class="fn-group-title">Constants</div>
+        <div class="fn-chips">
+          <span class="fn-chip">TRUE</span><span class="fn-chip">FALSE</span><span class="fn-chip">PI()</span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /container -->
+</section>
+
+<!-- ─── FOOTER ────────────────────────────────────────────────────────── -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-left">
+      <strong>ASAT</strong> &nbsp;—&nbsp; Released under the MIT License &nbsp;©&nbsp; 2024
+    </div>
+    <div class="footer-built">
+      Built with
+      <span class="footer-pill">🦀 Rust</span>
+      <span class="footer-pill">ratatui</span>
+      <span class="footer-pill">crossterm</span>
+      <span class="footer-pill">calamine</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // ── Spreadsheet background cells ──────────────────────────────────────
+  const data = [
+    '84,200', '=SUM(B1:B2)', 'Revenue', 'Q4', '#DIV/0!', 'TRUE', 'Expenses',
+    '=AVERAGE', '12.5%', 'Budget', '31,450', 'FALSE', '=IF(', 'Total',
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', '=MAX(', '0.75',
+    'Forecast', '=ROUND(', '99.9', 'Sales', 'Cost', '=LEN(', 'Alpha',
+  ];
+  const bg = document.getElementById('sheet-bg');
+  for (let i = 0; i < 108; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.textContent = i % 5 === 0 ? (data[Math.floor(Math.random() * data.length)] || '') : '';
+    cell.style.animationDelay = `${(Math.random() * 8).toFixed(2)}s`;
+    cell.style.animationDuration = `${(6 + Math.random() * 6).toFixed(2)}s`;
+    bg.appendChild(cell);
+  }
+
+  // ── Nav scroll state ──────────────────────────────────────────────────
+  window.addEventListener('scroll', () => {
+    document.getElementById('nav').classList.toggle('scrolled', window.scrollY > 20);
+  });
+
+  // ── Build "All" panel (clones rows from every other panel) ────────────
+  function buildAllPanel() {
+    const tbody = document.getElementById('all-tbody');
+    if (!tbody || tbody.dataset.built) return;
+
+    const sections = [
+      { id: 'panel-navigation',  label: 'Navigation' },
+      { id: 'panel-editing',     label: 'Editing' },
+      { id: 'panel-rowcol',      label: 'Rows & Columns' },
+      { id: 'panel-yank',        label: 'Yank & Paste' },
+      { id: 'panel-visual',      label: 'Visual Mode' },
+      { id: 'panel-undomarks',   label: 'Undo & Marks' },
+      { id: 'panel-search',      label: 'Search' },
+      { id: 'panel-sheets',      label: 'Sheets' },
+      { id: 'panel-macros',      label: 'Macros' },
+      { id: 'panel-commands',    label: 'Ex Commands' },
+    ];
+
+    sections.forEach(({ id, label }) => {
+      const panel = document.getElementById(id);
+      if (!panel) return;
+
+      // Section divider row
+      const hdr = document.createElement('tr');
+      hdr.className = 'all-section-header';
+      hdr.innerHTML = `<td colspan="2">${label}</td>`;
+      tbody.appendChild(hdr);
+
+      // Clone every data row (skip existing section-header rows)
+      panel.querySelectorAll('tbody tr').forEach(row => {
+        if (row.classList.contains('all-section-header')) return;
+        tbody.appendChild(row.cloneNode(true));
+      });
+    });
+
+    tbody.dataset.built = 'true';
+  }
+
+  // ── Tab switching ─────────────────────────────────────────────────────
+  document.getElementById('ref-tabs').addEventListener('click', e => {
+    const btn = e.target.closest('.ref-tab');
+    if (!btn) return;
+    document.querySelectorAll('.ref-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.ref-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    const panel = document.getElementById('panel-' + btn.dataset.tab);
+    if (panel) panel.classList.add('active');
+    if (btn.dataset.tab === 'all') buildAllPanel();
+    // Reset search when switching tabs
+    filterRows(document.getElementById('ref-search').value);
+  });
+
+  // ── Search / filter ───────────────────────────────────────────────────
+  function filterRows(query) {
+    const q = query.toLowerCase().trim();
+    const activePanel = document.querySelector('.ref-panel.active');
+    const noResults = document.getElementById('no-results');
+    if (!activePanel) return;
+
+    // Formulas tab: filter chips
+    if (activePanel.id === 'panel-formulas') {
+      const chips = activePanel.querySelectorAll('.fn-chip');
+      let any = false;
+      chips.forEach(chip => {
+        const match = !q || chip.textContent.toLowerCase().includes(q);
+        chip.style.display = match ? '' : 'none';
+        if (match) any = true;
+      });
+      noResults.style.display = (!any && q) ? 'block' : 'none';
+      return;
+    }
+
+    const rows = activePanel.querySelectorAll('tbody tr');
+    let visibleCount = 0;
+
+    rows.forEach(row => {
+      // Always show section-header rows; hide only data rows that don't match
+      if (row.classList.contains('all-section-header')) {
+        row.classList.remove('hidden');
+        return;
+      }
+      const text = row.textContent.toLowerCase();
+      const match = !q || text.includes(q);
+      row.classList.toggle('hidden', !match);
+      if (match) visibleCount++;
+    });
+
+    // In the All panel, also hide section headers that have no visible siblings after them
+    if (activePanel.id === 'panel-all' && q) {
+      activePanel.querySelectorAll('.all-section-header').forEach(hdr => {
+        let next = hdr.nextElementSibling;
+        let hasVisible = false;
+        while (next && !next.classList.contains('all-section-header')) {
+          if (!next.classList.contains('hidden')) { hasVisible = true; break; }
+          next = next.nextElementSibling;
+        }
+        hdr.classList.toggle('hidden', !hasVisible);
+      });
+    }
+
+    const hasNoResults = visibleCount === 0 && q && rows.length > 0;
+    noResults.style.display = hasNoResults ? 'block' : 'none';
+
+    // Hide all content children of the panel (not just .ref-table-wrap) on no-results
+    activePanel.querySelectorAll(':scope > .ref-table-wrap, :scope > p').forEach(el => {
+      el.style.display = hasNoResults ? 'none' : '';
+    });
+  }
+
+  document.getElementById('ref-search').addEventListener('input', e => {
+    filterRows(e.target.value);
+  });
+
+  // Build All panel eagerly so it's ready
+  buildAllPanel();
+
+  // ── Copy code blocks ──────────────────────────────────────────────────
+  function copyCode(btn) {
+    const block = btn.closest('.code-block');
+    const text = Array.from(block.querySelectorAll('span:not(.prompt)'))
+      .map(s => s.textContent).join('').trim();
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = '✓ copied';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'copy'; btn.classList.remove('copied'); }, 2000);
+    }).catch(() => {
+      btn.textContent = 'copy';
+    });
+  }
+
+  // ── Intersection observer for section fade-in ─────────────────────────
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.style.opacity = '1';
+        e.target.style.transform = 'translateY(0)';
+        observer.unobserve(e.target); // animate once only
+      }
+    });
+  }, { threshold: 0.08 });
+
+  document.querySelectorAll('.feature-card, .step').forEach(el => {
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(16px)';
+    el.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+    observer.observe(el);
+  });
+</script>
+</body>
+</html>
