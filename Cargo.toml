@@ -16,7 +16,14 @@ resolver = "2"
 version = "0.1.0"
 edition = "2021"
 license = "GPL-3.0"
-authors = ["ASAT Contributors"]
+authors = ["okt4v"]
+description = "Terminal spreadsheet editor for Vim users — modal editing, 40+ formulas, CSV/XLSX/ODS, themes"
+repository = "https://github.com/okt4v/ASAT"
+homepage = "https://okt4v.github.io/ASAT/"
+documentation = "https://github.com/okt4v/ASAT/blob/main/README.md"
+readme = "README.md"
+keywords = ["spreadsheet", "tui", "terminal", "vim", "ratatui"]
+categories = ["command-line-utilities", "text-editors"]
 
 [workspace.dependencies]
 # Internal crates

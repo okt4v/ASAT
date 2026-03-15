@@ -2,10 +2,37 @@
 name = "asat"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+readme = "../../README.md"
+keywords.workspace = true
+categories.workspace = true
 
 [[bin]]
 name = "asat"
 path = "src/main.rs"
+
+[package.metadata.deb]
+maintainer = "okt4v"
+copyright = "2025, okt4v"
+license-file = ["../../LICENSE", "0"]
+extended-description = """\
+ASAT is a terminal spreadsheet editor for Vim users.
+It features modal editing (Normal/Insert/Visual/Command), 40+ built-in
+formula functions, multi-sheet workbooks, CSV/XLSX/ODS file support,
+18 built-in themes, full undo stack, system clipboard integration,
+named ranges, filter/freeze panes, cell notes, and more.
+"""
+section = "editors"
+priority = "optional"
+assets = [
+    ["target/release/asat", "usr/bin/", "755"],
+    ["../../README.md", "usr/share/doc/asat/README.md", "644"],
+]
 
 [dependencies]
 asat-core = { workspace = true }

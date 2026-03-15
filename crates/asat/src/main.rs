@@ -22,6 +22,29 @@ use asat_tui::{render, RenderState};
 fn main() -> Result<()> {
     // Parse CLI arguments
     let args: Vec<String> = std::env::args().collect();
+
+    // Handle --version / -V before doing anything else
+    if args.get(1).map(|s| s == "--version" || s == "-V").unwrap_or(false) {
+        println!("asat {}", env!("CARGO_PKG_VERSION"));
+        return Ok(());
+    }
+    if args.get(1).map(|s| s == "--help" || s == "-h").unwrap_or(false) {
+        println!("asat {} — terminal spreadsheet editor", env!("CARGO_PKG_VERSION"));
+        println!();
+        println!("USAGE:");
+        println!("  asat [FILE]");
+        println!();
+        println!("ARGS:");
+        println!("  [FILE]  File to open (csv, xlsx, ods, tsv, .asat). Creates new if absent.");
+        println!();
+        println!("OPTIONS:");
+        println!("  -V, --version  Print version");
+        println!("  -h, --help     Print this help");
+        println!();
+        println!("Website: https://okt4v.github.io/ASAT/");
+        return Ok(());
+    }
+
     let file_path: Option<PathBuf> = args.get(1).map(PathBuf::from);
 
     // Load config
