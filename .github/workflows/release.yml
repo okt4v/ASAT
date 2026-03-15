@@ -211,7 +211,14 @@ jobs:
           echo "" >> ~/.ssh/aur_key
           chmod 600 ~/.ssh/aur_key
           ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts
-          printf 'Host aur.archlinux.org\n  IdentityFile ~/.ssh/aur_key\n  User aur\n' >> ~/.ssh/config
+          cat >> ~/.ssh/config <<EOF
+          Host aur.archlinux.org
+            IdentityFile /home/runner/.ssh/aur_key
+            User aur
+            StrictHostKeyChecking no
+          EOF
+          ssh-keygen -l -f ~/.ssh/aur_key || echo "Key fingerprint check failed"
+          ssh -i ~/.ssh/aur_key -o StrictHostKeyChecking=no aur@aur.archlinux.org help 2>&1 || true
 
       - name: Push to AUR
         run: |
