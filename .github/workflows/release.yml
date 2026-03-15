@@ -97,12 +97,12 @@ jobs:
       - name: Install cargo-deb
         run: cargo install cargo-deb --locked
       - name: Build .deb
-        run: cargo deb --locked -p asat -- --target x86_64-unknown-linux-gnu
+        run: cargo deb --locked -p asat
       - name: Upload .deb
         uses: actions/upload-artifact@v4
         with:
           name: deb
-          path: target/x86_64-unknown-linux-gnu/debian/*.deb
+          path: target/debian/*.deb
 
   release:
     name: Create GitHub Release
