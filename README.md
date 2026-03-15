@@ -231,6 +231,8 @@ Start any cell with `=` to write a formula. Formulas re-evaluate automatically a
 | Logic | `IF`, `AND`, `OR`, `NOT`, `ISNUMBER`, `ISTEXT`, `ISBLANK`, `ISERROR`, `IFERROR`, `ISLOGICAL` |
 | Lookup | `VLOOKUP`, `HLOOKUP`, `INDEX`, `MATCH`, `OFFSET` |
 | Date | `NOW`, `TODAY`, `DATE`, `YEAR`, `MONTH`, `DAY` |
+| Statistical | `COUNT`, `COUNTA`, `SUMIF`, `COUNTIF`, `SUMPRODUCT`, `MEDIAN`, `STDEV`, `VAR`, `LARGE`, `SMALL` |
+| Finance | `PV`, `FV`, `PMT`, `NPER`, `RATE`, `NPV`, `IRR`, `MIRR`, `IPMT`, `PPMT`, `SLN`, `DDB`, `EFFECT`, `NOMINAL`, `CUMIPMT`, `CUMPRINC` |
 | Constants | `TRUE`, `FALSE`, `PI()` |
 
 **Reference syntax:**
@@ -243,6 +245,41 @@ Start any cell with `=` to write a formula. Formulas re-evaluate automatically a
 | `Sheet2.C4` | Cross-sheet reference |
 
 **Interactive reference picking:** While editing a formula, press `Ctrl+R` to enter F-REF mode. Navigate with `hjkl`, press `:` to start a range, and `Enter` to insert the reference back into your formula.
+
+### Financial Functions
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `PV` | `PV(rate, nper, pmt, [fv], [type])` | Present value of an investment or annuity |
+| `FV` | `FV(rate, nper, pmt, [pv], [type])` | Future value of an investment or annuity |
+| `PMT` | `PMT(rate, nper, pv, [fv], [type])` | Periodic payment for a loan or annuity |
+| `NPER` | `NPER(rate, pmt, pv, [fv], [type])` | Number of periods to pay off a loan |
+| `RATE` | `RATE(nper, pmt, pv, [fv], [type], [guess])` | Interest rate per period (iterative) |
+| `NPV` | `NPV(rate, cf1, cf2, …)` | Net present value of a series of cashflows |
+| `IRR` | `IRR(values, [guess])` | Internal rate of return (iterative) |
+| `MIRR` | `MIRR(values, finance_rate, reinvest_rate)` | Modified internal rate of return |
+| `IPMT` | `IPMT(rate, per, nper, pv, [fv], [type])` | Interest portion of a payment |
+| `PPMT` | `PPMT(rate, per, nper, pv, [fv], [type])` | Principal portion of a payment |
+| `CUMIPMT` | `CUMIPMT(rate, nper, pv, start, end, type)` | Cumulative interest paid over a range of periods |
+| `CUMPRINC` | `CUMPRINC(rate, nper, pv, start, end, type)` | Cumulative principal paid over a range of periods |
+| `SLN` | `SLN(cost, salvage, life)` | Straight-line depreciation per period |
+| `DDB` | `DDB(cost, salvage, life, period, [factor])` | Double-declining balance depreciation |
+| `EFFECT` | `EFFECT(nominal_rate, npery)` | Effective annual interest rate |
+| `NOMINAL` | `NOMINAL(effect_rate, npery)` | Nominal annual interest rate |
+
+**Convention:** `pv`/`pmt` follow the Excel cash-flow sign convention (money paid out is negative). `type` = 0 means end-of-period payments (default), 1 means beginning-of-period.
+
+**Examples:**
+```
+=PMT(5%/12, 360, 200000)         → monthly payment on a 30yr £200k mortgage at 5%
+=PV(8%/12, 60, -500)             → present value of 60 monthly payments of £500
+=FV(6%/12, 120, -200, -5000)     → future value after 10yrs of £200/mo + £5k lump sum
+=NPV(10%, -10000, 3000, 4000, 5000, 6000)  → NPV of a project at 10% discount rate
+=IRR({-10000, 3000, 4000, 5000}) → IRR of a cashflow series
+=IPMT(5%/12, 1, 360, 200000)     → interest paid in month 1 of the mortgage above
+=SLN(50000, 5000, 5)             → £9000/yr straight-line depreciation
+=EFFECT(5%, 12)                  → effective annual rate for 5% nominal compounded monthly
+```
 
 ---
 

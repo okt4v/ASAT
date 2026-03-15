@@ -61,6 +61,34 @@ pub fn call(name: &str, args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) ->
         "FALSE"       => CellValue::Boolean(false),
         "PI"          => CellValue::Number(std::f64::consts::PI),
 
+        // ── Statistical ──
+        "SUMIF"       => fn_sumif(args, ctx, ev),
+        "COUNTIF"     => fn_countif(args, ctx, ev),
+        "SUMPRODUCT"  => fn_sumproduct(args, ctx, ev),
+        "LARGE"       => fn_large(args, ctx, ev),
+        "SMALL"       => fn_small(args, ctx, ev),
+        "MEDIAN"      => fn_median(args, ctx, ev),
+        "STDEV"       => fn_stdev(args, ctx, ev),
+        "VAR"         => fn_var(args, ctx, ev),
+
+        // ── Finance ──
+        "PV"          => fn_pv(args, ctx, ev),
+        "FV"          => fn_fv(args, ctx, ev),
+        "PMT"         => fn_pmt(args, ctx, ev),
+        "NPER"        => fn_nper(args, ctx, ev),
+        "RATE"        => fn_rate(args, ctx, ev),
+        "NPV"         => fn_npv(args, ctx, ev),
+        "IRR"         => fn_irr(args, ctx, ev),
+        "MIRR"        => fn_mirr(args, ctx, ev),
+        "IPMT"        => fn_ipmt(args, ctx, ev),
+        "PPMT"        => fn_ppmt(args, ctx, ev),
+        "SLN"         => fn_sln(args, ctx, ev),
+        "DDB"         => fn_ddb(args, ctx, ev),
+        "EFFECT"      => fn_effect(args, ctx, ev),
+        "NOMINAL"     => fn_nominal(args, ctx, ev),
+        "CUMIPMT"     => fn_cumipmt(args, ctx, ev),
+        "CUMPRINC"    => fn_cumprinc(args, ctx, ev),
+
         _ => {
             // Fall through to plugin-registered custom functions before giving up.
             if asat_core::has_custom_fn(name) {
@@ -498,4 +526,421 @@ fn fn_rept(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValue {
     let text = to_text(&ev.eval(&args[0], ctx));
     let n = to_number(&ev.eval(&args[1], ctx)).unwrap_or(0.0) as usize;
     CellValue::Text(text.repeat(n))
+}
+
+// ── Statistical Functions ─────────────────────────────────────────────────────
+
+/// SUMIF(range, criteria, [sum_range])
+fn fn_sumif(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValue {
+    if args.len() < 2 { return CellValue::Error(CellError::Value); }
+    let test_vals = ev.expand_range(&args[0], ctx);
+    let criteria  = ev.eval(&args[1], ctx);
+    let sum_vals  = if args.len() > 2 { ev.expand_range(&args[2], ctx) } else { test_vals.clone() };
+    let mut sum = 0.0;
+    for (tv, sv) in test_vals.iter().zip(sum_vals.iter()) {
+        if criteria_match(tv, &criteria) {
+            if let Some(n) = to_number(sv) { sum += n; }
+        }
+    }
+    CellValue::Number(sum)
+}
+
+/// COUNTIF(range, criteria)
+fn fn_countif(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValue {
+    if args.len() < 2 { return CellValue::Error(CellError::Value); }
+    let vals     = ev.expand_range(&args[0], ctx);
+    let criteria = ev.eval(&args[1], ctx);
+    let count    = vals.iter().filter(|v| criteria_match(v, &criteria)).count();
+    CellValue::Number(count as f64)
+}
+
+/// Match a cell value against a SUMIF/COUNTIF criteria.
+/// Supports: number equality, text equality (case-insensitive), and
+/// comparison strings like ">10", "<=5", "<>0".
+fn criteria_match(val: &CellValue, criteria: &CellValue) -> bool {
+    match criteria {
+        CellValue::Number(n) => to_number(val).map(|v| v == *n).unwrap_or(false),
+        CellValue::Boolean(b) => matches!(val, CellValue::Boolean(v) if v == b),
+        CellValue::Text(s) => {
+            // Try comparison operators first: ">5", "<=10", "<>0", ">=3"
+            for (op, rest) in [(">=", &s[..]), ("<=", s.as_str()), ("<>", s.as_str()), (">", s.as_str()), ("<", s.as_str())] {
+                if s.starts_with(op) {
+                    let rhs = &s[op.len()..];
+                    if let Ok(rhs_n) = rhs.parse::<f64>() {
+                        if let Some(lhs_n) = to_number(val) {
+                            return match op {
+                                ">="  => lhs_n >= rhs_n,
+                                "<="  => lhs_n <= rhs_n,
+                                "<>"  => lhs_n != rhs_n,
+                                ">"   => lhs_n > rhs_n,
+                                "<"   => lhs_n < rhs_n,
+                                _     => false,
+                            };
+                        }
+                    }
+                    let _ = rest; // suppress unused warning
+                    break;
+                }
+            }
+            // Fall back to case-insensitive text match
+            match val {
+                CellValue::Text(t) => t.to_lowercase() == s.to_lowercase(),
+                _ => false,
+            }
+        }
+        _ => false,
+    }
+}
+
+/// SUMPRODUCT(array1, array2, ...)  — element-wise multiply then sum
+fn fn_sumproduct(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValue {
+    if args.is_empty() { return CellValue::Error(CellError::Value); }
+    let arrays: Vec<Vec<f64>> = args.iter()
+        .map(|a| ev.expand_range(a, ctx).into_iter().filter_map(|v| to_number(&v)).collect())
+        .collect();
+    let len = arrays[0].len();
+    if arrays.iter().any(|a| a.len() != len) { return CellValue::Error(CellError::Value); }
+    let mut sum = 0.0;
+    for i in 0..len {
+        sum += arrays.iter().map(|a| a[i]).product::<f64>();
+    }
+    CellValue::Number(sum)
+}
+
+/// LARGE(range, k)  — k-th largest value
+fn fn_large(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValue {
+    if args.len() < 2 { return CellValue::Error(CellError::Value); }
+    let mut nums: Vec<f64> = ev.expand_range(&args[0], ctx).into_iter().filter_map(|v| to_number(&v)).collect();
+    let k = to_number(&ev.eval(&args[1], ctx)).unwrap_or(1.0) as usize;
+    if nums.is_empty() || k == 0 || k > nums.len() { return CellValue::Error(CellError::Num); }
+    nums.sort_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
+    CellValue::Number(nums[k - 1])
+}
+
+/// SMALL(range, k)  — k-th smallest value
+fn fn_small(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValue {
+    if args.len() < 2 { return CellValue::Error(CellError::Value); }
+    let mut nums: Vec<f64> = ev.expand_range(&args[0], ctx).into_iter().filter_map(|v| to_number(&v)).collect();
+    let k = to_number(&ev.eval(&args[1], ctx)).unwrap_or(1.0) as usize;
+    if nums.is_empty() || k == 0 || k > nums.len() { return CellValue::Error(CellError::Num); }
+    nums.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    CellValue::Number(nums[k - 1])
+}
+
+/// MEDIAN(range)
+fn fn_median(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValue {
+    let mut nums: Vec<f64> = expand_args(args, ctx, ev).into_iter().filter_map(|v| to_number(&v)).collect();
+    if nums.is_empty() { return CellValue::Error(CellError::Num); }
+    nums.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    let mid = nums.len() / 2;
+    let median = if nums.len() % 2 == 0 { (nums[mid - 1] + nums[mid]) / 2.0 } else { nums[mid] };
+    CellValue::Number(median)
+}
+
+/// STDEV(range)  — sample standard deviation
+fn fn_stdev(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValue {
+    let nums: Vec<f64> = expand_args(args, ctx, ev).into_iter().filter_map(|v| to_number(&v)).collect();
+    if nums.len() < 2 { return CellValue::Error(CellError::Div0); }
+    let mean = nums.iter().sum::<f64>() / nums.len() as f64;
+    let variance = nums.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / (nums.len() - 1) as f64;
+    CellValue::Number(variance.sqrt())
+}
+
+/// VAR(range)  — sample variance
+fn fn_var(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValue {
+    let nums: Vec<f64> = expand_args(args, ctx, ev).into_iter().filter_map(|v| to_number(&v)).collect();
+    if nums.len() < 2 { return CellValue::Error(CellError::Div0); }
+    let mean = nums.iter().sum::<f64>() / nums.len() as f64;
+    let variance = nums.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / (nums.len() - 1) as f64;
+    CellValue::Number(variance)
+}
+
+// ── Financial Functions ───────────────────────────────────────────────────────
+//
+// Convention (matches Excel):
+//   pv   = present value  (money received is positive)
+//   fv   = future value   (default 0)
+//   pmt  = payment amount per period (cash out is negative)
+//   nper = number of periods
+//   rate = interest rate per period
+//   type = 0 → payments at end of period (ordinary annuity)
+//          1 → payments at beginning of period (annuity due)
+//
+// Core identity (rate ≠ 0):
+//   pv·(1+r)^n  +  pmt·(1+r·type)·((1+r)^n − 1)/r  +  fv  =  0
+
+/// Helper: compute (1+rate)^nper, returning Err on domain errors.
+fn r1n(rate: f64, nper: f64) -> f64 { (1.0 + rate).powf(nper) }
+
+/// PV(rate, nper, pmt, [fv=0], [type=0])
+fn fn_pv(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValue {
+    if args.len() < 3 { return CellValue::Error(CellError::Value); }
+    let rate = match to_number(&ev.eval(&args[0], ctx)) { Some(v) => v, None => return CellValue::Error(CellError::Value) };
+    let nper = match to_number(&ev.eval(&args[1], ctx)) { Some(v) => v, None => return CellValue::Error(CellError::Value) };
+    let pmt  = match to_number(&ev.eval(&args[2], ctx)) { Some(v) => v, None => return CellValue::Error(CellError::Value) };
+    let fv   = args.get(3).and_then(|a| to_number(&ev.eval(a, ctx))).unwrap_or(0.0);
+    let typ  = args.get(4).and_then(|a| to_number(&ev.eval(a, ctx))).unwrap_or(0.0);
+    if rate == 0.0 {
+        return CellValue::Number(-(pmt * nper + fv));
+    }
+    let rn = r1n(rate, nper);
+    CellValue::Number(-(pmt * (1.0 - 1.0 / rn) / rate * (1.0 + rate * typ) + fv / rn))
+}
+
+/// FV(rate, nper, pmt, [pv=0], [type=0])
+fn fn_fv(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValue {
+    if args.len() < 3 { return CellValue::Error(CellError::Value); }
+    let rate = match to_number(&ev.eval(&args[0], ctx)) { Some(v) => v, None => return CellValue::Error(CellError::Value) };
+    let nper = match to_number(&ev.eval(&args[1], ctx)) { Some(v) => v, None => return CellValue::Error(CellError::Value) };
+    let pmt  = match to_number(&ev.eval(&args[2], ctx)) { Some(v) => v, None => return CellValue::Error(CellError::Value) };
+    let pv   = args.get(3).and_then(|a| to_number(&ev.eval(a, ctx))).unwrap_or(0.0);
+    let typ  = args.get(4).and_then(|a| to_number(&ev.eval(a, ctx))).unwrap_or(0.0);
+    if rate == 0.0 {
+        return CellValue::Number(-(pv + pmt * nper));
+    }
+    let rn = r1n(rate, nper);
+    CellValue::Number(-(pv * rn + pmt * (rn - 1.0) / rate * (1.0 + rate * typ)))
+}
+
+/// PMT(rate, nper, pv, [fv=0], [type=0])
+fn fn_pmt(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValue {
+    if args.len() < 3 { return CellValue::Error(CellError::Value); }
+    let rate = match to_number(&ev.eval(&args[0], ctx)) { Some(v) => v, None => return CellValue::Error(CellError::Value) };
+    let nper = match to_number(&ev.eval(&args[1], ctx)) { Some(v) => v, None => return CellValue::Error(CellError::Value) };
+    let pv   = match to_number(&ev.eval(&args[2], ctx)) { Some(v) => v, None => return CellValue::Error(CellError::Value) };
+    let fv   = args.get(3).and_then(|a| to_number(&ev.eval(a, ctx))).unwrap_or(0.0);
+    let typ  = args.get(4).and_then(|a| to_number(&ev.eval(a, ctx))).unwrap_or(0.0);
+    if nper == 0.0 { return CellValue::Error(CellError::Div0); }
+    if rate == 0.0 {
+        return CellValue::Number(-(pv + fv) / nper);
+    }
+    let rn = r1n(rate, nper);
+    CellValue::Number(-(pv * rn + fv) * rate / ((rn - 1.0) * (1.0 + rate * typ)))
+}
+
+/// NPER(rate, pmt, pv, [fv=0], [type=0])
+fn fn_nper(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValue {
+    if args.len() < 3 { return CellValue::Error(CellError::Value); }
+    let rate = match to_number(&ev.eval(&args[0], ctx)) { Some(v) => v, None => return CellValue::Error(CellError::Value) };
+    let pmt  = match to_number(&ev.eval(&args[1], ctx)) { Some(v) => v, None => return CellValue::Error(CellError::Value) };
+    let pv   = match to_number(&ev.eval(&args[2], ctx)) { Some(v) => v, None => return CellValue::Error(CellError::Value) };
+    let fv   = args.get(3).and_then(|a| to_number(&ev.eval(a, ctx))).unwrap_or(0.0);
+    let typ  = args.get(4).and_then(|a| to_number(&ev.eval(a, ctx))).unwrap_or(0.0);
+    if rate == 0.0 {
+        if pmt == 0.0 { return CellValue::Error(CellError::Div0); }
+        return CellValue::Number(-(pv + fv) / pmt);
+    }
+    let adj = pmt * (1.0 + rate * typ);
+    let num = adj - fv * rate;
+    let den = adj + pv * rate;
+    if den == 0.0 || num / den <= 0.0 { return CellValue::Error(CellError::Num); }
+    CellValue::Number((num / den).ln() / (1.0 + rate).ln())
+}
+
+/// RATE(nper, pmt, pv, [fv=0], [type=0], [guess=0.1])  — Newton-Raphson
+fn fn_rate(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValue {
+    if args.len() < 3 { return CellValue::Error(CellError::Value); }
+    let nper = match to_number(&ev.eval(&args[0], ctx)) { Some(v) => v, None => return CellValue::Error(CellError::Value) };
+    let pmt  = match to_number(&ev.eval(&args[1], ctx)) { Some(v) => v, None => return CellValue::Error(CellError::Value) };
+    let pv   = match to_number(&ev.eval(&args[2], ctx)) { Some(v) => v, None => return CellValue::Error(CellError::Value) };
+    let fv   = args.get(3).and_then(|a| to_number(&ev.eval(a, ctx))).unwrap_or(0.0);
+    let typ  = args.get(4).and_then(|a| to_number(&ev.eval(a, ctx))).unwrap_or(0.0);
+    let mut rate = args.get(5).and_then(|a| to_number(&ev.eval(a, ctx))).unwrap_or(0.1);
+    // f(r) = pv·(1+r)^n + pmt·(1+r·type)·((1+r)^n−1)/r + fv
+    let f = |r: f64| -> f64 {
+        let rn = r1n(r, nper);
+        pv * rn + pmt * (1.0 + r * typ) * (rn - 1.0) / r + fv
+    };
+    for _ in 0..200 {
+        let fx  = f(rate);
+        let dfx = (f(rate + 1e-8) - fx) / 1e-8;
+        if dfx.abs() < 1e-15 { break; }
+        let new_rate = rate - fx / dfx;
+        if (new_rate - rate).abs() < 1e-10 { return CellValue::Number(new_rate); }
+        rate = new_rate;
+        if rate <= -1.0 { return CellValue::Error(CellError::Num); }
+    }
+    CellValue::Error(CellError::Num)
+}
+
+/// NPV(rate, value1, value2, ...)  — Net present value of cashflows
+fn fn_npv(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValue {
+    if args.is_empty() { return CellValue::Error(CellError::Value); }
+    let rate = match to_number(&ev.eval(&args[0], ctx)) { Some(v) => v, None => return CellValue::Error(CellError::Value) };
+    let cashflows: Vec<f64> = args[1..].iter()
+        .flat_map(|a| ev.expand_range(a, ctx))
+        .filter_map(|v| to_number(&v))
+        .collect();
+    if cashflows.is_empty() { return CellValue::Error(CellError::Value); }
+    let npv: f64 = cashflows.iter().enumerate()
+        .map(|(i, cf)| cf / r1n(rate, i as f64 + 1.0))
+        .sum();
+    CellValue::Number(npv)
+}
+
+/// IRR(values, [guess=0.1])  — Internal rate of return (Newton-Raphson)
+fn fn_irr(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValue {
+    if args.is_empty() { return CellValue::Error(CellError::Value); }
+    let cfs: Vec<f64> = ev.expand_range(&args[0], ctx).into_iter().filter_map(|v| to_number(&v)).collect();
+    if cfs.len() < 2 { return CellValue::Error(CellError::Value); }
+    let mut rate = args.get(1).and_then(|a| to_number(&ev.eval(a, ctx))).unwrap_or(0.1);
+    let npv = |r: f64| -> f64 {
+        cfs.iter().enumerate().map(|(i, &cf)| cf / r1n(r, i as f64)).sum()
+    };
+    for _ in 0..200 {
+        let fx  = npv(rate);
+        let dfx = (npv(rate + 1e-8) - fx) / 1e-8;
+        if dfx.abs() < 1e-15 { break; }
+        let new_rate = rate - fx / dfx;
+        if (new_rate - rate).abs() < 1e-10 { return CellValue::Number(new_rate); }
+        rate = new_rate;
+        if rate <= -1.0 { return CellValue::Error(CellError::Num); }
+    }
+    CellValue::Error(CellError::Num)
+}
+
+/// MIRR(values, finance_rate, reinvest_rate)  — Modified IRR
+fn fn_mirr(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValue {
+    if args.len() < 3 { return CellValue::Error(CellError::Value); }
+    let cfs: Vec<f64> = ev.expand_range(&args[0], ctx).into_iter().filter_map(|v| to_number(&v)).collect();
+    let fin_r   = match to_number(&ev.eval(&args[1], ctx)) { Some(v) => v, None => return CellValue::Error(CellError::Value) };
+    let reinv_r = match to_number(&ev.eval(&args[2], ctx)) { Some(v) => v, None => return CellValue::Error(CellError::Value) };
+    let n = cfs.len();
+    if n < 2 { return CellValue::Error(CellError::Value); }
+    let pv_neg: f64 = cfs.iter().enumerate()
+        .filter(|(_, &cf)| cf < 0.0)
+        .map(|(i, &cf)| cf / r1n(fin_r, i as f64))
+        .sum();
+    let fv_pos: f64 = cfs.iter().enumerate()
+        .filter(|(_, &cf)| cf > 0.0)
+        .map(|(i, &cf)| cf * r1n(reinv_r, (n - 1 - i) as f64))
+        .sum();
+    if pv_neg == 0.0 || fv_pos == 0.0 { return CellValue::Error(CellError::Div0); }
+    CellValue::Number((fv_pos / -pv_neg).powf(1.0 / (n - 1) as f64) - 1.0)
+}
+
+/// IPMT(rate, per, nper, pv, [fv=0], [type=0])  — Interest portion of payment
+fn fn_ipmt(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValue {
+    if args.len() < 4 { return CellValue::Error(CellError::Value); }
+    let rate = match to_number(&ev.eval(&args[0], ctx)) { Some(v) => v, None => return CellValue::Error(CellError::Value) };
+    let per  = match to_number(&ev.eval(&args[1], ctx)) { Some(v) => v, None => return CellValue::Error(CellError::Value) };
+    let nper = match to_number(&ev.eval(&args[2], ctx)) { Some(v) => v, None => return CellValue::Error(CellError::Value) };
+    let pv   = match to_number(&ev.eval(&args[3], ctx)) { Some(v) => v, None => return CellValue::Error(CellError::Value) };
+    let fv   = args.get(4).and_then(|a| to_number(&ev.eval(a, ctx))).unwrap_or(0.0);
+    let typ  = args.get(5).and_then(|a| to_number(&ev.eval(a, ctx))).unwrap_or(0.0);
+    if per < 1.0 || per > nper { return CellValue::Error(CellError::Num); }
+    // Compute PMT, then balance at start of period, then interest = balance × rate
+    let pmt = if rate == 0.0 { -(pv + fv) / nper }
+              else { let rn = r1n(rate, nper); -(pv * rn + fv) * rate / ((rn - 1.0) * (1.0 + rate * typ)) };
+    let k = per - 1.0 + typ;
+    let bal = if rate == 0.0 { pv + pmt * k }
+              else { pv * r1n(rate, k) + pmt * (r1n(rate, k) - 1.0) / rate };
+    CellValue::Number(bal * rate)
+}
+
+/// PPMT(rate, per, nper, pv, [fv=0], [type=0])  — Principal portion of payment
+fn fn_ppmt(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValue {
+    // PPMT = PMT - IPMT
+    // Re-build args without the `per` arg for PMT (PMT doesn't take per)
+    let pmt_args: Vec<Expr> = [0, 2, 3, 4, 5].iter()
+        .filter_map(|&i| args.get(i).cloned())
+        .collect();
+    match (fn_pmt(&pmt_args, ctx, ev), fn_ipmt(args, ctx, ev)) {
+        (CellValue::Number(p), CellValue::Number(i)) => CellValue::Number(p - i),
+        (CellValue::Error(e), _) | (_, CellValue::Error(e)) => CellValue::Error(e),
+        _ => CellValue::Error(CellError::Value),
+    }
+}
+
+/// SLN(cost, salvage, life)  — Straight-line depreciation per period
+fn fn_sln(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValue {
+    if args.len() < 3 { return CellValue::Error(CellError::Value); }
+    let cost    = match to_number(&ev.eval(&args[0], ctx)) { Some(v) => v, None => return CellValue::Error(CellError::Value) };
+    let salvage = match to_number(&ev.eval(&args[1], ctx)) { Some(v) => v, None => return CellValue::Error(CellError::Value) };
+    let life    = match to_number(&ev.eval(&args[2], ctx)) { Some(v) => v, None => return CellValue::Error(CellError::Value) };
+    if life == 0.0 { return CellValue::Error(CellError::Div0); }
+    CellValue::Number((cost - salvage) / life)
+}
+
+/// DDB(cost, salvage, life, period, [factor=2])  — Double-declining balance depreciation
+fn fn_ddb(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValue {
+    if args.len() < 4 { return CellValue::Error(CellError::Value); }
+    let cost    = match to_number(&ev.eval(&args[0], ctx)) { Some(v) => v, None => return CellValue::Error(CellError::Value) };
+    let salvage = match to_number(&ev.eval(&args[1], ctx)) { Some(v) => v, None => return CellValue::Error(CellError::Value) };
+    let life    = match to_number(&ev.eval(&args[2], ctx)) { Some(v) => v, None => return CellValue::Error(CellError::Value) };
+    let period  = match to_number(&ev.eval(&args[3], ctx)) { Some(v) => v as usize, None => return CellValue::Error(CellError::Value) };
+    let factor  = args.get(4).and_then(|a| to_number(&ev.eval(a, ctx))).unwrap_or(2.0);
+    if life == 0.0 { return CellValue::Error(CellError::Div0); }
+    let rate = factor / life;
+    let mut book = cost;
+    let mut dep  = 0.0;
+    for _ in 0..period {
+        dep   = (book - salvage).max(0.0).min(book * rate);
+        book -= dep;
+    }
+    CellValue::Number(dep)
+}
+
+/// EFFECT(nominal_rate, npery)  — Effective annual interest rate
+fn fn_effect(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValue {
+    if args.len() < 2 { return CellValue::Error(CellError::Value); }
+    let nom   = match to_number(&ev.eval(&args[0], ctx)) { Some(v) => v, None => return CellValue::Error(CellError::Value) };
+    let npery = match to_number(&ev.eval(&args[1], ctx)) { Some(v) => v, None => return CellValue::Error(CellError::Value) };
+    if npery < 1.0 || nom <= 0.0 { return CellValue::Error(CellError::Num); }
+    CellValue::Number((1.0 + nom / npery).powf(npery) - 1.0)
+}
+
+/// NOMINAL(effect_rate, npery)  — Nominal annual interest rate
+fn fn_nominal(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValue {
+    if args.len() < 2 { return CellValue::Error(CellError::Value); }
+    let eff   = match to_number(&ev.eval(&args[0], ctx)) { Some(v) => v, None => return CellValue::Error(CellError::Value) };
+    let npery = match to_number(&ev.eval(&args[1], ctx)) { Some(v) => v, None => return CellValue::Error(CellError::Value) };
+    if npery < 1.0 || eff <= 0.0 { return CellValue::Error(CellError::Num); }
+    CellValue::Number(((1.0 + eff).powf(1.0 / npery) - 1.0) * npery)
+}
+
+/// CUMIPMT(rate, nper, pv, start_period, end_period, type)  — Cumulative interest paid
+fn fn_cumipmt(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValue {
+    if args.len() < 6 { return CellValue::Error(CellError::Value); }
+    let rate  = match to_number(&ev.eval(&args[0], ctx)) { Some(v) => v, None => return CellValue::Error(CellError::Value) };
+    let nper  = match to_number(&ev.eval(&args[1], ctx)) { Some(v) => v as usize, None => return CellValue::Error(CellError::Value) };
+    let pv    = match to_number(&ev.eval(&args[2], ctx)) { Some(v) => v, None => return CellValue::Error(CellError::Value) };
+    let start = match to_number(&ev.eval(&args[3], ctx)) { Some(v) => v as usize, None => return CellValue::Error(CellError::Value) };
+    let end   = match to_number(&ev.eval(&args[4], ctx)) { Some(v) => v as usize, None => return CellValue::Error(CellError::Value) };
+    let typ   = match to_number(&ev.eval(&args[5], ctx)) { Some(v) => v, None => return CellValue::Error(CellError::Value) };
+    if start < 1 || end > nper || start > end { return CellValue::Error(CellError::Num); }
+    let rn  = r1n(rate, nper as f64);
+    let pmt = if rate == 0.0 { -pv / nper as f64 }
+              else { -(pv * rn) * rate / ((rn - 1.0) * (1.0 + rate * typ)) };
+    let mut total = 0.0;
+    for per in start..=end {
+        let k   = per as f64 - 1.0 + typ;
+        let bal = if rate == 0.0 { pv + pmt * k }
+                  else { pv * r1n(rate, k) + pmt * (r1n(rate, k) - 1.0) / rate };
+        total += bal * rate;
+    }
+    CellValue::Number(total)
+}
+
+/// CUMPRINC(rate, nper, pv, start_period, end_period, type)  — Cumulative principal paid
+fn fn_cumprinc(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValue {
+    if args.len() < 6 { return CellValue::Error(CellError::Value); }
+    let rate  = match to_number(&ev.eval(&args[0], ctx)) { Some(v) => v, None => return CellValue::Error(CellError::Value) };
+    let nper  = match to_number(&ev.eval(&args[1], ctx)) { Some(v) => v as usize, None => return CellValue::Error(CellError::Value) };
+    let pv    = match to_number(&ev.eval(&args[2], ctx)) { Some(v) => v, None => return CellValue::Error(CellError::Value) };
+    let start = match to_number(&ev.eval(&args[3], ctx)) { Some(v) => v as usize, None => return CellValue::Error(CellError::Value) };
+    let end   = match to_number(&ev.eval(&args[4], ctx)) { Some(v) => v as usize, None => return CellValue::Error(CellError::Value) };
+    let typ   = match to_number(&ev.eval(&args[5], ctx)) { Some(v) => v, None => return CellValue::Error(CellError::Value) };
+    if start < 1 || end > nper || start > end { return CellValue::Error(CellError::Num); }
+    let rn  = r1n(rate, nper as f64);
+    let pmt = if rate == 0.0 { -pv / nper as f64 }
+              else { -(pv * rn) * rate / ((rn - 1.0) * (1.0 + rate * typ)) };
+    let mut total = 0.0;
+    for per in start..=end {
+        let k   = per as f64 - 1.0 + typ;
+        let bal = if rate == 0.0 { pv + pmt * k }
+                  else { pv * r1n(rate, k) + pmt * (r1n(rate, k) - 1.0) / rate };
+        total += pmt - bal * rate;
+    }
+    CellValue::Number(total)
 }
