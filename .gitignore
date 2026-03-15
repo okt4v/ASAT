@@ -7,6 +7,7 @@
 /userinfo/
 /testdata/
 /testing/
+/packaging/aur-repo/
 
 # ── OS files ──────────────────────────────────────────────────────────────────
 .DS_Store
