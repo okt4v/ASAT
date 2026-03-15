@@ -408,6 +408,7 @@ pub enum AppAction {
     FindNext,
     FindPrev,
     SearchCurrentCell, // * — search for content under cursor
+    ClearSearch,       // Esc in normal mode — clear search highlights
 
     // ── Sheet navigation ──
     NextSheet,
@@ -1175,7 +1176,7 @@ impl InputState {
 
             KeyCode::Esc => {
                 self.count_buffer.clear();
-                vec![AppAction::NoOp]
+                vec![AppAction::ClearSearch]
             }
             _ => vec![AppAction::NoOp],
         }

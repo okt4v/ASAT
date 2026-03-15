@@ -1118,6 +1118,9 @@ fn process_action(
                 }
             }
         }
+        AppAction::ClearSearch => {
+            input.search_matches.clear();
+        }
         AppAction::FindNext => {
             if input.search_matches.is_empty() {
                 set_status(status, "No active search — press / to search".to_string());
