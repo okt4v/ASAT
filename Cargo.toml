@@ -1,0 +1,63 @@
+[workspace]
+members = [
+    "crates/asat-core",
+    "crates/asat-formula",
+    "crates/asat-io",
+    "crates/asat-tui",
+    "crates/asat-input",
+    "crates/asat-commands",
+    "crates/asat-plugins",
+    "crates/asat-config",
+    "crates/asat",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0"
+authors = ["ASAT Contributors"]
+
+[workspace.dependencies]
+# Internal crates
+asat-core      = { path = "crates/asat-core" }
+asat-formula   = { path = "crates/asat-formula" }
+asat-io        = { path = "crates/asat-io" }
+asat-tui       = { path = "crates/asat-tui" }
+asat-input     = { path = "crates/asat-input" }
+asat-commands  = { path = "crates/asat-commands" }
+asat-plugins   = { path = "crates/asat-plugins" }
+asat-config    = { path = "crates/asat-config" }
+
+# TUI
+ratatui        = "0.29"
+crossterm      = { version = "0.28", features = ["event-stream"] }
+
+# Serialization
+serde          = { version = "1", features = ["derive"] }
+serde_json     = "1"
+bincode        = "1"
+toml           = "0.8"
+
+# File formats
+csv            = "1"
+calamine       = { version = "0.26", features = ["dates"] }
+rust_xlsxwriter = "0.79"
+
+# Compression
+zstd           = "0.13"
+
+# Error handling
+thiserror      = "2"
+anyhow         = "1"
+
+# Logging
+tracing        = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Misc
+unicode-width  = "0.2"
+regex          = "1"
+dirs           = "5"
+arboard        = "3"
+zip            = "2"

@@ -1,0 +1,11 @@
+[package]
+name = "asat-input"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+asat-core = { workspace = true }
+asat-commands = { workspace = true }
+asat-plugins = { workspace = true }
+crossterm = { workspace = true }
+thiserror = { workspace = true }

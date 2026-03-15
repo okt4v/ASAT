@@ -1,0 +1,15 @@
+[package]
+name = "asat-tui"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+asat-core = { workspace = true }
+asat-commands = { workspace = true }
+asat-config = { workspace = true }
+asat-plugins = { workspace = true }
+asat-input = { workspace = true }
+ratatui = { workspace = true }
+crossterm = { workspace = true }
+unicode-width = { workspace = true }
+thiserror = { workspace = true }

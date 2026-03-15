@@ -1,0 +1,9 @@
+[package]
+name = "asat-commands"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+asat-core = { workspace = true }
+asat-formula = { workspace = true }
+thiserror = { workspace = true }

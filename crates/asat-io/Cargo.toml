@@ -1,0 +1,17 @@
+[package]
+name = "asat-io"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+asat-core = { workspace = true }
+asat-formula = { workspace = true }
+csv = { workspace = true }
+calamine = { workspace = true }
+rust_xlsxwriter = { workspace = true }
+bincode = { workspace = true }
+serde = { workspace = true }
+zstd = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+zip    = { workspace = true }

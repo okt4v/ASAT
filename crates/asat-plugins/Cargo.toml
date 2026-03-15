@@ -1,0 +1,18 @@
+[package]
+name = "asat-plugins"
+version.workspace = true
+edition.workspace = true
+
+# Python support is opt-in. Build with --features asat-plugins/python (needs Python 3.8-3.13).
+# Without this feature all plugin methods are no-ops and the app compiles normally.
+[features]
+default = []
+python  = ["pyo3", "dirs"]
+
+[dependencies]
+asat-core    = { workspace = true }
+asat-formula = { workspace = true }
+asat-commands = { workspace = true }
+thiserror    = { workspace = true }
+pyo3         = { version = "0.28", features = ["auto-initialize"], optional = true }
+dirs         = { version = "5", optional = true }

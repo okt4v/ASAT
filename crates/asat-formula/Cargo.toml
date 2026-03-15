@@ -1,0 +1,9 @@
+[package]
+name = "asat-formula"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+asat-core = { workspace = true }
+thiserror = { workspace = true }
+regex = { workspace = true }

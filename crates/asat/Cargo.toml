@@ -1,0 +1,27 @@
+[package]
+name = "asat"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "asat"
+path = "src/main.rs"
+
+[dependencies]
+asat-core = { workspace = true }
+asat-formula = { workspace = true }
+asat-io = { workspace = true }
+asat-tui = { workspace = true }
+asat-input = { workspace = true }
+asat-commands = { workspace = true }
+asat-plugins = { workspace = true }
+asat-config = { workspace = true }
+crossterm = { workspace = true }
+ratatui = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+regex = { workspace = true }
+dirs    = { workspace = true }
+arboard = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
