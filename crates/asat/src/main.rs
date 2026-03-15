@@ -327,6 +327,28 @@ fn cells_to_tsv(cells: &[Vec<CellValue>]) -> String {
         .join("\n")
 }
 
+/// Compare two CellValues for sorting purposes.
+/// Order: numbers < text < booleans < errors < empty
+fn compare_cell_values(a: &CellValue, b: &CellValue) -> std::cmp::Ordering {
+    use std::cmp::Ordering;
+    match (a, b) {
+        (CellValue::Empty, CellValue::Empty) => Ordering::Equal,
+        (CellValue::Empty, _) => Ordering::Greater, // empty sorts last
+        (_, CellValue::Empty) => Ordering::Less,
+        (CellValue::Number(x), CellValue::Number(y)) =>
+            x.partial_cmp(y).unwrap_or(Ordering::Equal),
+        (CellValue::Boolean(x), CellValue::Boolean(y)) => x.cmp(y),
+        (CellValue::Text(x), CellValue::Text(y)) =>
+            x.to_lowercase().cmp(&y.to_lowercase()),
+        // Mixed types: numbers first, then text, booleans, errors
+        (CellValue::Number(_), _) => Ordering::Less,
+        (_, CellValue::Number(_)) => Ordering::Greater,
+        (CellValue::Text(_), _) => Ordering::Less,
+        (_, CellValue::Text(_)) => Ordering::Greater,
+        _ => Ordering::Equal,
+    }
+}
+
 fn process_action(
     action: AppAction,
     workbook: &mut Workbook,
@@ -1905,6 +1927,165 @@ fn handle_ex_command(
                 set_status(status, "Usage: :set <option>=<value>".to_string());
             } else {
                 set_status(status, format!("Unknown option: {}", arg));
+            }
+        }
+        // ── Sort ──
+        "sort" | "so" => {
+            // :sort [asc|desc]  — sort all rows by the current cursor column
+            let descending = arg.trim().eq_ignore_ascii_case("desc");
+            let sheet_idx = workbook.active_sheet;
+            let col = input.cursor.col;
+            let sheet = workbook.active();
+
+            if sheet.cells.is_empty() {
+                set_status(status, "Nothing to sort".to_string());
+                return ActionResult::Continue;
+            }
+
+            let max_row = sheet.max_row();
+            let max_col = sheet.max_col();
+
+            // Snapshot every row as an ordered Vec of optional cells
+            let mut rows: Vec<Vec<Option<asat_core::Cell>>> = (0..=max_row)
+                .map(|r| {
+                    (0..=max_col)
+                        .map(|c| sheet.cells.get(&(r, c)).cloned())
+                        .collect()
+                })
+                .collect();
+
+            // Sort rows by the key column value
+            rows.sort_by(|a, b| {
+                let av = a.get(col as usize)
+                    .and_then(|c| c.as_ref()).map(|c| &c.value).unwrap_or(&CellValue::Empty);
+                let bv = b.get(col as usize)
+                    .and_then(|c| c.as_ref()).map(|c| &c.value).unwrap_or(&CellValue::Empty);
+                let ord = compare_cell_values(av, bv);
+                if descending { ord.reverse() } else { ord }
+            });
+
+            // Build one SetCell command per changed cell
+            let mut cmds: Vec<Box<dyn asat_commands::Command>> = Vec::new();
+            for (new_row_idx, row_cells) in rows.iter().enumerate() {
+                for (c_idx, new_cell) in row_cells.iter().enumerate() {
+                    let r = new_row_idx as u32;
+                    let c = c_idx as u32;
+                    let old_cell = workbook.active().get_cell(r, c);
+                    let old_value = old_cell.map(|x| x.value.clone()).unwrap_or(CellValue::Empty);
+                    let old_style = old_cell.and_then(|x| x.style.clone());
+                    let new_value = new_cell.as_ref().map(|x| x.value.clone()).unwrap_or(CellValue::Empty);
+                    let new_style = new_cell.as_ref().and_then(|x| x.style.clone());
+                    if old_value != new_value || old_style != new_style {
+                        cmds.push(Box::new(SetCell {
+                            sheet: sheet_idx, row: r, col: c,
+                            old_value, new_value, old_style, new_style,
+                        }));
+                    }
+                }
+            }
+
+            if cmds.is_empty() {
+                set_status(status, "Already sorted".to_string());
+            } else {
+                let col_label = asat_core::col_to_letter(col);
+                let dir = if descending { "desc" } else { "asc" };
+                let grouped = Box::new(asat_commands::GroupedCommand {
+                    description: format!("sort by {} {}", col_label, dir),
+                    commands: cmds,
+                });
+                match grouped.execute(workbook) {
+                    Ok(_) => {
+                        undo.push(grouped);
+                        set_status(status, format!("Sorted by {} ({})", col_label, dir));
+                    }
+                    Err(e) => set_status(status, format!("Sort error: {}", e)),
+                }
+            }
+        }
+        // ── Search & replace ──
+        "s" | "substitute" => {
+            // :s/pattern/replacement/[g][i]
+            if arg.is_empty() {
+                set_status(status, "Usage: :s/pattern/replacement/[g][i]".to_string());
+                return ActionResult::Continue;
+            }
+            let delim = arg.chars().next().unwrap_or('/');
+            let rest = &arg[delim.len_utf8()..];
+            let parts: Vec<&str> = rest.splitn(3, delim).collect();
+            if parts.len() < 2 {
+                set_status(status, "Usage: :s/pattern/replacement/[g][i]".to_string());
+                return ActionResult::Continue;
+            }
+            let pattern     = parts[0];
+            let replacement = parts[1];
+            let flags       = parts.get(2).copied().unwrap_or("");
+            let global      = flags.contains('g');
+            let icase       = flags.contains('i');
+
+            let re_pat = if icase { format!("(?i){}", pattern) } else { pattern.to_string() };
+            let re = match Regex::new(&re_pat) {
+                Ok(r) => r,
+                Err(e) => { set_status(status, format!("Invalid regex: {}", e)); return ActionResult::Continue; }
+            };
+
+            let sheet_idx = workbook.active_sheet;
+            let sheet = workbook.active();
+
+            // Restrict to visual selection when active, otherwise whole sheet
+            let (row_start, col_start, row_end, col_end) = if let Some(anchor) = &input.visual_anchor {
+                let cur = input.cursor;
+                (cur.row.min(anchor.row), cur.col.min(anchor.col),
+                 cur.row.max(anchor.row), cur.col.max(anchor.col))
+            } else {
+                (0, 0, sheet.max_row(), sheet.max_col())
+            };
+
+            let candidates: Vec<(u32, u32, String)> = sheet.cells.iter()
+                .filter_map(|((r, c), cell)| {
+                    if *r < row_start || *r > row_end || *c < col_start || *c > col_end {
+                        return None;
+                    }
+                    if let CellValue::Text(s) = &cell.value {
+                        if re.is_match(s) { return Some((*r, *c, s.clone())); }
+                    }
+                    None
+                })
+                .collect();
+
+            if candidates.is_empty() {
+                set_status(status, format!("Pattern not found: {}", pattern));
+                return ActionResult::Continue;
+            }
+
+            let mut cmds: Vec<Box<dyn asat_commands::Command>> = Vec::new();
+            for (r, c, text) in &candidates {
+                let new_text = if global {
+                    re.replace_all(text, replacement).to_string()
+                } else {
+                    re.replace(text, replacement).to_string()
+                };
+                let old_cell = workbook.active().get_cell(*r, *c);
+                let old_style = old_cell.and_then(|x| x.style.clone());
+                cmds.push(Box::new(SetCell {
+                    sheet: sheet_idx, row: *r, col: *c,
+                    old_value: CellValue::Text(text.clone()),
+                    new_value: CellValue::Text(new_text),
+                    old_style: old_style.clone(),
+                    new_style: old_style,
+                }));
+            }
+
+            let n = cmds.len();
+            let grouped = Box::new(asat_commands::GroupedCommand {
+                description: format!("replace /{}/{}/", pattern, replacement),
+                commands: cmds,
+            });
+            match grouped.execute(workbook) {
+                Ok(_) => {
+                    undo.push(grouped);
+                    set_status(status, format!("{} cell(s) replaced", n));
+                }
+                Err(e) => set_status(status, format!("Replace error: {}", e)),
             }
         }
         _ => {
