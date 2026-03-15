@@ -205,12 +205,12 @@ jobs:
           sed -i "s/SHA256_PLACEHOLDER/${SHA256}/" /tmp/PKGBUILD
 
       - name: Set up SSH for AUR
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.AUR_SSH_KEY }}
-
-      - name: Add AUR to known hosts
-        run: ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s' "${{ secrets.AUR_SSH_KEY }}" > ~/.ssh/aur_key
+          chmod 600 ~/.ssh/aur_key
+          ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts
+          printf 'Host aur.archlinux.org\n  IdentityFile ~/.ssh/aur_key\n  User aur\n' >> ~/.ssh/config
 
       - name: Push to AUR
         run: |
@@ -315,7 +315,7 @@ jobs:
 
       - name: Upload to Buildkite registry
         run: |
-          curl -sf -X POST \
+          curl -f -X POST \
             "https://api.buildkite.com/v2/packages/organizations/oktavian-m/registries/asat/packages" \
             -H "Authorization: Bearer ${{ secrets.BUILDKITE_API_TOKEN }}" \
             -F "file=@${DEB_PATH}"
