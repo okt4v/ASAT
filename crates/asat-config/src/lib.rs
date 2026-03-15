@@ -410,7 +410,7 @@ fn config_path() -> PathBuf {
     config_dir().join("asat/config.toml")
 }
 
-fn config_dir() -> PathBuf {
+pub fn config_dir() -> PathBuf {
     std::env::var("XDG_CONFIG_HOME")
         .map(PathBuf::from)
         .unwrap_or_else(|_| {

@@ -81,6 +81,43 @@ fn main() -> Result<()> {
         Workbook::new()
     };
 
+    // Swap file recovery: check before entering raw mode so we can prompt normally
+    let workbook = if let Some(ref path) = file_path {
+        let swp = swap_path(path);
+        if swp.exists() {
+            eprintln!(
+                "Swap file found: {:?}\nThis may mean asat crashed with unsaved changes.",
+                swp
+            );
+            eprint!("Recover? [Y/n] ");
+            let mut answer = String::new();
+            let _ = std::io::stdin().read_line(&mut answer);
+            let recovered = if answer.trim().to_lowercase() != "n" {
+                match asat_io::load(&swp) {
+                    Ok(mut wb) => {
+                        wb.file_path = Some(path.clone());
+                        wb.dirty = true;
+                        eprintln!("Recovered. Use :w to save.");
+                        wb
+                    }
+                    Err(e) => {
+                        eprintln!("Could not read swap file: {}", e);
+                        workbook
+                    }
+                }
+            } else {
+                workbook
+            };
+            // Always delete the stale swap file — a new one will be created as edits happen
+            let _ = std::fs::remove_file(&swp);
+            recovered
+        } else {
+            workbook
+        }
+    } else {
+        workbook
+    };
+
     // Setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -104,6 +141,26 @@ fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+fn swap_path(file_path: &std::path::Path) -> PathBuf {
+    let name = file_path.file_name().unwrap_or_default().to_string_lossy();
+    file_path
+        .parent()
+        .unwrap_or_else(|| std::path::Path::new("."))
+        .join(format!(".{}.swp", name))
+}
+
+fn write_swap(workbook: &Workbook) {
+    if let Some(ref p) = workbook.file_path {
+        let _ = asat_io::save_swap(workbook, &swap_path(p));
+    }
+}
+
+fn delete_swap(workbook: &Workbook) {
+    if let Some(ref p) = workbook.file_path {
+        let _ = std::fs::remove_file(swap_path(p));
+    }
 }
 
 fn run_app(
@@ -134,6 +191,20 @@ fn run_app(
     }
 
     let mut status_message: Option<(String, std::time::Instant)> = None;
+
+    // Hint when init.py exists but Python support was not compiled in
+    #[cfg(not(feature = "python"))]
+    {
+        let init_py = asat_config::config_dir().join("init.py");
+        if init_py.exists() {
+            set_status(
+                &mut status_message,
+                "init.py found but Python support not compiled in. \
+                 Rebuild with --features asat-plugins/python"
+                    .to_string(),
+            );
+        }
+    }
     let status_timeout = if config.status_timeout == 0 {
         Duration::from_secs(u64::MAX / 2) // effectively never
     } else {
@@ -143,6 +214,7 @@ fn run_app(
     // Autosave: time-based — save every autosave_interval seconds when dirty
     let mut edit_count: u32 = 0;
     let mut last_autosave = std::time::Instant::now();
+    let mut last_swap = std::time::Instant::now();
 
     loop {
         // Clear expired status messages
@@ -206,6 +278,12 @@ fn run_app(
                     );
                 }
             }
+        }
+
+        // Swap file: write every 30 seconds when dirty (crash recovery)
+        if workbook.dirty && last_swap.elapsed() >= Duration::from_secs(30) {
+            last_swap = std::time::Instant::now();
+            write_swap(&workbook);
         }
 
         // Recalculate all formula cells so the renderer always shows fresh values
@@ -285,6 +363,7 @@ fn run_app(
             update_subcmd_completions(&mut input_state);
 
             if force_quit {
+                delete_swap(&workbook);
                 return Ok(());
             }
             if should_quit {
@@ -294,6 +373,7 @@ fn run_app(
                         "Unsaved changes. Use :w to save, :q! to force quit".to_string(),
                     );
                 } else {
+                    delete_swap(&workbook);
                     return Ok(());
                 }
             }

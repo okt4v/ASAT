@@ -239,7 +239,9 @@ pub struct Sheet {
     pub col_meta: HashMap<u32, ColMeta>,
     pub freeze_rows: u32,
     pub freeze_cols: u32,
+    #[serde(skip)]
     pub computed: HashMap<(u32, u32), CellValue>,
+    #[serde(skip)]
     pub dirty: HashSet<(u32, u32)>,
     pub notes: HashMap<(u32, u32), String>,
 }
@@ -334,7 +336,9 @@ impl Sheet {
 pub struct Workbook {
     pub sheets: Vec<Sheet>,
     pub active_sheet: usize,
+    #[serde(skip)]
     pub file_path: Option<PathBuf>,
+    #[serde(skip)]
     pub dirty: bool,
     pub named_ranges: HashMap<String, CellRange>,
 }

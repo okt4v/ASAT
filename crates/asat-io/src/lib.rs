@@ -45,6 +45,11 @@ pub fn load(path: &Path) -> Result<Workbook, IoError> {
     }
 }
 
+/// Save a workbook to a swap file using the native binary format
+pub fn save_swap(workbook: &Workbook, path: &std::path::Path) -> Result<(), IoError> {
+    asat_driver::AsatDriver.write(workbook, path)
+}
+
 /// Save a workbook to any supported file path
 pub fn save(workbook: &Workbook, path: &Path) -> Result<(), IoError> {
     let ext = path
