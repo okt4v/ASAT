@@ -225,8 +225,22 @@ jobs:
           git clone ssh://aur@aur.archlinux.org/asat-bin.git /tmp/aur-asat-bin
           cp /tmp/PKGBUILD /tmp/aur-asat-bin/PKGBUILD
           cd /tmp/aur-asat-bin
-          docker run --rm -v "$PWD:/pkg" archlinux:latest bash -c \
-            "pacman -Sy --noconfirm base-devel && cd /pkg && HOME=/tmp makepkg --printsrcinfo > .SRCINFO"
+          cat > .SRCINFO <<EOF
+          pkgbase = asat-bin
+          	pkgdesc = Terminal spreadsheet editor for Vim users — modal editing, 40+ formulas, CSV/XLSX/ODS
+          	pkgver = ${PKGVER}
+          	pkgrel = 1
+          	url = https://github.com/okt4v/ASAT
+          	arch = x86_64
+          	license = GPL-3.0-or-later
+          	provides = asat
+          	conflicts = asat
+          	conflicts = asat-git
+          	source_x86_64 = asat-bin-${PKGVER}-x86_64.tar.gz::https://github.com/okt4v/ASAT/releases/download/v${PKGVER}/asat-v${PKGVER}-x86_64-unknown-linux-gnu.tar.gz
+          	sha256sums_x86_64 = ${SHA256}
+
+          pkgname = asat-bin
+          EOF
           git config user.name "okt4v"
           git config user.email "aur@asat"
           git add PKGBUILD .SRCINFO
