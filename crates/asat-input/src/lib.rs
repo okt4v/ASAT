@@ -68,6 +68,7 @@ pub const EX_COMMANDS: &[(&str, &str)] = &[
     ("fillright", "Fill selection right from leftmost column"),
     ("merge", "Merge visual selection into one cell"),
     ("unmerge", "Unmerge the cell under cursor"),
+    ("wrap", "Toggle line-wrap on cell / selection"),
 ];
 
 /// All built-in formula function names, for Tab-completion in Insert mode.
@@ -461,6 +462,9 @@ pub enum AppAction {
     // ── Clipboard ──
     PasteFromClipboard, // Ctrl+V in Insert — paste system clipboard text into edit buffer
 
+    // ── Text wrap ──
+    ToggleWrap, // gw — toggle line-wrap on current cell / visual selection
+
     // ── Cell merging ──
     MergeCells {
         row_start: u32,
@@ -798,12 +802,13 @@ impl InputState {
             let n = self.take_count();
 
             return match (first, key.code) {
-                // gg / gt / gT
+                // gg / gt / gT / gw
                 (KeyCode::Char('g'), KeyCode::Char('g')) => {
                     vec![AppAction::MoveToFirstRow]
                 }
                 (KeyCode::Char('g'), KeyCode::Char('t')) => vec![AppAction::NextSheet],
                 (KeyCode::Char('g'), KeyCode::Char('T')) => vec![AppAction::PrevSheet],
+                (KeyCode::Char('g'), KeyCode::Char('w')) => vec![AppAction::ToggleWrap],
 
                 // g{A-Z} — goto column (single letter address shortcut)
                 (KeyCode::Char('g'), KeyCode::Char(c)) if c.is_ascii_uppercase() => {

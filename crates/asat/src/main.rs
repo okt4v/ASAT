@@ -1840,6 +1840,23 @@ fn process_action(
         }
 
         // ── Insert SUM formula ──
+        AppAction::ToggleWrap => {
+            let cur = workbook
+                .active()
+                .get_cell(input.cursor.row, input.cursor.col)
+                .and_then(|c| c.style.as_ref())
+                .map(|s| s.wrap)
+                .unwrap_or(false);
+            apply_style_sel(
+                workbook,
+                input,
+                undo,
+                status,
+                &move |s| s.wrap = !cur,
+                if cur { "Wrap off" } else { "Wrap on" },
+            );
+        }
+
         AppAction::MergeCells {
             row_start,
             col_start,
@@ -2436,6 +2453,22 @@ fn handle_ex_command(
                 } else {
                     "Strikethrough on"
                 },
+            );
+        }
+        "wrap" | "ww" => {
+            let cur = workbook
+                .active()
+                .get_cell(input.cursor.row, input.cursor.col)
+                .and_then(|c| c.style.as_ref())
+                .map(|s| s.wrap)
+                .unwrap_or(false);
+            apply_style_sel(
+                workbook,
+                input,
+                undo,
+                status,
+                &move |s| s.wrap = !cur,
+                if cur { "Wrap off" } else { "Wrap on" },
             );
         }
         "fg" | "color" => {

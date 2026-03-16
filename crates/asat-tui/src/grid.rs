@@ -205,10 +205,7 @@ impl<'a> Widget for GridWidget<'a> {
                     x += col_width;
                     continue;
                 }
-                if sheet.is_covered(row_idx, col_idx) {
-                    // Covered by a merge — paint blank background only
-                    render_cell_str(buf, x, screen_y, col_width, &" ".repeat(col_width as usize), Style::default().bg(cell_bg));
-                } else {
+                if !sheet.is_covered(row_idx, col_idx) {
                     let actual_width = sheet
                         .merge_at(row_idx, col_idx)
                         .map(|m| {
@@ -250,6 +247,7 @@ impl<'a> Widget for GridWidget<'a> {
                         }
                     }
                 }
+                // covered cells: anchor already painted this area — just advance x
                 x += col_width;
             }
         }
@@ -328,10 +326,7 @@ impl<'a> Widget for GridWidget<'a> {
                     continue;
                 }
 
-                if sheet.is_covered(row_idx, *col_idx) {
-                    // Covered by a merge — paint blank background only
-                    render_cell_str(buf, x, screen_y, *col_width, &" ".repeat(*col_width as usize), Style::default().bg(cell_bg));
-                } else {
+                if !sheet.is_covered(row_idx, *col_idx) {
                     let actual_width = sheet
                         .merge_at(row_idx, *col_idx)
                         .map(|m| {
@@ -374,7 +369,7 @@ impl<'a> Widget for GridWidget<'a> {
                         }
                     }
                 }
-
+                // covered cells: anchor already painted this area — just advance x
                 x += col_width;
             }
 
@@ -393,19 +388,57 @@ impl<'a> Widget for GridWidget<'a> {
                 };
                 render_cell_str(buf, area.x, ey, ROW_GUTTER_WIDTH, "    │", cont_style);
 
-                // Fill cells with background
+                // Fill cells with background; render wrapped text for wrap-enabled cells
                 let mut ex = area.x + ROW_GUTTER_WIDTH;
                 for (col_idx, col_width) in &all_col_groups {
-                    let bg_style = if *col_idx == u32::MAX {
-                        Style::default()
+                    if *col_idx == u32::MAX {
+                        let sep_style = Style::default()
                             .fg(darken(header_fg, 0.6))
-                            .bg(darken(header_bg, 0.5))
-                    } else if is_cursor_row {
-                        Style::default().fg(Color::Black).bg(cell_bg)
+                            .bg(darken(header_bg, 0.5));
+                        render_cell_str(buf, ex, ey, *col_width, "", sep_style);
+                        ex += col_width;
+                        continue;
+                    }
+                    // Skip covered cells
+                    if sheet.is_covered(row_idx, *col_idx) {
+                        ex += col_width;
+                        continue;
+                    }
+                    let wrap_on = sheet
+                        .get_cell(row_idx, *col_idx)
+                        .and_then(|c| c.style.as_ref())
+                        .map(|s| s.wrap)
+                        .unwrap_or(false);
+                    if wrap_on {
+                        let display = sheet.display_value(row_idx, *col_idx);
+                        // Split into col_width-char chunks; `extra` is 1-based (line 2, 3, …)
+                        let chunk_size = (*col_width).max(1) as usize;
+                        let chunk: String = display
+                            .chars()
+                            .skip(chunk_size * extra as usize)
+                            .take(chunk_size)
+                            .collect();
+                        let is_cursor_cell = is_cursor_row && *col_idx == cursor.col;
+                        let style = if is_cursor_cell {
+                            Style::default().fg(Color::Black).bg(cursor_bg)
+                        } else {
+                            let user_bg = sheet
+                                .get_cell(row_idx, *col_idx)
+                                .and_then(|c| c.style.as_ref())
+                                .and_then(|s| s.bg.as_ref())
+                                .map(|c| Color::Rgb(c.r, c.g, c.b))
+                                .unwrap_or(cell_bg);
+                            Style::default().fg(Color::White).bg(user_bg)
+                        };
+                        render_cell_str(buf, ex, ey, *col_width, &chunk, style);
                     } else {
-                        Style::default().fg(Color::White).bg(cell_bg)
-                    };
-                    render_cell_str(buf, ex, ey, *col_width, "", bg_style);
+                        let bg_style = if is_cursor_row {
+                            Style::default().fg(Color::Black).bg(cell_bg)
+                        } else {
+                            Style::default().fg(Color::White).bg(cell_bg)
+                        };
+                        render_cell_str(buf, ex, ey, *col_width, "", bg_style);
+                    }
                     ex += col_width;
                 }
             }
