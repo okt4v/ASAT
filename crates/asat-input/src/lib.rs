@@ -1459,11 +1459,11 @@ impl InputState {
                 self.help_scroll = 0;
                 vec![AppAction::NoOp]
             }
-            KeyCode::Char('j') | KeyCode::Down => {
+            KeyCode::Down => {
                 self.help_scroll += 1;
                 vec![AppAction::NoOp]
             }
-            KeyCode::Char('k') | KeyCode::Up => {
+            KeyCode::Up => {
                 self.help_scroll = self.help_scroll.saturating_sub(1);
                 vec![AppAction::NoOp]
             }
