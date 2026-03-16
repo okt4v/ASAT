@@ -647,9 +647,111 @@
       font-family: var(--mono);
       font-size: 0.78rem;
       color: var(--teal);
-      transition: border-color 0.18s, background 0.18s;
+      transition: border-color 0.18s, background 0.18s, box-shadow 0.18s, transform 0.12s;
+      cursor: pointer;
+      user-select: none;
     }
-    .fn-chip:hover { border-color: var(--teal); background: var(--teal-glow); }
+    .fn-chip:hover {
+      border-color: var(--teal);
+      background: var(--teal-glow);
+      box-shadow: 0 0 10px rgba(45,212,191,0.2);
+      transform: translateY(-1px);
+    }
+    .fn-chip:active { transform: translateY(0); }
+
+    /* ── Formula modal ────────────────────────────────────────────────── */
+    .fn-modal-backdrop {
+      position: fixed; inset: 0; z-index: 500;
+      background: rgba(6,10,16,0.75);
+      backdrop-filter: blur(6px);
+      display: flex; align-items: center; justify-content: center;
+      padding: 1.5rem;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+    .fn-modal-backdrop.open {
+      opacity: 1; pointer-events: all;
+    }
+    .fn-modal {
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: 14px;
+      padding: 2rem 2.2rem 1.8rem;
+      max-width: 540px;
+      width: 100%;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(45,212,191,0.08);
+      transform: translateY(10px) scale(0.98);
+      transition: transform 0.22s ease;
+      position: relative;
+    }
+    .fn-modal-backdrop.open .fn-modal {
+      transform: translateY(0) scale(1);
+    }
+    .fn-modal-close {
+      position: absolute; top: 1rem; right: 1.1rem;
+      background: none; border: none; cursor: pointer;
+      color: var(--text-muted); font-size: 1.3rem; line-height: 1;
+      padding: 0.2rem 0.4rem; border-radius: 4px;
+      transition: color 0.15s, background 0.15s;
+    }
+    .fn-modal-close:hover { color: var(--text); background: var(--surface2); }
+    .fn-modal-name {
+      font-family: var(--mono);
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--amber);
+      margin-bottom: 0.3rem;
+      letter-spacing: -0.02em;
+    }
+    .fn-modal-sig {
+      font-family: var(--mono);
+      font-size: 0.9rem;
+      color: var(--teal);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.5rem 0.85rem;
+      margin-bottom: 1.2rem;
+      word-break: break-word;
+    }
+    .fn-modal-section-label {
+      font-family: var(--mono);
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-bottom: 0.35rem;
+      margin-top: 1rem;
+    }
+    .fn-modal-desc {
+      color: var(--text);
+      font-size: 0.95rem;
+      line-height: 1.65;
+      margin-bottom: 0;
+    }
+    .fn-modal-example {
+      font-family: var(--mono);
+      font-size: 0.84rem;
+      color: var(--teal);
+      background: var(--surface2);
+      border-left: 3px solid var(--teal);
+      border-radius: 0 6px 6px 0;
+      padding: 0.5rem 0.85rem;
+      word-break: break-word;
+    }
+    .fn-modal-tags {
+      display: flex; flex-wrap: wrap; gap: 0.4rem;
+      margin-top: 1rem;
+    }
+    .fn-modal-tag {
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      color: var(--amber-soft);
+      border: 1px solid var(--amber-soft);
+      border-radius: 100px;
+      padding: 0.1rem 0.55rem;
+      opacity: 0.7;
+    }
 
     .no-results {
       text-align: center;
@@ -1592,87 +1694,155 @@
       <div class="fn-group">
         <div class="fn-group-title">Math</div>
         <div class="fn-chips">
-          <span class="fn-chip">SUM()</span><span class="fn-chip">AVERAGE()</span><span class="fn-chip">MIN()</span>
-          <span class="fn-chip">MAX()</span><span class="fn-chip">ABS()</span><span class="fn-chip">ROUND()</span>
-          <span class="fn-chip">ROUNDUP()</span><span class="fn-chip">ROUNDDOWN()</span><span class="fn-chip">FLOOR()</span>
-          <span class="fn-chip">CEILING()</span><span class="fn-chip">MOD()</span><span class="fn-chip">POWER()</span>
-          <span class="fn-chip">SQRT()</span><span class="fn-chip">LN()</span><span class="fn-chip">LOG()</span>
-          <span class="fn-chip">LOG10()</span><span class="fn-chip">EXP()</span><span class="fn-chip">INT()</span>
-          <span class="fn-chip">TRUNC()</span><span class="fn-chip">SIGN()</span>
+          <button class="fn-chip" data-fn="SUM">SUM()</button>
+          <button class="fn-chip" data-fn="AVERAGE">AVERAGE()</button>
+          <button class="fn-chip" data-fn="MIN">MIN()</button>
+          <button class="fn-chip" data-fn="MAX">MAX()</button>
+          <button class="fn-chip" data-fn="ABS">ABS()</button>
+          <button class="fn-chip" data-fn="ROUND">ROUND()</button>
+          <button class="fn-chip" data-fn="ROUNDUP">ROUNDUP()</button>
+          <button class="fn-chip" data-fn="ROUNDDOWN">ROUNDDOWN()</button>
+          <button class="fn-chip" data-fn="FLOOR">FLOOR()</button>
+          <button class="fn-chip" data-fn="CEILING">CEILING()</button>
+          <button class="fn-chip" data-fn="MOD">MOD()</button>
+          <button class="fn-chip" data-fn="POWER">POWER()</button>
+          <button class="fn-chip" data-fn="SQRT">SQRT()</button>
+          <button class="fn-chip" data-fn="LN">LN()</button>
+          <button class="fn-chip" data-fn="LOG">LOG()</button>
+          <button class="fn-chip" data-fn="LOG10">LOG10()</button>
+          <button class="fn-chip" data-fn="EXP">EXP()</button>
+          <button class="fn-chip" data-fn="INT">INT()</button>
+          <button class="fn-chip" data-fn="TRUNC">TRUNC()</button>
+          <button class="fn-chip" data-fn="SIGN">SIGN()</button>
         </div>
       </div>
       <div class="fn-group">
         <div class="fn-group-title">Statistical</div>
         <div class="fn-chips">
-          <span class="fn-chip">COUNT()</span><span class="fn-chip">COUNTA()</span><span class="fn-chip">SUMIF()</span>
-          <span class="fn-chip">COUNTIF()</span><span class="fn-chip">AVERAGEIF()</span><span class="fn-chip">MAXIFS()</span>
-          <span class="fn-chip">MINIFS()</span><span class="fn-chip">SUMPRODUCT()</span><span class="fn-chip">MEDIAN()</span>
-          <span class="fn-chip">STDEV()</span><span class="fn-chip">VAR()</span><span class="fn-chip">LARGE()</span>
-          <span class="fn-chip">SMALL()</span><span class="fn-chip">RANK()</span><span class="fn-chip">PERCENTILE()</span>
-          <span class="fn-chip">QUARTILE()</span>
+          <button class="fn-chip" data-fn="COUNT">COUNT()</button>
+          <button class="fn-chip" data-fn="COUNTA">COUNTA()</button>
+          <button class="fn-chip" data-fn="SUMIF">SUMIF()</button>
+          <button class="fn-chip" data-fn="COUNTIF">COUNTIF()</button>
+          <button class="fn-chip" data-fn="AVERAGEIF">AVERAGEIF()</button>
+          <button class="fn-chip" data-fn="MAXIFS">MAXIFS()</button>
+          <button class="fn-chip" data-fn="MINIFS">MINIFS()</button>
+          <button class="fn-chip" data-fn="SUMPRODUCT">SUMPRODUCT()</button>
+          <button class="fn-chip" data-fn="MEDIAN">MEDIAN()</button>
+          <button class="fn-chip" data-fn="STDEV">STDEV()</button>
+          <button class="fn-chip" data-fn="VAR">VAR()</button>
+          <button class="fn-chip" data-fn="LARGE">LARGE()</button>
+          <button class="fn-chip" data-fn="SMALL">SMALL()</button>
+          <button class="fn-chip" data-fn="RANK">RANK()</button>
+          <button class="fn-chip" data-fn="PERCENTILE">PERCENTILE()</button>
+          <button class="fn-chip" data-fn="QUARTILE">QUARTILE()</button>
         </div>
       </div>
       <div class="fn-group">
         <div class="fn-group-title">Lookup &amp; Reference</div>
         <div class="fn-chips">
-          <span class="fn-chip" title="Vertical lookup">VLOOKUP()</span>
-          <span class="fn-chip" title="Horizontal lookup">HLOOKUP()</span>
-          <span class="fn-chip" title="Extended lookup with match modes">XLOOKUP()</span>
-          <span class="fn-chip">INDEX()</span><span class="fn-chip">MATCH()</span>
-          <span class="fn-chip">OFFSET()</span><span class="fn-chip">CHOOSE()</span>
+          <button class="fn-chip" data-fn="VLOOKUP">VLOOKUP()</button>
+          <button class="fn-chip" data-fn="HLOOKUP">HLOOKUP()</button>
+          <button class="fn-chip" data-fn="XLOOKUP">XLOOKUP()</button>
+          <button class="fn-chip" data-fn="INDEX">INDEX()</button>
+          <button class="fn-chip" data-fn="MATCH">MATCH()</button>
+          <button class="fn-chip" data-fn="OFFSET">OFFSET()</button>
+          <button class="fn-chip" data-fn="CHOOSE">CHOOSE()</button>
         </div>
       </div>
       <div class="fn-group">
         <div class="fn-group-title">Finance</div>
         <div class="fn-chips">
-          <span class="fn-chip" title="Present value">PV()</span>
-          <span class="fn-chip" title="Future value">FV()</span>
-          <span class="fn-chip" title="Periodic payment">PMT()</span>
-          <span class="fn-chip" title="Number of periods">NPER()</span>
-          <span class="fn-chip" title="Interest rate per period">RATE()</span>
-          <span class="fn-chip" title="Net present value">NPV()</span>
-          <span class="fn-chip" title="Internal rate of return">IRR()</span>
-          <span class="fn-chip" title="Modified IRR">MIRR()</span>
-          <span class="fn-chip" title="Interest portion of payment">IPMT()</span>
-          <span class="fn-chip" title="Principal portion of payment">PPMT()</span>
-          <span class="fn-chip" title="Cumulative interest paid">CUMIPMT()</span>
-          <span class="fn-chip" title="Cumulative principal paid">CUMPRINC()</span>
-          <span class="fn-chip" title="Straight-line depreciation">SLN()</span>
-          <span class="fn-chip" title="Double-declining balance depreciation">DDB()</span>
-          <span class="fn-chip" title="Effective annual rate">EFFECT()</span>
-          <span class="fn-chip" title="Nominal annual rate">NOMINAL()</span>
+          <button class="fn-chip" data-fn="PV">PV()</button>
+          <button class="fn-chip" data-fn="FV">FV()</button>
+          <button class="fn-chip" data-fn="PMT">PMT()</button>
+          <button class="fn-chip" data-fn="NPER">NPER()</button>
+          <button class="fn-chip" data-fn="RATE">RATE()</button>
+          <button class="fn-chip" data-fn="NPV">NPV()</button>
+          <button class="fn-chip" data-fn="IRR">IRR()</button>
+          <button class="fn-chip" data-fn="MIRR">MIRR()</button>
+          <button class="fn-chip" data-fn="IPMT">IPMT()</button>
+          <button class="fn-chip" data-fn="PPMT">PPMT()</button>
+          <button class="fn-chip" data-fn="CUMIPMT">CUMIPMT()</button>
+          <button class="fn-chip" data-fn="CUMPRINC">CUMPRINC()</button>
+          <button class="fn-chip" data-fn="SLN">SLN()</button>
+          <button class="fn-chip" data-fn="DDB">DDB()</button>
+          <button class="fn-chip" data-fn="EFFECT">EFFECT()</button>
+          <button class="fn-chip" data-fn="NOMINAL">NOMINAL()</button>
+        </div>
+      </div>
+      <div class="fn-group">
+        <div class="fn-group-title">Date</div>
+        <div class="fn-chips">
+          <button class="fn-chip" data-fn="NOW">NOW()</button>
+          <button class="fn-chip" data-fn="TODAY">TODAY()</button>
+          <button class="fn-chip" data-fn="DATE">DATE()</button>
+          <button class="fn-chip" data-fn="YEAR">YEAR()</button>
+          <button class="fn-chip" data-fn="MONTH">MONTH()</button>
+          <button class="fn-chip" data-fn="DAY">DAY()</button>
         </div>
       </div>
       <div class="fn-group">
         <div class="fn-group-title">Text</div>
         <div class="fn-chips">
-          <span class="fn-chip">LEN()</span><span class="fn-chip">LEFT()</span><span class="fn-chip">RIGHT()</span>
-          <span class="fn-chip">MID()</span><span class="fn-chip">TRIM()</span><span class="fn-chip">UPPER()</span>
-          <span class="fn-chip">LOWER()</span><span class="fn-chip">PROPER()</span><span class="fn-chip">CONCATENATE()</span>
-          <span class="fn-chip">TEXT()</span><span class="fn-chip">VALUE()</span><span class="fn-chip">FIND()</span>
-          <span class="fn-chip">SEARCH()</span><span class="fn-chip">SUBSTITUTE()</span><span class="fn-chip">REPLACE()</span>
-          <span class="fn-chip">REPT()</span>
+          <button class="fn-chip" data-fn="LEN">LEN()</button>
+          <button class="fn-chip" data-fn="LEFT">LEFT()</button>
+          <button class="fn-chip" data-fn="RIGHT">RIGHT()</button>
+          <button class="fn-chip" data-fn="MID">MID()</button>
+          <button class="fn-chip" data-fn="TRIM">TRIM()</button>
+          <button class="fn-chip" data-fn="UPPER">UPPER()</button>
+          <button class="fn-chip" data-fn="LOWER">LOWER()</button>
+          <button class="fn-chip" data-fn="PROPER">PROPER()</button>
+          <button class="fn-chip" data-fn="CONCATENATE">CONCATENATE()</button>
+          <button class="fn-chip" data-fn="TEXT">TEXT()</button>
+          <button class="fn-chip" data-fn="VALUE">VALUE()</button>
+          <button class="fn-chip" data-fn="FIND">FIND()</button>
+          <button class="fn-chip" data-fn="SEARCH">SEARCH()</button>
+          <button class="fn-chip" data-fn="SUBSTITUTE">SUBSTITUTE()</button>
+          <button class="fn-chip" data-fn="REPLACE">REPLACE()</button>
+          <button class="fn-chip" data-fn="REPT">REPT()</button>
         </div>
       </div>
       <div class="fn-group">
         <div class="fn-group-title">Logic &amp; Conditionals</div>
         <div class="fn-chips">
-          <span class="fn-chip">IF()</span><span class="fn-chip">AND()</span><span class="fn-chip">OR()</span>
-          <span class="fn-chip">NOT()</span><span class="fn-chip">ISNUMBER()</span><span class="fn-chip">ISTEXT()</span>
-          <span class="fn-chip">ISBLANK()</span><span class="fn-chip">ISERROR()</span><span class="fn-chip">IFERROR()</span>
-          <span class="fn-chip">ISLOGICAL()</span>
+          <button class="fn-chip" data-fn="IF">IF()</button>
+          <button class="fn-chip" data-fn="AND">AND()</button>
+          <button class="fn-chip" data-fn="OR">OR()</button>
+          <button class="fn-chip" data-fn="NOT">NOT()</button>
+          <button class="fn-chip" data-fn="ISNUMBER">ISNUMBER()</button>
+          <button class="fn-chip" data-fn="ISTEXT">ISTEXT()</button>
+          <button class="fn-chip" data-fn="ISBLANK">ISBLANK()</button>
+          <button class="fn-chip" data-fn="ISERROR">ISERROR()</button>
+          <button class="fn-chip" data-fn="IFERROR">IFERROR()</button>
+          <button class="fn-chip" data-fn="ISLOGICAL">ISLOGICAL()</button>
         </div>
       </div>
       <div class="fn-group">
         <div class="fn-group-title">Constants</div>
         <div class="fn-chips">
-          <span class="fn-chip">TRUE</span><span class="fn-chip">FALSE</span><span class="fn-chip">PI()</span>
+          <button class="fn-chip" data-fn="TRUE">TRUE</button>
+          <button class="fn-chip" data-fn="FALSE">FALSE</button>
+          <button class="fn-chip" data-fn="PI">PI()</button>
         </div>
       </div>
     </div>
 
   </div><!-- /container -->
 </section>
+
+<!-- ─── FORMULA MODAL ──────────────────────────────────────────────────── -->
+<div class="fn-modal-backdrop" id="fn-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="fn-modal-name">
+  <div class="fn-modal" id="fn-modal">
+    <button class="fn-modal-close" id="fn-modal-close" aria-label="Close">✕</button>
+    <div class="fn-modal-name" id="fn-modal-name"></div>
+    <div class="fn-modal-sig" id="fn-modal-sig"></div>
+    <div class="fn-modal-section-label">What it does</div>
+    <div class="fn-modal-desc" id="fn-modal-desc"></div>
+    <div class="fn-modal-section-label" id="fn-modal-example-label">Example</div>
+    <div class="fn-modal-example" id="fn-modal-example"></div>
+    <div class="fn-modal-tags" id="fn-modal-tags"></div>
+  </div>
+</div>
 
 <!-- ─── FOOTER ────────────────────────────────────────────────────────── -->
 <footer>
@@ -1853,6 +2023,170 @@
       btn.textContent = 'copy';
     });
   }
+
+  // ── Formula modal ─────────────────────────────────────────────────────
+  const FN_DB = {
+    // Math
+    SUM:        { sig: 'SUM(number1, [number2, ...])', desc: 'Adds all numbers in the given range or list together.', example: '=SUM(B2:B20)  →  total of column B\n=SUM(A1, C1, 5)  →  adds three values', tags: ['math', 'range'] },
+    AVERAGE:    { sig: 'AVERAGE(number1, [number2, ...])', desc: 'Calculates the arithmetic mean (sum divided by count) of all supplied numbers. Empty cells are ignored.', example: '=AVERAGE(C2:C100)  →  mean score\n=AVERAGE(A1, B1, C1)', tags: ['math', 'statistics'] },
+    MIN:        { sig: 'MIN(number1, [number2, ...])', desc: 'Returns the smallest value in a set of numbers. Useful for finding the lowest price, score, or date.', example: '=MIN(D2:D50)  →  cheapest item\n=MIN(A1, B1, 0)', tags: ['math', 'range'] },
+    MAX:        { sig: 'MAX(number1, [number2, ...])', desc: 'Returns the largest value in a set of numbers. Useful for finding peaks, highest bids, or latest dates.', example: '=MAX(D2:D50)  →  most expensive\n=MAX(Score, 100)', tags: ['math', 'range'] },
+    ABS:        { sig: 'ABS(number)', desc: 'Returns the absolute (positive) value of a number. Negative numbers become positive; positive numbers stay the same.', example: '=ABS(-42)  →  42\n=ABS(A1 - B1)  →  magnitude of difference', tags: ['math'] },
+    ROUND:      { sig: 'ROUND(number, digits)', desc: 'Rounds a number to a specified number of decimal places using standard rounding (≥0.5 rounds up).', example: '=ROUND(3.14159, 2)  →  3.14\n=ROUND(1234, -2)  →  1200', tags: ['math', 'formatting'] },
+    ROUNDUP:    { sig: 'ROUNDUP(number, digits)', desc: 'Always rounds away from zero, regardless of the decimal value. Use when you need a conservative upper bound (e.g. packaging units).', example: '=ROUNDUP(2.1, 0)  →  3\n=ROUNDUP(1.001, 2)  →  1.01', tags: ['math'] },
+    ROUNDDOWN:  { sig: 'ROUNDDOWN(number, digits)', desc: 'Always rounds toward zero. Use when you need to floor to a certain precision without going over.', example: '=ROUNDDOWN(2.9, 0)  →  2\n=ROUNDDOWN(9.99, 1)  →  9.9', tags: ['math'] },
+    FLOOR:      { sig: 'FLOOR(number, significance)', desc: 'Rounds a number down to the nearest multiple of significance. Great for rounding prices to the nearest 0.05 or times to the nearest 15 minutes.', example: '=FLOOR(23, 5)  →  20\n=FLOOR(2.47, 0.05)  →  2.45', tags: ['math'] },
+    CEILING:    { sig: 'CEILING(number, significance)', desc: 'Rounds a number up to the nearest multiple of significance. Use for minimum billing increments or packaging quantities.', example: '=CEILING(23, 5)  →  25\n=CEILING(2.41, 0.05)  →  2.45', tags: ['math'] },
+    MOD:        { sig: 'MOD(number, divisor)', desc: 'Returns the remainder after division. Useful for alternating row shading, checking if a number is even/odd, or wrapping values.', example: '=MOD(10, 3)  →  1\n=MOD(ROW(), 2)  →  0 or 1 for alternating rows', tags: ['math'] },
+    POWER:      { sig: 'POWER(number, power)', desc: 'Raises a number to an exponent. Equivalent to the ^ operator in formulas.', example: '=POWER(2, 10)  →  1024\n=POWER(A1, 0.5)  →  square root of A1', tags: ['math'] },
+    SQRT:       { sig: 'SQRT(number)', desc: 'Returns the positive square root of a number. Shorthand for POWER(n, 0.5).', example: '=SQRT(144)  →  12\n=SQRT(A1^2 + B1^2)  →  hypotenuse', tags: ['math'] },
+    LN:         { sig: 'LN(number)', desc: 'Returns the natural logarithm (base e ≈ 2.718) of a number. Used in growth/decay models and finance.', example: '=LN(1)  →  0\n=LN(EXP(1))  →  1', tags: ['math', 'finance'] },
+    LOG:        { sig: 'LOG(number, [base])', desc: 'Returns the logarithm of a number in any base (default base 10). Use LOG10() as shorthand for base-10.', example: '=LOG(100)  →  2\n=LOG(8, 2)  →  3', tags: ['math'] },
+    LOG10:      { sig: 'LOG10(number)', desc: 'Returns the base-10 logarithm of a number. Useful for decibels, pH, earthquake magnitude scales.', example: '=LOG10(1000)  →  3\n=LOG10(0.01)  →  -2', tags: ['math'] },
+    EXP:        { sig: 'EXP(number)', desc: 'Returns e raised to the power of number (inverse of LN). Used in compound growth and probability distributions.', example: '=EXP(1)  →  2.71828…\n=EXP(LN(A1))  →  A1', tags: ['math', 'finance'] },
+    INT:        { sig: 'INT(number)', desc: 'Rounds a number down to the nearest integer (toward negative infinity). Different from TRUNC for negative numbers.', example: '=INT(3.9)  →  3\n=INT(-3.1)  →  -4', tags: ['math'] },
+    TRUNC:      { sig: 'TRUNC(number, [digits])', desc: 'Truncates a number to a given number of decimal places by removing the fractional part without rounding.', example: '=TRUNC(3.9)  →  3\n=TRUNC(-3.9)  →  -3', tags: ['math'] },
+    SIGN:       { sig: 'SIGN(number)', desc: 'Returns 1 for positive numbers, -1 for negative, and 0 for zero. Useful for conditional direction logic.', example: '=SIGN(-42)  →  -1\n=SIGN(A1) * ABS(B1)  →  apply direction', tags: ['math'] },
+
+    // Statistical
+    COUNT:      { sig: 'COUNT(value1, [value2, ...])', desc: 'Counts how many cells in a range contain numbers. Text, booleans, and empty cells are not counted.', example: '=COUNT(A1:A100)  →  number of numeric entries', tags: ['statistics', 'range'] },
+    COUNTA:     { sig: 'COUNTA(value1, [value2, ...])', desc: 'Counts all non-empty cells in a range, including text and booleans. Use instead of COUNT when you want to count any filled cells.', example: '=COUNTA(A1:A100)  →  filled cells\n=COUNTA(A:A) - 1  →  data rows (minus header)', tags: ['statistics', 'range'] },
+    SUMIF:      { sig: 'SUMIF(range, criteria, [sum_range])', desc: 'Sums cells in sum_range only where the corresponding cell in range matches the criteria. If sum_range is omitted, range is summed directly.', example: '=SUMIF(B2:B50, "North", C2:C50)  →  sales for North region\n=SUMIF(A:A, ">100")  →  values over 100', tags: ['statistics', 'conditional'] },
+    COUNTIF:    { sig: 'COUNTIF(range, criteria)', desc: 'Counts cells in range that match a criteria. Criteria can be a value, text, wildcard, or comparison like ">100".', example: '=COUNTIF(B:B, "Pass")  →  count of passing grades\n=COUNTIF(A1:A100, ">=18")', tags: ['statistics', 'conditional'] },
+    AVERAGEIF:  { sig: 'AVERAGEIF(range, criteria, [avg_range])', desc: 'Averages the cells in avg_range where the corresponding cell in range matches criteria. Great for per-category averages.', example: '=AVERAGEIF(B2:B50, "East", C2:C50)  →  avg sales in East\n=AVERAGEIF(A:A, "<>0", A:A)', tags: ['statistics', 'conditional'] },
+    MAXIFS:     { sig: 'MAXIFS(max_range, criteria_range, criteria)', desc: 'Returns the maximum value in max_range for rows where criteria_range matches criteria. Useful for finding the highest value within a category.', example: '=MAXIFS(C2:C100, B2:B100, "Q4")  →  best Q4 result', tags: ['statistics', 'conditional'] },
+    MINIFS:     { sig: 'MINIFS(min_range, criteria_range, criteria)', desc: 'Returns the minimum value in min_range for rows where criteria_range matches criteria.', example: '=MINIFS(C2:C100, B2:B100, "Q4")  →  worst Q4 result', tags: ['statistics', 'conditional'] },
+    SUMPRODUCT: { sig: 'SUMPRODUCT(array1, [array2, ...])', desc: 'Multiplies corresponding elements in the arrays and returns the sum of products. Powerful for weighted averages, conditional sums without helper columns, and matrix operations.', example: '=SUMPRODUCT(B2:B10, C2:C10)  →  weighted total\n=SUMPRODUCT((A2:A10="X")*(B2:B10))', tags: ['statistics', 'math'] },
+    MEDIAN:     { sig: 'MEDIAN(number1, [number2, ...])', desc: 'Returns the middle value in a sorted list. More robust than AVERAGE when data has extreme outliers (e.g. salaries, prices).', example: '=MEDIAN(A2:A100)  →  middle salary', tags: ['statistics'] },
+    STDEV:      { sig: 'STDEV(number1, [number2, ...])', desc: 'Calculates the sample standard deviation — how spread out values are from the mean. Low STDEV means values cluster tightly; high means they vary widely.', example: '=STDEV(B2:B50)  →  score variability', tags: ['statistics'] },
+    VAR:        { sig: 'VAR(number1, [number2, ...])', desc: 'Returns the sample variance (square of STDEV). Used in statistical analysis and quality control.', example: '=VAR(B2:B50)', tags: ['statistics'] },
+    LARGE:      { sig: 'LARGE(array, k)', desc: 'Returns the k-th largest value. k=1 is the same as MAX; k=2 is the second largest, etc. Useful for top-N rankings.', example: '=LARGE(A2:A100, 1)  →  highest\n=LARGE(A2:A100, 3)  →  third place', tags: ['statistics', 'range'] },
+    SMALL:      { sig: 'SMALL(array, k)', desc: 'Returns the k-th smallest value. k=1 is the same as MIN. Use for bottom-N analysis or finding thresholds.', example: '=SMALL(A2:A100, 1)  →  lowest\n=SMALL(Scores, 5)  →  5th lowest score', tags: ['statistics', 'range'] },
+    RANK:       { sig: 'RANK(number, ref, [order])', desc: 'Returns the rank of a number within a list. order=0 (default) ranks largest as 1; order=1 ranks smallest as 1. Ties receive the same rank.', example: '=RANK(B2, B$2:B$100)  →  rank of this score\n=RANK(A1, A:A, 1)  →  ascending rank', tags: ['statistics'] },
+    PERCENTILE: { sig: 'PERCENTILE(array, k)', desc: 'Returns the k-th percentile of values, where k is between 0 and 1. Use to find cutoff points (e.g. top 10% is the 0.9 percentile).', example: '=PERCENTILE(A2:A100, 0.9)  →  90th percentile\n=PERCENTILE(Scores, 0.5)  →  median', tags: ['statistics'] },
+    QUARTILE:   { sig: 'QUARTILE(array, quart)', desc: 'Returns a quartile of a dataset. quart=0 is min, 1=Q1(25%), 2=median, 3=Q3(75%), 4=max. Used in box plot analysis.', example: '=QUARTILE(A2:A100, 1)  →  25th percentile\n=QUARTILE(A2:A100, 3) - QUARTILE(A2:A100, 1)  →  IQR', tags: ['statistics'] },
+
+    // Lookup
+    VLOOKUP:    { sig: 'VLOOKUP(lookup_value, table, col_index, [range_lookup])', desc: 'Searches for lookup_value in the first column of table and returns the value from col_index columns to the right. Set range_lookup=FALSE for exact match (almost always what you want).', example: '=VLOOKUP(A2, Products!A:D, 3, FALSE)  →  product name\n=VLOOKUP(ID, Table, 2, FALSE)', tags: ['lookup'] },
+    HLOOKUP:    { sig: 'HLOOKUP(lookup_value, table, row_index, [range_lookup])', desc: 'Like VLOOKUP but searches horizontally across the first row and returns the value from row_index rows down. Use when your data is laid out in rows rather than columns.', example: '=HLOOKUP("Jan", B1:M3, 2, FALSE)  →  value in row 2 for Jan', tags: ['lookup'] },
+    XLOOKUP:    { sig: 'XLOOKUP(lookup_value, lookup_array, return_array, [if_not_found], [match_mode])', desc: 'Modern replacement for VLOOKUP/HLOOKUP. Searches lookup_array and returns the corresponding value from return_array. Supports exact, approximate, and wildcard matching. Returns if_not_found instead of an error when no match exists.', example: '=XLOOKUP(A2, B:B, C:C, "Not found")  →  flexible lookup\n=XLOOKUP("*Smith", Names, Emails, , 2)  →  wildcard', tags: ['lookup'] },
+    INDEX:      { sig: 'INDEX(array, row, [col])', desc: 'Returns the value at a specific row and column position in a range. Often combined with MATCH to create a flexible two-way lookup.', example: '=INDEX(B2:D10, 3, 2)  →  value at row 3, col 2\n=INDEX(B:B, MATCH(A1, A:A, 0))', tags: ['lookup'] },
+    MATCH:      { sig: 'MATCH(lookup_value, array, [match_type])', desc: 'Returns the position (row or column number) of a value in a range. match_type=0 for exact match. Pair with INDEX for powerful two-way lookups.', example: '=MATCH("Alice", A2:A100, 0)  →  row of Alice\n=INDEX(B:B, MATCH(A1, A:A, 0))  →  full lookup', tags: ['lookup'] },
+    OFFSET:     { sig: 'OFFSET(reference, rows, cols, [height], [width])', desc: 'Returns a reference shifted from a starting cell by a number of rows and columns. Can also return a range of a given size. Useful for dynamic ranges that grow automatically.', example: '=OFFSET(A1, 2, 1)  →  cell C3\n=SUM(OFFSET(A1, 0, 0, COUNTA(A:A)))', tags: ['lookup', 'dynamic'] },
+    CHOOSE:     { sig: 'CHOOSE(index, value1, [value2, ...])', desc: 'Picks a value from a list based on an index number. index=1 returns value1, index=2 returns value2, etc. Useful as a lighter alternative to nested IFs for selecting options.', example: '=CHOOSE(2, "Mon", "Tue", "Wed")  →  "Tue"\n=CHOOSE(Quarter, Q1, Q2, Q3, Q4)', tags: ['lookup', 'conditional'] },
+
+    // Finance
+    PV:         { sig: 'PV(rate, nper, pmt, [fv], [type])', desc: 'Calculates the present value of an investment — how much a series of future payments is worth today, discounted at a given interest rate. Cash outflows are negative.', example: '=PV(5%/12, 60, -500)  →  PV of 60 monthly £500 payments at 5%', tags: ['finance'] },
+    FV:         { sig: 'FV(rate, nper, pmt, [pv], [type])', desc: 'Calculates the future value of an investment after a series of equal payments at a constant interest rate. Use to project savings growth.', example: '=FV(6%/12, 120, -200)  →  savings after 10 years of £200/mo at 6%', tags: ['finance'] },
+    PMT:        { sig: 'PMT(rate, nper, pv, [fv], [type])', desc: 'Calculates the fixed periodic payment required to pay off a loan or reach a savings target. The result is negative (cash out). Divide rate by 12 for monthly payments.', example: '=PMT(5%/12, 360, 200000)  →  monthly mortgage payment\n=PMT(0, 36, -10000)  →  no-interest repayment', tags: ['finance'] },
+    NPER:       { sig: 'NPER(rate, pmt, pv, [fv], [type])', desc: 'Calculates the number of periods needed to pay off a loan or reach a savings goal given a fixed payment and interest rate.', example: '=NPER(5%/12, -500, 20000)  →  months to repay £20k at £500/mo', tags: ['finance'] },
+    RATE:       { sig: 'RATE(nper, pmt, pv, [fv], [type], [guess])', desc: 'Calculates the interest rate per period for a loan or annuity. Solved iteratively — provide a reasonable guess if it fails to converge.', example: '=RATE(36, -300, 9000) * 12  →  annual rate on a 3-year loan', tags: ['finance'] },
+    NPV:        { sig: 'NPV(rate, value1, [value2, ...])', desc: 'Calculates the Net Present Value of a series of future cash flows discounted at rate. The initial investment should typically be subtracted separately.', example: '=NPV(10%, 3000, 4000, 5000) - 10000  →  project NPV at 10%', tags: ['finance'] },
+    IRR:        { sig: 'IRR(values, [guess])', desc: 'Finds the Internal Rate of Return — the discount rate that makes NPV equal zero. Use to compare the profitability of different investments. The first value is typically negative (the initial outlay).', example: '=IRR({-10000, 3000, 4000, 5000, 4000})  →  project IRR', tags: ['finance'] },
+    MIRR:       { sig: 'MIRR(values, finance_rate, reinvest_rate)', desc: 'Modified IRR that assumes reinvestment at a different rate than financing. More realistic than IRR for comparing projects.', example: '=MIRR({-10000,3000,4000,5000}, 8%, 5%)  →  MIRR at 8% cost, 5% reinvest', tags: ['finance'] },
+    IPMT:       { sig: 'IPMT(rate, per, nper, pv, [fv], [type])', desc: 'Returns the interest portion of a specific loan payment. Use to see how much of each instalment is interest vs principal.', example: '=IPMT(5%/12, 1, 360, 200000)  →  interest in month 1', tags: ['finance'] },
+    PPMT:       { sig: 'PPMT(rate, per, nper, pv, [fv], [type])', desc: 'Returns the principal portion of a specific loan payment. Combine with IPMT to build a full amortisation schedule.', example: '=PPMT(5%/12, 1, 360, 200000)  →  principal in month 1', tags: ['finance'] },
+    CUMIPMT:    { sig: 'CUMIPMT(rate, nper, pv, start_period, end_period, type)', desc: 'Cumulative interest paid between two periods. Use to calculate total interest cost for any range of payments.', example: '=CUMIPMT(5%/12, 360, 200000, 1, 12, 0)  →  interest in year 1', tags: ['finance'] },
+    CUMPRINC:   { sig: 'CUMPRINC(rate, nper, pv, start_period, end_period, type)', desc: 'Cumulative principal repaid between two periods. Use to track how much of the loan balance has been paid off.', example: '=CUMPRINC(5%/12, 360, 200000, 1, 12, 0)  →  principal repaid in year 1', tags: ['finance'] },
+    SLN:        { sig: 'SLN(cost, salvage, life)', desc: 'Straight-line depreciation: spreads the cost of an asset evenly over its useful life. The simplest depreciation method.', example: '=SLN(50000, 5000, 5)  →  £9000/year depreciation', tags: ['finance'] },
+    DDB:        { sig: 'DDB(cost, salvage, life, period, [factor])', desc: 'Double-declining balance depreciation: accelerated method that depreciates more in early periods. Default factor is 2.', example: '=DDB(50000, 5000, 5, 1)  →  depreciation in year 1', tags: ['finance'] },
+    EFFECT:     { sig: 'EFFECT(nominal_rate, npery)', desc: 'Converts a nominal annual interest rate to an effective annual rate, accounting for compounding within the year. Use to compare loans with different compounding periods.', example: '=EFFECT(5%, 12)  →  5.116% effective annual rate (monthly compounding)', tags: ['finance'] },
+    NOMINAL:    { sig: 'NOMINAL(effect_rate, npery)', desc: 'Converts an effective annual rate back to a nominal annual rate given the number of compounding periods. Inverse of EFFECT.', example: '=NOMINAL(5.116%, 12)  →  ~5% nominal rate', tags: ['finance'] },
+
+    // Date
+    NOW:        { sig: 'NOW()', desc: 'Returns the current date and time as a serial number, updating whenever the sheet recalculates. Format the cell as a date-time to display it.', example: '=NOW()  →  2026-03-16 14:30\n=NOW() - A1  →  age of a timestamp', tags: ['date'] },
+    TODAY:      { sig: 'TODAY()', desc: 'Returns today\'s date, recalculated each time the sheet opens. Use for age calculations, days-remaining countdowns, or to stamp the current date.', example: '=TODAY() - B2  →  days since date in B2\n=TODAY() + 30  →  30 days from now', tags: ['date'] },
+    DATE:       { sig: 'DATE(year, month, day)', desc: 'Constructs a date value from separate year, month, and day numbers. Useful when date components are stored in different cells.', example: '=DATE(2026, 3, 16)  →  2026-03-16\n=DATE(YEAR(A1), MONTH(A1)+1, 1)  →  first of next month', tags: ['date'] },
+    YEAR:       { sig: 'YEAR(date)', desc: 'Extracts the year from a date value. Useful for grouping or filtering data by year.', example: '=YEAR(TODAY())  →  2026\n=YEAR(A2)  →  year of date in A2', tags: ['date'] },
+    MONTH:      { sig: 'MONTH(date)', desc: 'Extracts the month (1–12) from a date. Use with YEAR and DAY to decompose dates or build period labels.', example: '=MONTH(TODAY())  →  3\n=MONTH(A2)  →  month number of date in A2', tags: ['date'] },
+    DAY:        { sig: 'DAY(date)', desc: 'Extracts the day of the month (1–31) from a date value.', example: '=DAY(TODAY())  →  16\n=DAY(A2)', tags: ['date'] },
+
+    // Text
+    LEN:        { sig: 'LEN(text)', desc: 'Returns the number of characters in a text string, including spaces. Use to validate input length, find empty cells, or build padding logic.', example: '=LEN(A2)  →  character count\n=LEN(TRIM(A2))  →  length without leading/trailing spaces', tags: ['text'] },
+    LEFT:       { sig: 'LEFT(text, [num_chars])', desc: 'Returns the first N characters from the start of a text string. Defaults to 1 character. Use for extracting codes, prefixes, or country codes.', example: '=LEFT(A2, 3)  →  first 3 characters\n=LEFT("GB-123", 2)  →  "GB"', tags: ['text'] },
+    RIGHT:      { sig: 'RIGHT(text, [num_chars])', desc: 'Returns the last N characters from the end of a text string. Use for extracting suffixes, extensions, or trailing codes.', example: '=RIGHT(A2, 4)  →  last 4 characters\n=RIGHT(Filename, 3)  →  file extension', tags: ['text'] },
+    MID:        { sig: 'MID(text, start, num_chars)', desc: 'Extracts a substring starting at position start (1-based) for num_chars length. Use for parsing fixed-format codes or IDs.', example: '=MID("GB-12345", 4, 5)  →  "12345"\n=MID(A2, 3, 4)  →  4 chars from position 3', tags: ['text'] },
+    TRIM:       { sig: 'TRIM(text)', desc: 'Removes leading, trailing, and excess internal spaces from text. Essential for cleaning up data imported from CSV files or pasted from other sources.', example: '=TRIM("  hello world  ")  →  "hello world"\n=TRIM(A2)  →  cleaned text', tags: ['text', 'cleaning'] },
+    UPPER:      { sig: 'UPPER(text)', desc: 'Converts all characters to uppercase. Use for normalising data before lookups or comparisons.', example: '=UPPER("hello")  →  "HELLO"\n=UPPER(A2)', tags: ['text'] },
+    LOWER:      { sig: 'LOWER(text)', desc: 'Converts all characters to lowercase.', example: '=LOWER("Hello World")  →  "hello world"\n=LOWER(Email)', tags: ['text'] },
+    PROPER:     { sig: 'PROPER(text)', desc: 'Capitalises the first letter of each word and lowercases the rest. Use to format names entered in inconsistent case.', example: '=PROPER("john smith")  →  "John Smith"\n=PROPER(A2)', tags: ['text'] },
+    CONCATENATE:{ sig: 'CONCATENATE(text1, text2, [text3, ...])', desc: 'Joins multiple text strings into one. You can also use the & operator as a shortcut: =A1 & " " & B1.', example: '=CONCATENATE(A2, " ", B2)  →  "John Smith"\n=A1 & ", " & B1', tags: ['text'] },
+    TEXT:       { sig: 'TEXT(value, format)', desc: 'Converts a number or date to text with a specified format string. Essential for embedding formatted numbers inside longer text strings.', example: '=TEXT(1234.5, "#,##0.00")  →  "1,234.50"\n="Total: " & TEXT(SUM(A:A), "$#,##0")', tags: ['text', 'formatting'] },
+    VALUE:      { sig: 'VALUE(text)', desc: 'Converts a text string that looks like a number into an actual numeric value. Use when numbers are stored as text (common after CSV imports).', example: '=VALUE("42.5")  →  42.5\n=VALUE(A2) * 1.2', tags: ['text', 'cleaning'] },
+    FIND:       { sig: 'FIND(find_text, within_text, [start])', desc: 'Returns the position of find_text within within_text (1-based). Case-sensitive. Returns an error if not found — wrap in IFERROR to handle gracefully.', example: '=FIND("@", Email)  →  position of @\n=FIND("-", A2)  →  position of separator', tags: ['text'] },
+    SEARCH:     { sig: 'SEARCH(find_text, within_text, [start])', desc: 'Like FIND but case-insensitive and supports wildcards (* and ?). Returns an error if not found.', example: '=SEARCH("smith", A2)  →  finds "Smith", "SMITH", etc.\n=IFERROR(SEARCH("error", A2), 0)', tags: ['text'] },
+    SUBSTITUTE: { sig: 'SUBSTITUTE(text, old_text, new_text, [nth])', desc: 'Replaces occurrences of old_text with new_text. If nth is specified, only that occurrence is replaced. Use for cleaning or reformatting text.', example: '=SUBSTITUTE(A2, " ", "_")  →  spaces to underscores\n=SUBSTITUTE(A2, "Ltd", "Limited", 1)', tags: ['text', 'cleaning'] },
+    REPLACE:    { sig: 'REPLACE(text, start, num_chars, new_text)', desc: 'Replaces a portion of text by position rather than by content. Use when you know the location but not the content of what needs replacing.', example: '=REPLACE("GB-12345", 1, 2, "US")  →  "US-12345"\n=REPLACE(A2, 4, 3, "***")', tags: ['text'] },
+    REPT:       { sig: 'REPT(text, times)', desc: 'Repeats a text string a given number of times. Use for simple progress bars, padding, or repeating separators.', example: '=REPT("★", 5)  →  "★★★★★"\n=REPT("▓", Score/10)  →  simple bar chart', tags: ['text'] },
+
+    // Logic
+    IF:         { sig: 'IF(condition, value_if_true, [value_if_false])', desc: 'Returns one value when condition is true, another when false. The most fundamental conditional function — nest multiple IFs for more complex logic, or combine with AND/OR.', example: '=IF(A2>100, "Over budget", "OK")\n=IF(AND(A2>0, B2>0), "Both positive", "Check values")', tags: ['logic', 'conditional'] },
+    AND:        { sig: 'AND(condition1, [condition2, ...])', desc: 'Returns TRUE only if all conditions are true. Combine with IF for multi-condition tests.', example: '=AND(A2>0, B2>0)  →  TRUE if both positive\n=IF(AND(Age>=18, HasID), "Admit", "Deny")', tags: ['logic'] },
+    OR:         { sig: 'OR(condition1, [condition2, ...])', desc: 'Returns TRUE if at least one condition is true. Use with IF for "any of these" checks.', example: '=OR(A2="Yes", A2="Y", A2="1")  →  flexible yes check\n=IF(OR(Status="Overdue", Balance<0), "Flag", "")', tags: ['logic'] },
+    NOT:        { sig: 'NOT(condition)', desc: 'Inverts a boolean value — TRUE becomes FALSE and vice versa. Use to write clearer negated conditions.', example: '=NOT(ISBLANK(A2))  →  TRUE if A2 has content\n=IF(NOT(A2="Approved"), "Review needed", "")', tags: ['logic'] },
+    ISNUMBER:   { sig: 'ISNUMBER(value)', desc: 'Returns TRUE if value is a number. Use to validate that cells contain numeric data before calculations.', example: '=ISNUMBER(A2)  →  TRUE if A2 is numeric\n=IF(ISNUMBER(A2), A2*1.1, "N/A")', tags: ['logic', 'validation'] },
+    ISTEXT:     { sig: 'ISTEXT(value)', desc: 'Returns TRUE if value is a text string. Useful for detecting cells where numbers may have been entered as text.', example: '=ISTEXT(A2)  →  TRUE if A2 is text\n=COUNTIF(A:A, ISTEXT)', tags: ['logic', 'validation'] },
+    ISBLANK:    { sig: 'ISBLANK(value)', desc: 'Returns TRUE if the cell is completely empty. Note: a cell with a space character is NOT blank.', example: '=ISBLANK(A2)  →  TRUE if A2 is empty\n=IF(ISBLANK(A2), "Missing", A2)', tags: ['logic', 'validation'] },
+    ISERROR:    { sig: 'ISERROR(value)', desc: 'Returns TRUE if value is any error type (#N/A, #DIV/0!, #VALUE!, etc.). Use to detect and handle formula errors gracefully.', example: '=ISERROR(A2/B2)  →  TRUE if B2 is zero\n=IF(ISERROR(VLOOKUP(A1,B:C,2,0)), "Not found", VLOOKUP(A1,B:C,2,0))', tags: ['logic', 'validation'] },
+    IFERROR:    { sig: 'IFERROR(value, value_if_error)', desc: 'Returns value_if_error if value produces any error, otherwise returns value itself. The cleanest way to suppress #N/A, #DIV/0!, and other errors.', example: '=IFERROR(VLOOKUP(A1,B:C,2,0), "Not found")\n=IFERROR(A2/B2, 0)', tags: ['logic', 'conditional'] },
+    ISLOGICAL:  { sig: 'ISLOGICAL(value)', desc: 'Returns TRUE if value is a boolean (TRUE or FALSE). Use to validate that a cell contains a proper boolean rather than text like "True".', example: '=ISLOGICAL(TRUE)  →  TRUE\n=ISLOGICAL("TRUE")  →  FALSE', tags: ['logic', 'validation'] },
+
+    // Constants
+    TRUE:       { sig: 'TRUE', desc: 'The boolean value true. You can type TRUE directly in a cell or formula — it\'s not a function call, just a constant.', example: '=IF(A1, "yes", "no")  →  A1 treated as boolean\n=AND(TRUE, A2>0)', tags: ['logic'] },
+    FALSE:      { sig: 'FALSE', desc: 'The boolean value false. Useful as an explicit argument, e.g. range_lookup=FALSE in VLOOKUP for exact matching.', example: '=VLOOKUP(A2, Table, 2, FALSE)  →  exact match\n=IF(FALSE, "never", "always")', tags: ['logic'] },
+    PI:         { sig: 'PI()', desc: 'Returns π ≈ 3.14159265358979. Use in geometric calculations.', example: '=PI() * r^2  →  area of circle\n=2 * PI() * r  →  circumference', tags: ['math', 'constants'] },
+  };
+
+  const backdrop   = document.getElementById('fn-modal-backdrop');
+  const modalName  = document.getElementById('fn-modal-name');
+  const modalSig   = document.getElementById('fn-modal-sig');
+  const modalDesc  = document.getElementById('fn-modal-desc');
+  const modalEx    = document.getElementById('fn-modal-example');
+  const modalExLbl = document.getElementById('fn-modal-example-label');
+  const modalTags  = document.getElementById('fn-modal-tags');
+
+  function openFnModal(name) {
+    const fn = FN_DB[name];
+    if (!fn) return;
+
+    modalName.textContent = name + (fn.sig.includes('()') || fn.sig.endsWith(')') ? '' : '');
+    modalSig.textContent  = fn.sig;
+    modalDesc.textContent = fn.desc;
+
+    if (fn.example) {
+      modalEx.style.display = '';
+      modalExLbl.style.display = '';
+      modalEx.textContent = fn.example;
+    } else {
+      modalEx.style.display = 'none';
+      modalExLbl.style.display = 'none';
+    }
+
+    modalTags.innerHTML = '';
+    (fn.tags || []).forEach(t => {
+      const span = document.createElement('span');
+      span.className = 'fn-modal-tag';
+      span.textContent = t;
+      modalTags.appendChild(span);
+    });
+
+    backdrop.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    document.getElementById('fn-modal-close').focus();
+  }
+
+  function closeFnModal() {
+    backdrop.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  document.querySelectorAll('.fn-chip[data-fn]').forEach(chip => {
+    chip.addEventListener('click', () => openFnModal(chip.dataset.fn));
+  });
+
+  document.getElementById('fn-modal-close').addEventListener('click', closeFnModal);
+  backdrop.addEventListener('click', e => { if (e.target === backdrop) closeFnModal(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeFnModal(); });
 
   // ── Intersection observer for section fade-in ─────────────────────────
   const observer = new IntersectionObserver(entries => {
