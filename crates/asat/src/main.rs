@@ -180,6 +180,11 @@ fn run_app(
     }
 
     let mut undo_stack = UndoStack::with_limit(config.undo_limit);
+    // Keep a single Clipboard instance alive for the whole session.
+    // On Linux the clipboard is X11/Wayland-owned by this process; dropping the
+    // handle clears the contents immediately, which is why clipboard managers
+    // see 0ms content. Reusing one instance avoids that.
+    let mut clipboard = Clipboard::new().ok();
     let mut plugins = PluginManager::new();
     plugins.load_init_script();
 
@@ -368,6 +373,7 @@ fn run_app(
                     &mut status_message,
                     &mut config,
                     &mut plugins,
+                    &mut clipboard,
                     visible_rows,
                     visible_cols,
                     &mut edit_count,
@@ -509,9 +515,9 @@ fn visible_cols_in_width(grid_width: u16, sheet: &asat_core::Sheet, left_col: u3
     count.max(1)
 }
 
-/// Write `text` to the system clipboard, silently ignoring failures.
-fn copy_to_clipboard(text: &str) {
-    if let Ok(mut cb) = Clipboard::new() {
+/// Write `text` to the system clipboard using a persistent Clipboard instance.
+fn copy_to_clipboard(cb: &mut Option<Clipboard>, text: &str) {
+    if let Some(cb) = cb {
         let _ = cb.set_text(text.to_owned());
     }
 }
@@ -559,6 +565,7 @@ fn process_action(
     status: &mut Option<(String, std::time::Instant)>,
     config: &mut Config,
     plugins: &mut PluginManager,
+    clipboard: &mut Option<Clipboard>,
     visible_rows: u32,
     visible_cols: u32,
     edit_count: &mut u32,
@@ -1184,7 +1191,7 @@ fn process_action(
                 .map(|c| sheet.get_value(row, c).clone())
                 .collect()];
             let tsv = cells_to_tsv(&cells);
-            copy_to_clipboard(&tsv);
+            copy_to_clipboard(clipboard, &tsv);
             input.registers.yank(None, cells, true);
             set_status(status, format!("Yanked row {} → clipboard", row + 1));
         }
@@ -1193,7 +1200,7 @@ fn process_action(
             let (row, col) = (input.cursor.row, input.cursor.col);
             let val = sheet.get_value(row, col).clone();
             let text = val.display();
-            copy_to_clipboard(&text);
+            copy_to_clipboard(clipboard, &text);
             let cells = vec![vec![val]];
             input.registers.yank(None, cells, false);
             set_status(status, format!("Yanked cell → clipboard: {}", text));
@@ -1209,7 +1216,7 @@ fn process_action(
                     .map(|c| sheet.get_value(row, c).clone())
                     .collect()];
                 let tsv = cells_to_tsv(&cells);
-                copy_to_clipboard(&tsv);
+                copy_to_clipboard(clipboard, &tsv);
                 input.registers.yank(None, cells, true);
                 set_status(status, format!("Yanked row {} → clipboard", row + 1));
             }
@@ -1222,7 +1229,7 @@ fn process_action(
                 .map(|r| vec![sheet.get_value(r, col).clone()])
                 .collect();
             let tsv = cells_to_tsv(&cells);
-            copy_to_clipboard(&tsv);
+            copy_to_clipboard(clipboard, &tsv);
             input.registers.yank(None, cells, false);
             set_status(status, format!("Yanked column {} → clipboard", col + 1));
         }
@@ -1251,7 +1258,7 @@ fn process_action(
             let rows = cells.len();
             let cols = cells.first().map(|r| r.len()).unwrap_or(0);
             let tsv = cells_to_tsv(&cells);
-            copy_to_clipboard(&tsv);
+            copy_to_clipboard(clipboard, &tsv);
             input.registers.yank(None, cells, is_line);
             set_status(status, format!("Yanked {}x{} → clipboard", rows, cols));
         }
@@ -1708,6 +1715,7 @@ fn process_action(
                     status,
                     config,
                     plugins,
+                    clipboard,
                     visible_rows,
                     visible_cols,
                     edit_count,
@@ -1823,7 +1831,7 @@ fn process_action(
 
         // ── Clipboard paste in insert mode ──
         AppAction::PasteFromClipboard => {
-            if let Ok(mut cb) = arboard::Clipboard::new() {
+            if let Some(cb) = clipboard.as_mut() {
                 if let Ok(text) = cb.get_text() {
                     // Insert at current edit cursor position
                     input.edit_buffer.insert_str(input.edit_cursor_pos, &text);
@@ -2140,6 +2148,7 @@ fn process_action(
                 status,
                 config,
                 plugins,
+                clipboard,
                 visible_rows,
                 visible_cols,
                 edit_count,
@@ -2305,6 +2314,7 @@ fn replay_macro(
     status: &mut Option<(String, std::time::Instant)>,
     config: &mut Config,
     plugins: &mut PluginManager,
+    clipboard: &mut Option<Clipboard>,
     visible_rows: u32,
     visible_cols: u32,
     edit_count: &mut u32,
@@ -2328,6 +2338,7 @@ fn replay_macro(
                 status,
                 config,
                 plugins,
+                clipboard,
                 visible_rows,
                 visible_cols,
                 edit_count,
