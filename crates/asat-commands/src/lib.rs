@@ -133,9 +133,11 @@ impl SetCell {
             row,
             col,
             old_value,
-            old_style,
             new_value,
-            new_style: None,
+            // Preserve the existing cell style (wrap, bold, colours, etc.) so that
+            // typing into a styled empty cell doesn't silently erase the style.
+            new_style: old_style.clone(),
+            old_style,
         }
     }
 }
