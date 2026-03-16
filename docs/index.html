@@ -933,7 +933,7 @@
   </div>
 
   <div class="hero-content">
-    <div class="hero-badge">v0.1.16 — Written in Rust</div>
+    <div class="hero-badge">v0.1.17 — Written in Rust</div>
     <h1 class="hero-title">
       <span class="title-asat">ASAT</span><span class="title-cursor"></span>
     </h1>
@@ -954,7 +954,7 @@
         <span class="dot dot-g"></span>
         <span class="terminal-title">asat budget.xlsx</span>
       </div>
-      <div class="terminal-body"><span class="t-muted">ASAT v0.1.16 — Advanced Spreadsheet Alteration Tool</span>
+      <div class="terminal-body"><span class="t-muted">ASAT v0.1.17 — Advanced Spreadsheet Alteration Tool</span>
 <span class="t-addr">B3</span>  <span class="t-formula">=SUM(B1:B2)</span>
 <span class="t-header">     ┄┄┄┄┄┄ A ┄┄┄┄┄┄┄  ┄┄┄┄┄┄ B ┄┄┄┄┄┄</span>
 <span class="t-row-num">  1 </span> Revenue          <span class="t-number">84,200</span>
@@ -986,7 +986,7 @@
       <div class="feature-card">
         <span class="feature-icon">ƒ</span>
         <div class="feature-title">Formula Engine</div>
-        <p class="feature-desc">50+ built-in functions across math, text, logic, lookup, statistical, finance, and date. Volatile functions (<code>NOW</code>, <code>TODAY</code>, <code>RAND</code>, <code>RANDBETWEEN</code>) recalculate every frame. Tab-completion as you type.</p>
+        <p class="feature-desc">50+ built-in functions across math, text, logic, lookup, statistical, finance, and date. Volatile functions recalculate every frame — <code>=NOW()</code> auto-displays as <code>YYYY-MM-DD HH:MM</code> with no formatting needed. Tab-completion as you type.</p>
       </div>
       <div class="feature-card">
         <span class="feature-icon">⊞</span>
@@ -1146,11 +1146,11 @@
           <div class="install-panel" id="ipanel-deb">
             <div class="install-panel-label">Debian / Ubuntu — install via apt</div>
             <div class="code-block">
-              <div><span class="prompt">$</span><span>curl -LO https://github.com/okt4v/ASAT/releases/download/v0.1.16/asat_0.1.16-1_amd64.deb</span></div>
+              <div><span class="prompt">$</span><span>curl -LO https://github.com/okt4v/ASAT/releases/download/v0.1.17/asat_0.1.17-1_amd64.deb</span></div>
               <button class="copy-btn" onclick="copyCode(this)">copy</button>
             </div>
             <div class="code-block" style="margin-top:0.5rem">
-              <div><span class="prompt">$</span><span>sudo apt install ./asat_0.1.16-1_amd64.deb</span></div>
+              <div><span class="prompt">$</span><span>sudo apt install ./asat_0.1.17-1_amd64.deb</span></div>
               <button class="copy-btn" onclick="copyCode(this)">copy</button>
             </div>
             <p style="color:var(--text-muted);font-size:0.8rem;margin-top:0.6rem">Resolves dependencies automatically. Uninstall with <code style="font-family:var(--mono)">sudo apt remove asat</code>.</p>
@@ -1180,7 +1180,7 @@
         <!-- Pre-built binaries note -->
         <p class="step-desc" style="margin-top:1rem">
           Pre-built binaries for Linux x86_64, Linux aarch64, macOS arm64, macOS x86_64, and Windows x86_64 are available on the
-          <a href="https://github.com/okt4v/ASAT/releases/tag/v0.1.16" style="color:var(--amber);text-decoration:none;">v0.1.16 GitHub Release</a>.
+          <a href="https://github.com/okt4v/ASAT/releases/tag/v0.1.17" style="color:var(--amber);text-decoration:none;">v0.1.17 GitHub Release</a>.
         </p>
       </div>
 
@@ -2147,7 +2147,7 @@
     NOMINAL:    { sig: 'NOMINAL(effect_rate, npery)', desc: 'Converts an effective annual rate back to a nominal annual rate given the number of compounding periods. Inverse of EFFECT.', example: '=NOMINAL(5.116%, 12)  →  ~5% nominal rate', tags: ['finance'] },
 
     // Date
-    NOW:        { sig: 'NOW()', desc: 'Returns the current date and time as a serial number, updating whenever the sheet recalculates. Format the cell as a date-time to display it.', example: '=NOW()  →  2026-03-16 14:30\n=NOW() - A1  →  age of a timestamp', tags: ['date'] },
+    NOW:        { sig: 'NOW()', desc: 'Returns the current date and time, recalculating every frame (volatile). Automatically displayed as YYYY-MM-DD HH:MM — no formatting needed. For other date-serial cells use :fmt datetime.', example: '=NOW()  →  2026-03-16 14:30  (auto-formatted)\n=NOW() - A1  →  age of a timestamp in days', tags: ['date', 'volatile'] },
     TODAY:      { sig: 'TODAY()', desc: 'Returns today\'s date, recalculated each time the sheet opens. Use for age calculations, days-remaining countdowns, or to stamp the current date.', example: '=TODAY() - B2  →  days since date in B2\n=TODAY() + 30  →  30 days from now', tags: ['date'] },
     DATE:       { sig: 'DATE(year, month, day)', desc: 'Constructs a date value from separate year, month, and day numbers. Useful when date components are stored in different cells.', example: '=DATE(2026, 3, 16)  →  2026-03-16\n=DATE(YEAR(A1), MONTH(A1)+1, 1)  →  first of next month', tags: ['date'] },
     YEAR:       { sig: 'YEAR(date)', desc: 'Extracts the year from a date value. Useful for grouping or filtering data by year.', example: '=YEAR(TODAY())  →  2026\n=YEAR(A2)  →  year of date in A2', tags: ['date'] },
