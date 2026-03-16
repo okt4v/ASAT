@@ -1,5 +1,5 @@
 use crate::{darken, parse_hex_color, RenderState};
-use asat_input::{FN_NAMES, Mode};
+use asat_input::{Mode, FN_NAMES};
 use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
@@ -29,109 +29,303 @@ macro_rules! fn_def {
 
 static FN_DEFS: &[FnDef] = &[
     // Math
-    fn_def!("SUM",         ["number1", "[number2, ...]"],               "Sum all numbers in range"),
-    fn_def!("AVERAGE",     ["number1", "[number2, ...]"],               "Average of all numbers"),
-    fn_def!("AVG",         ["number1", "[number2, ...]"],               "Average of all numbers"),
-    fn_def!("MIN",         ["number1", "[number2, ...]"],               "Smallest value"),
-    fn_def!("MAX",         ["number1", "[number2, ...]"],               "Largest value"),
-    fn_def!("COUNT",       ["value1", "[value2, ...]"],                 "Count numeric cells"),
-    fn_def!("COUNTA",      ["value1", "[value2, ...]"],                 "Count non-empty cells"),
-    fn_def!("ABS",         ["number"],                                  "Absolute value"),
-    fn_def!("ROUND",       ["number", "digits"],                        "Round to N decimal places"),
-    fn_def!("ROUNDUP",     ["number", "digits"],                        "Round up (away from zero)"),
-    fn_def!("ROUNDDOWN",   ["number", "digits"],                        "Round down (toward zero)"),
-    fn_def!("FLOOR",       ["number", "significance"],                  "Round down to multiple"),
-    fn_def!("CEILING",     ["number", "significance"],                  "Round up to multiple"),
-    fn_def!("MOD",         ["number", "divisor"],                       "Remainder after division"),
-    fn_def!("POWER",       ["number", "power"],                         "Number raised to a power"),
-    fn_def!("SQRT",        ["number"],                                  "Square root"),
-    fn_def!("LN",          ["number"],                                  "Natural logarithm"),
-    fn_def!("LOG",         ["number", "[base]"],                        "Logarithm with optional base"),
-    fn_def!("LOG10",       ["number"],                                  "Base-10 logarithm"),
-    fn_def!("EXP",         ["number"],                                  "e raised to a power"),
-    fn_def!("INT",         ["number"],                                  "Round down to integer"),
-    fn_def!("TRUNC",       ["number", "[digits]"],                      "Truncate to N decimal places"),
-    fn_def!("SIGN",        ["number"],                                  "Sign: -1, 0, or 1"),
+    fn_def!(
+        "SUM",
+        ["number1", "[number2, ...]"],
+        "Sum all numbers in range"
+    ),
+    fn_def!(
+        "AVERAGE",
+        ["number1", "[number2, ...]"],
+        "Average of all numbers"
+    ),
+    fn_def!(
+        "AVG",
+        ["number1", "[number2, ...]"],
+        "Average of all numbers"
+    ),
+    fn_def!("MIN", ["number1", "[number2, ...]"], "Smallest value"),
+    fn_def!("MAX", ["number1", "[number2, ...]"], "Largest value"),
+    fn_def!("COUNT", ["value1", "[value2, ...]"], "Count numeric cells"),
+    fn_def!(
+        "COUNTA",
+        ["value1", "[value2, ...]"],
+        "Count non-empty cells"
+    ),
+    fn_def!("ABS", ["number"], "Absolute value"),
+    fn_def!("ROUND", ["number", "digits"], "Round to N decimal places"),
+    fn_def!("ROUNDUP", ["number", "digits"], "Round up (away from zero)"),
+    fn_def!(
+        "ROUNDDOWN",
+        ["number", "digits"],
+        "Round down (toward zero)"
+    ),
+    fn_def!(
+        "FLOOR",
+        ["number", "significance"],
+        "Round down to multiple"
+    ),
+    fn_def!(
+        "CEILING",
+        ["number", "significance"],
+        "Round up to multiple"
+    ),
+    fn_def!("MOD", ["number", "divisor"], "Remainder after division"),
+    fn_def!("POWER", ["number", "power"], "Number raised to a power"),
+    fn_def!("SQRT", ["number"], "Square root"),
+    fn_def!("LN", ["number"], "Natural logarithm"),
+    fn_def!("LOG", ["number", "[base]"], "Logarithm with optional base"),
+    fn_def!("LOG10", ["number"], "Base-10 logarithm"),
+    fn_def!("EXP", ["number"], "e raised to a power"),
+    fn_def!("INT", ["number"], "Round down to integer"),
+    fn_def!(
+        "TRUNC",
+        ["number", "[digits]"],
+        "Truncate to N decimal places"
+    ),
+    fn_def!("SIGN", ["number"], "Sign: -1, 0, or 1"),
     // Text
-    fn_def!("LEN",         ["text"],                                    "Number of characters"),
-    fn_def!("LEFT",        ["text", "[num_chars]"],                     "First N characters"),
-    fn_def!("RIGHT",       ["text", "[num_chars]"],                     "Last N characters"),
-    fn_def!("MID",         ["text", "start", "num_chars"],              "Substring from position"),
-    fn_def!("TRIM",        ["text"],                                    "Remove extra whitespace"),
-    fn_def!("UPPER",       ["text"],                                    "Convert to uppercase"),
-    fn_def!("LOWER",       ["text"],                                    "Convert to lowercase"),
-    fn_def!("PROPER",      ["text"],                                    "Capitalize each word"),
-    fn_def!("CONCATENATE", ["text1", "text2", "[text3, ...]"],          "Join text strings"),
-    fn_def!("CONCAT",      ["text1", "text2", "[text3, ...]"],          "Join text strings"),
-    fn_def!("TEXT",        ["value", "format"],                         "Format value as text"),
-    fn_def!("VALUE",       ["text"],                                    "Parse text as number"),
-    fn_def!("FIND",        ["find_text", "within_text", "[start]"],     "Case-sensitive position search"),
-    fn_def!("SEARCH",      ["find_text", "within_text", "[start]"],     "Case-insensitive position search"),
-    fn_def!("SUBSTITUTE",  ["text", "old_text", "new_text", "[nth]"],   "Replace occurrences in text"),
-    fn_def!("REPLACE",     ["text", "start", "num_chars", "new_text"],  "Replace by position"),
-    fn_def!("REPT",        ["text", "times"],                           "Repeat text N times"),
+    fn_def!("LEN", ["text"], "Number of characters"),
+    fn_def!("LEFT", ["text", "[num_chars]"], "First N characters"),
+    fn_def!("RIGHT", ["text", "[num_chars]"], "Last N characters"),
+    fn_def!(
+        "MID",
+        ["text", "start", "num_chars"],
+        "Substring from position"
+    ),
+    fn_def!("TRIM", ["text"], "Remove extra whitespace"),
+    fn_def!("UPPER", ["text"], "Convert to uppercase"),
+    fn_def!("LOWER", ["text"], "Convert to lowercase"),
+    fn_def!("PROPER", ["text"], "Capitalize each word"),
+    fn_def!(
+        "CONCATENATE",
+        ["text1", "text2", "[text3, ...]"],
+        "Join text strings"
+    ),
+    fn_def!(
+        "CONCAT",
+        ["text1", "text2", "[text3, ...]"],
+        "Join text strings"
+    ),
+    fn_def!("TEXT", ["value", "format"], "Format value as text"),
+    fn_def!("VALUE", ["text"], "Parse text as number"),
+    fn_def!(
+        "FIND",
+        ["find_text", "within_text", "[start]"],
+        "Case-sensitive position search"
+    ),
+    fn_def!(
+        "SEARCH",
+        ["find_text", "within_text", "[start]"],
+        "Case-insensitive position search"
+    ),
+    fn_def!(
+        "SUBSTITUTE",
+        ["text", "old_text", "new_text", "[nth]"],
+        "Replace occurrences in text"
+    ),
+    fn_def!(
+        "REPLACE",
+        ["text", "start", "num_chars", "new_text"],
+        "Replace by position"
+    ),
+    fn_def!("REPT", ["text", "times"], "Repeat text N times"),
     // Logic
-    fn_def!("IF",          ["condition", "value_if_true", "[value_if_false]"], "Conditional value"),
-    fn_def!("AND",         ["condition1", "[condition2, ...]"],          "True if all conditions true"),
-    fn_def!("OR",          ["condition1", "[condition2, ...]"],          "True if any condition true"),
-    fn_def!("NOT",         ["condition"],                                "Invert a boolean"),
-    fn_def!("ISNUMBER",    ["value"],                                    "True if value is a number"),
-    fn_def!("ISTEXT",      ["value"],                                    "True if value is text"),
-    fn_def!("ISBLANK",     ["value"],                                    "True if cell is empty"),
-    fn_def!("ISERROR",     ["value"],                                    "True if value is an error"),
-    fn_def!("IFERROR",     ["value", "value_if_error"],                  "Return fallback on error"),
-    fn_def!("ISLOGICAL",   ["value"],                                    "True if value is boolean"),
+    fn_def!(
+        "IF",
+        ["condition", "value_if_true", "[value_if_false]"],
+        "Conditional value"
+    ),
+    fn_def!(
+        "AND",
+        ["condition1", "[condition2, ...]"],
+        "True if all conditions true"
+    ),
+    fn_def!(
+        "OR",
+        ["condition1", "[condition2, ...]"],
+        "True if any condition true"
+    ),
+    fn_def!("NOT", ["condition"], "Invert a boolean"),
+    fn_def!("ISNUMBER", ["value"], "True if value is a number"),
+    fn_def!("ISTEXT", ["value"], "True if value is text"),
+    fn_def!("ISBLANK", ["value"], "True if cell is empty"),
+    fn_def!("ISERROR", ["value"], "True if value is an error"),
+    fn_def!(
+        "IFERROR",
+        ["value", "value_if_error"],
+        "Return fallback on error"
+    ),
+    fn_def!("ISLOGICAL", ["value"], "True if value is boolean"),
     // Lookup
-    fn_def!("VLOOKUP",     ["lookup_value", "table", "col_index", "[range_lookup]"], "Vertical lookup"),
-    fn_def!("HLOOKUP",     ["lookup_value", "table", "row_index", "[range_lookup]"], "Horizontal lookup"),
-    fn_def!("XLOOKUP",     ["lookup_value", "lookup_array", "return_array", "[if_not_found]", "[match_mode]"], "Extended lookup"),
-    fn_def!("INDEX",       ["array", "row", "[col]"],                   "Value at row/col in array"),
-    fn_def!("MATCH",       ["lookup_value", "array", "[match_type]"],   "Position of value in array"),
-    fn_def!("OFFSET",      ["reference", "rows", "cols", "[height]", "[width]"], "Shifted reference"),
-    fn_def!("CHOOSE",      ["index", "value1", "[value2, ...]"],        "Pick value by index"),
+    fn_def!(
+        "VLOOKUP",
+        ["lookup_value", "table", "col_index", "[range_lookup]"],
+        "Vertical lookup"
+    ),
+    fn_def!(
+        "HLOOKUP",
+        ["lookup_value", "table", "row_index", "[range_lookup]"],
+        "Horizontal lookup"
+    ),
+    fn_def!(
+        "XLOOKUP",
+        [
+            "lookup_value",
+            "lookup_array",
+            "return_array",
+            "[if_not_found]",
+            "[match_mode]"
+        ],
+        "Extended lookup"
+    ),
+    fn_def!(
+        "INDEX",
+        ["array", "row", "[col]"],
+        "Value at row/col in array"
+    ),
+    fn_def!(
+        "MATCH",
+        ["lookup_value", "array", "[match_type]"],
+        "Position of value in array"
+    ),
+    fn_def!(
+        "OFFSET",
+        ["reference", "rows", "cols", "[height]", "[width]"],
+        "Shifted reference"
+    ),
+    fn_def!(
+        "CHOOSE",
+        ["index", "value1", "[value2, ...]"],
+        "Pick value by index"
+    ),
     // Date
-    fn_def!("NOW",         [],                                           "Current date and time"),
-    fn_def!("TODAY",       [],                                           "Today's date"),
-    fn_def!("DATE",        ["year", "month", "day"],                    "Build a date value"),
-    fn_def!("YEAR",        ["date"],                                     "Year from date"),
-    fn_def!("MONTH",       ["date"],                                     "Month (1-12) from date"),
-    fn_def!("DAY",         ["date"],                                     "Day (1-31) from date"),
+    fn_def!("NOW", [], "Current date and time"),
+    fn_def!("TODAY", [], "Today's date"),
+    fn_def!("DATE", ["year", "month", "day"], "Build a date value"),
+    fn_def!("YEAR", ["date"], "Year from date"),
+    fn_def!("MONTH", ["date"], "Month (1-12) from date"),
+    fn_def!("DAY", ["date"], "Day (1-31) from date"),
     // Statistical
-    fn_def!("SUMIF",       ["range", "criteria", "[sum_range]"],        "Sum cells matching criteria"),
-    fn_def!("COUNTIF",     ["range", "criteria"],                       "Count cells matching criteria"),
-    fn_def!("SUMPRODUCT",  ["array1", "[array2, ...]"],                 "Sum of products of arrays"),
-    fn_def!("LARGE",       ["array", "k"],                              "K-th largest value"),
-    fn_def!("SMALL",       ["array", "k"],                              "K-th smallest value"),
-    fn_def!("MEDIAN",      ["number1", "[number2, ...]"],               "Middle value"),
-    fn_def!("STDEV",       ["number1", "[number2, ...]"],               "Standard deviation (sample)"),
-    fn_def!("VAR",         ["number1", "[number2, ...]"],               "Variance (sample)"),
-    fn_def!("AVERAGEIF",   ["range", "criteria", "[avg_range]"],        "Average of matching cells"),
-    fn_def!("MAXIFS",      ["max_range", "criteria_range", "criteria"], "Max of matching cells"),
-    fn_def!("MINIFS",      ["min_range", "criteria_range", "criteria"], "Min of matching cells"),
-    fn_def!("RANK",        ["number", "ref", "[order]"],                "Rank of value in list"),
-    fn_def!("PERCENTILE",  ["array", "k"],                              "K-th percentile (0–1)"),
-    fn_def!("QUARTILE",    ["array", "quart"],                          "Quartile 0–4"),
+    fn_def!(
+        "SUMIF",
+        ["range", "criteria", "[sum_range]"],
+        "Sum cells matching criteria"
+    ),
+    fn_def!(
+        "COUNTIF",
+        ["range", "criteria"],
+        "Count cells matching criteria"
+    ),
+    fn_def!(
+        "SUMPRODUCT",
+        ["array1", "[array2, ...]"],
+        "Sum of products of arrays"
+    ),
+    fn_def!("LARGE", ["array", "k"], "K-th largest value"),
+    fn_def!("SMALL", ["array", "k"], "K-th smallest value"),
+    fn_def!("MEDIAN", ["number1", "[number2, ...]"], "Middle value"),
+    fn_def!(
+        "STDEV",
+        ["number1", "[number2, ...]"],
+        "Standard deviation (sample)"
+    ),
+    fn_def!("VAR", ["number1", "[number2, ...]"], "Variance (sample)"),
+    fn_def!(
+        "AVERAGEIF",
+        ["range", "criteria", "[avg_range]"],
+        "Average of matching cells"
+    ),
+    fn_def!(
+        "MAXIFS",
+        ["max_range", "criteria_range", "criteria"],
+        "Max of matching cells"
+    ),
+    fn_def!(
+        "MINIFS",
+        ["min_range", "criteria_range", "criteria"],
+        "Min of matching cells"
+    ),
+    fn_def!(
+        "RANK",
+        ["number", "ref", "[order]"],
+        "Rank of value in list"
+    ),
+    fn_def!("PERCENTILE", ["array", "k"], "K-th percentile (0–1)"),
+    fn_def!("QUARTILE", ["array", "quart"], "Quartile 0–4"),
     // Finance
-    fn_def!("PV",          ["rate", "nper", "pmt", "[fv]", "[type]"],   "Present value"),
-    fn_def!("FV",          ["rate", "nper", "pmt", "[pv]", "[type]"],   "Future value"),
-    fn_def!("PMT",         ["rate", "nper", "pv", "[fv]", "[type]"],    "Periodic payment"),
-    fn_def!("NPER",        ["rate", "pmt", "pv", "[fv]", "[type]"],     "Number of periods"),
-    fn_def!("RATE",        ["nper", "pmt", "pv", "[fv]", "[type]", "[guess]"], "Interest rate per period"),
-    fn_def!("NPV",         ["rate", "value1", "[value2, ...]"],         "Net present value"),
-    fn_def!("IRR",         ["values", "[guess]"],                       "Internal rate of return"),
-    fn_def!("MIRR",        ["values", "finance_rate", "reinvest_rate"], "Modified IRR"),
-    fn_def!("IPMT",        ["rate", "per", "nper", "pv", "[fv]", "[type]"], "Interest portion of payment"),
-    fn_def!("PPMT",        ["rate", "per", "nper", "pv", "[fv]", "[type]"], "Principal portion of payment"),
-    fn_def!("SLN",         ["cost", "salvage", "life"],                 "Straight-line depreciation"),
-    fn_def!("DDB",         ["cost", "salvage", "life", "period", "[factor]"], "Double-declining depreciation"),
-    fn_def!("EFFECT",      ["nominal_rate", "npery"],                   "Effective annual rate"),
-    fn_def!("NOMINAL",     ["effect_rate", "npery"],                    "Nominal annual rate"),
-    fn_def!("CUMIPMT",     ["rate", "nper", "pv", "start", "end", "type"], "Cumulative interest paid"),
-    fn_def!("CUMPRINC",    ["rate", "nper", "pv", "start", "end", "type"], "Cumulative principal paid"),
+    fn_def!(
+        "PV",
+        ["rate", "nper", "pmt", "[fv]", "[type]"],
+        "Present value"
+    ),
+    fn_def!(
+        "FV",
+        ["rate", "nper", "pmt", "[pv]", "[type]"],
+        "Future value"
+    ),
+    fn_def!(
+        "PMT",
+        ["rate", "nper", "pv", "[fv]", "[type]"],
+        "Periodic payment"
+    ),
+    fn_def!(
+        "NPER",
+        ["rate", "pmt", "pv", "[fv]", "[type]"],
+        "Number of periods"
+    ),
+    fn_def!(
+        "RATE",
+        ["nper", "pmt", "pv", "[fv]", "[type]", "[guess]"],
+        "Interest rate per period"
+    ),
+    fn_def!(
+        "NPV",
+        ["rate", "value1", "[value2, ...]"],
+        "Net present value"
+    ),
+    fn_def!("IRR", ["values", "[guess]"], "Internal rate of return"),
+    fn_def!(
+        "MIRR",
+        ["values", "finance_rate", "reinvest_rate"],
+        "Modified IRR"
+    ),
+    fn_def!(
+        "IPMT",
+        ["rate", "per", "nper", "pv", "[fv]", "[type]"],
+        "Interest portion of payment"
+    ),
+    fn_def!(
+        "PPMT",
+        ["rate", "per", "nper", "pv", "[fv]", "[type]"],
+        "Principal portion of payment"
+    ),
+    fn_def!(
+        "SLN",
+        ["cost", "salvage", "life"],
+        "Straight-line depreciation"
+    ),
+    fn_def!(
+        "DDB",
+        ["cost", "salvage", "life", "period", "[factor]"],
+        "Double-declining depreciation"
+    ),
+    fn_def!("EFFECT", ["nominal_rate", "npery"], "Effective annual rate"),
+    fn_def!("NOMINAL", ["effect_rate", "npery"], "Nominal annual rate"),
+    fn_def!(
+        "CUMIPMT",
+        ["rate", "nper", "pv", "start", "end", "type"],
+        "Cumulative interest paid"
+    ),
+    fn_def!(
+        "CUMPRINC",
+        ["rate", "nper", "pv", "start", "end", "type"],
+        "Cumulative principal paid"
+    ),
     // Constants
-    fn_def!("TRUE",        [],                                           "Boolean true"),
-    fn_def!("FALSE",       [],                                           "Boolean false"),
-    fn_def!("PI",          [],                                           "π ≈ 3.14159"),
+    fn_def!("TRUE", [], "Boolean true"),
+    fn_def!("FALSE", [], "Boolean false"),
+    fn_def!("PI", [], "π ≈ 3.14159"),
 ];
 
 fn find_fn_def(name: &str) -> Option<&'static FnDef> {
@@ -181,7 +375,13 @@ fn parse_fn_prefix(buf: &str, cursor_pos: usize) -> Option<String> {
         .unwrap_or(0);
     let prefix = buf[name_start..].to_uppercase();
     // Must start with a letter (not a digit)
-    if prefix.is_empty() || prefix.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(true) {
+    if prefix.is_empty()
+        || prefix
+            .chars()
+            .next()
+            .map(|c| c.is_ascii_digit())
+            .unwrap_or(true)
+    {
         None
     } else {
         Some(prefix)
@@ -299,8 +499,14 @@ pub fn render(frame: &mut Frame, grid_area: Rect, state: &RenderState<'_>) {
 
     let bg = header_bg;
     let normal_style = Style::default().fg(header_fg).bg(bg);
-    let fn_style = Style::default().fg(cursor_c).bg(bg).add_modifier(Modifier::BOLD);
-    let arg_style = Style::default().fg(teal).bg(bg).add_modifier(Modifier::BOLD);
+    let fn_style = Style::default()
+        .fg(cursor_c)
+        .bg(bg)
+        .add_modifier(Modifier::BOLD);
+    let arg_style = Style::default()
+        .fg(teal)
+        .bg(bg)
+        .add_modifier(Modifier::BOLD);
     let dim_style = Style::default().fg(darken(header_fg, 0.55)).bg(bg);
     let desc_style = Style::default().fg(header_fg).bg(bg);
 
@@ -313,9 +519,8 @@ pub fn render(frame: &mut Frame, grid_area: Rect, state: &RenderState<'_>) {
             };
 
             // Build signature line spans
-            let mut sig_spans: Vec<Span> = vec![
-                Span::styled(format!(" {}(", fn_def.name), fn_style),
-            ];
+            let mut sig_spans: Vec<Span> =
+                vec![Span::styled(format!(" {}(", fn_def.name), fn_style)];
             for (i, &arg) in fn_def.args.iter().enumerate() {
                 if i > 0 {
                     sig_spans.push(Span::styled(", ", dim_style));
@@ -328,10 +533,14 @@ pub fn render(frame: &mut Frame, grid_area: Rect, state: &RenderState<'_>) {
             }
             sig_spans.push(Span::styled(") ", fn_style));
 
-            let sig_text: String = fn_def.args.iter().enumerate().fold(
-                format!(" {}(", fn_def.name),
-                |acc, (i, &a)| acc + if i > 0 { ", " } else { "" } + a,
-            ) + ") ";
+            let sig_text: String = fn_def
+                .args
+                .iter()
+                .enumerate()
+                .fold(format!(" {}(", fn_def.name), |acc, (i, &a)| {
+                    acc + if i > 0 { ", " } else { "" } + a
+                })
+                + ") ";
             let desc_text = format!(" {} ", fn_def.desc);
 
             let inner_w = sig_text
@@ -341,9 +550,8 @@ pub fn render(frame: &mut Frame, grid_area: Rect, state: &RenderState<'_>) {
             let popup_w = (inner_w + 2).min(grid_area.width.saturating_sub(2));
             let popup_h = 4u16; // border top + sig + desc + border bottom
 
-            let (popup_x, popup_y) = place_popup(
-                cell_x, cell_y, cell_h, popup_w, popup_h, grid_area,
-            );
+            let (popup_x, popup_y) =
+                place_popup(cell_x, cell_y, cell_h, popup_w, popup_h, grid_area);
 
             let popup_rect = Rect {
                 x: popup_x,
@@ -394,14 +602,12 @@ pub fn render(frame: &mut Frame, grid_area: Rect, state: &RenderState<'_>) {
                 .unwrap_or(10) as u16;
 
             // inner = 1 pad + name_col + 2 sep + desc_col + 1 pad
-            let inner_w = (1 + name_col + 2 + desc_col + 1)
-                .min(grid_area.width.saturating_sub(4));
+            let inner_w = (1 + name_col + 2 + desc_col + 1).min(grid_area.width.saturating_sub(4));
             let popup_w = inner_w + 2;
             let popup_h = (matches.len() as u16 + 2).min(grid_area.height.saturating_sub(2));
 
-            let (popup_x, popup_y) = place_popup(
-                cell_x, cell_y, cell_h, popup_w, popup_h, grid_area,
-            );
+            let (popup_x, popup_y) =
+                place_popup(cell_x, cell_y, cell_h, popup_w, popup_h, grid_area);
 
             let popup_rect = Rect {
                 x: popup_x,
@@ -420,8 +626,7 @@ pub fn render(frame: &mut Frame, grid_area: Rect, state: &RenderState<'_>) {
                 .iter()
                 .map(|&name| {
                     let desc = find_fn_def(name).map(|d| d.desc).unwrap_or("");
-                    let name_pad =
-                        " ".repeat((max_name_w as usize).saturating_sub(name.len()));
+                    let name_pad = " ".repeat((max_name_w as usize).saturating_sub(name.len()));
                     let desc_trunc: String = desc.chars().take(max_desc_w as usize).collect();
                     Line::from(vec![
                         Span::styled(" ", dim_style),

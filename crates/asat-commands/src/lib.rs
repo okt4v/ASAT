@@ -574,7 +574,14 @@ impl MergeCells {
                     .collect()
             })
             .unwrap_or_default();
-        MergeCells { sheet, row_start, col_start, row_end, col_end, removed_merges }
+        MergeCells {
+            sheet,
+            row_start,
+            col_start,
+            row_end,
+            col_end,
+            removed_merges,
+        }
     }
 }
 
@@ -620,10 +627,16 @@ pub struct UnmergeCells {
 impl UnmergeCells {
     pub fn new(workbook: &Workbook, sheet: usize, row: u32, col: u32) -> Self {
         // Find merge whose anchor is exactly (row, col) OR that contains (row, col)
-        let saved = workbook.sheets.get(sheet).and_then(|s| {
-            s.merge_at(row, col).cloned()
-        });
-        UnmergeCells { sheet, anchor_row: row, anchor_col: col, saved }
+        let saved = workbook
+            .sheets
+            .get(sheet)
+            .and_then(|s| s.merge_at(row, col).cloned());
+        UnmergeCells {
+            sheet,
+            anchor_row: row,
+            anchor_col: col,
+            saved,
+        }
     }
 }
 
@@ -638,7 +651,9 @@ impl Command for UnmergeCells {
             workbook.dirty = true;
             Ok(())
         } else {
-            Err(CommandError::Invalid("no merged cell at cursor".to_string()))
+            Err(CommandError::Invalid(
+                "no merged cell at cursor".to_string(),
+            ))
         }
     }
 

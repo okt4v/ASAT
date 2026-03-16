@@ -12,7 +12,7 @@ use crossterm::{
 use ratatui::{backend::CrosstermBackend, Terminal};
 use regex::Regex;
 
-use asat_commands::{Command, DeleteCol, InsertCol, MergeCells, SetCell, UnmergeCells, UndoStack};
+use asat_commands::{Command, DeleteCol, InsertCol, MergeCells, SetCell, UndoStack, UnmergeCells};
 use asat_config::Config;
 use asat_core::{cell_address, CellStyle, CellValue, Workbook};
 use asat_input::{AppAction, InputState, Mode};
@@ -547,12 +547,20 @@ fn process_action(
                 let at_anchor = input.cursor.row == m.row_start && input.cursor.col == m.col_start;
                 if at_anchor {
                     // Moving out of the anchor: jump past the far edge of the merge
-                    let r = if row_delta > 0 { m.row_end + 1 }
-                            else if row_delta < 0 { m.row_start.saturating_sub(1) }
-                            else { new_row };
-                    let c = if col_delta > 0 { m.col_end + 1 }
-                            else if col_delta < 0 { m.col_start.saturating_sub(1) }
-                            else { new_col };
+                    let r = if row_delta > 0 {
+                        m.row_end + 1
+                    } else if row_delta < 0 {
+                        m.row_start.saturating_sub(1)
+                    } else {
+                        new_row
+                    };
+                    let c = if col_delta > 0 {
+                        m.col_end + 1
+                    } else if col_delta < 0 {
+                        m.col_start.saturating_sub(1)
+                    } else {
+                        new_col
+                    };
                     // The position after the merge might itself be covered by another merge
                     workbook.active().snap_to_anchor(r, c)
                 } else {
@@ -3492,11 +3500,18 @@ fn handle_ex_command(
                         cur.col.max(anchor.col).min(s.max_col()),
                     )
                 } else {
-                    (input.cursor.row, input.cursor.col, input.cursor.row, input.cursor.col)
+                    (
+                        input.cursor.row,
+                        input.cursor.col,
+                        input.cursor.row,
+                        input.cursor.col,
+                    )
                 }
             };
             let sheet_idx = workbook.active_sheet;
-            let cmd = Box::new(MergeCells::new(workbook, sheet_idx, row_start, col_start, row_end, col_end));
+            let cmd = Box::new(MergeCells::new(
+                workbook, sheet_idx, row_start, col_start, row_end, col_end,
+            ));
             match cmd.execute(workbook) {
                 Ok(_) => {
                     undo.push(cmd);
@@ -3575,15 +3590,30 @@ fn set_status(status: &mut Option<(String, std::time::Instant)>, msg: String) {
 /// or `None` if the text is not a recognised sequence member.
 fn cycle_text_sequence(text: &str, delta: i32) -> Option<String> {
     const MONTHS_LONG: [&str; 12] = [
-        "January", "February", "March", "April", "May", "June",
-        "July", "August", "September", "October", "November", "December",
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
     ];
     const MONTHS_SHORT: [&str; 12] = [
-        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
     ];
     const DAYS_LONG: [&str; 7] = [
-        "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday",
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday",
     ];
     const DAYS_SHORT: [&str; 7] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -3694,7 +3724,11 @@ fn cycle_date(text: &str, delta: i32) -> Option<String> {
 
     // Determine layout: (day_idx, month_idx, year_idx, year_is_first)
     #[derive(Clone, Copy)]
-    enum Layout { DMY, MDY, YMD }
+    enum Layout {
+        DMY,
+        MDY,
+        YMD,
+    }
 
     let (layout, two_digit_year) = if parts[0].len() == 4 {
         // YYYY-MM-DD / YYYY.MM.DD / YYYY/MM/DD
@@ -3717,7 +3751,11 @@ fn cycle_date(text: &str, delta: i32) -> Option<String> {
     let (day, month, full_year) = match layout {
         Layout::DMY => {
             let y = if two_digit_year {
-                if n[2] < 70 { 2000 + n[2] } else { 1900 + n[2] }
+                if n[2] < 70 {
+                    2000 + n[2]
+                } else {
+                    1900 + n[2]
+                }
             } else {
                 n[2]
             };
@@ -3735,27 +3773,32 @@ fn cycle_date(text: &str, delta: i32) -> Option<String> {
     let (nd, nm, ny) = add_days_to_date(day, month, full_year, delta);
 
     // Preserve original field widths (zero-padded to original length)
-    let fmt_field = |val: i32, orig: &str| -> String {
-        format!("{:0>width$}", val, width = orig.len())
-    };
+    let fmt_field =
+        |val: i32, orig: &str| -> String { format!("{:0>width$}", val, width = orig.len()) };
 
     Some(match layout {
         Layout::DMY => format!(
             "{}{}{}{}{}",
-            fmt_field(nd, parts[0]), sep,
-            fmt_field(nm, parts[1]), sep,
+            fmt_field(nd, parts[0]),
+            sep,
+            fmt_field(nm, parts[1]),
+            sep,
             fmt_field(if two_digit_year { ny % 100 } else { ny }, parts[2])
         ),
         Layout::MDY => format!(
             "{}{}{}{}{}",
-            fmt_field(nm, parts[0]), sep,
-            fmt_field(nd, parts[1]), sep,
+            fmt_field(nm, parts[0]),
+            sep,
+            fmt_field(nd, parts[1]),
+            sep,
             fmt_field(ny, parts[2])
         ),
         Layout::YMD => format!(
             "{}{}{}{}{}",
-            fmt_field(ny, parts[0]), sep,
-            fmt_field(nm, parts[1]), sep,
+            fmt_field(ny, parts[0]),
+            sep,
+            fmt_field(nm, parts[1]),
+            sep,
             fmt_field(nd, parts[2])
         ),
     })

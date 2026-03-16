@@ -304,7 +304,13 @@ impl Sheet {
 
     /// Add a merge. Returns false if the range is a single cell (nothing to merge).
     /// Any overlapping existing merges are removed first.
-    pub fn add_merge(&mut self, row_start: u32, col_start: u32, row_end: u32, col_end: u32) -> bool {
+    pub fn add_merge(
+        &mut self,
+        row_start: u32,
+        col_start: u32,
+        row_end: u32,
+        col_end: u32,
+    ) -> bool {
         if row_start == row_end && col_start == col_end {
             return false;
         }
@@ -315,7 +321,12 @@ impl Sheet {
                 || m.col_end < col_start
                 || m.col_start > col_end
         });
-        self.merges.push(MergeRegion { row_start, col_start, row_end, col_end });
+        self.merges.push(MergeRegion {
+            row_start,
+            col_start,
+            row_end,
+            col_end,
+        });
         true
     }
 

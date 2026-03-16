@@ -215,27 +215,45 @@ impl<'a> Widget for GridWidget<'a> {
                             .sum::<u16>()
                             .max(col_width);
                         render_data_cell(
-                            buf, x, screen_y, actual_width,
-                            row_idx, col_idx, cursor, &input.mode,
+                            buf,
+                            x,
+                            screen_y,
+                            actual_width,
+                            row_idx,
+                            col_idx,
+                            cursor,
+                            &input.mode,
                             input.visual_anchor.as_ref(),
                             input.search_highlight(row_idx, col_idx),
-                            sheet, &input.edit_buffer, input.formula_origin,
-                            cursor_bg, cell_bg, selection_bg,
-                            number_color, cmd_color, vis_color, insert_color, normal_color,
+                            sheet,
+                            &input.edit_buffer,
+                            input.formula_origin,
+                            cursor_bg,
+                            cell_bg,
+                            selection_bg,
+                            number_color,
+                            cmd_color,
+                            vis_color,
+                            insert_color,
+                            normal_color,
                         );
                         if sheet.notes.contains_key(&(row_idx, col_idx)) {
-                            if let Some(cell) = buf.cell_mut((x + col_width.saturating_sub(1), screen_y)) {
+                            if let Some(cell) =
+                                buf.cell_mut((x + col_width.saturating_sub(1), screen_y))
+                            {
                                 cell.set_char('▸');
                                 cell.set_style(note_marker_style);
                             }
                         }
                     } else if row_idx > m.row_start {
                         // Covered cell in a row below anchor — paint matching background
-                        let is_anchor_cursor = m.row_start == cursor.row && m.col_start == cursor.col;
+                        let is_anchor_cursor =
+                            m.row_start == cursor.row && m.col_start == cursor.col;
                         let bg = if is_anchor_cursor {
                             cursor_bg
                         } else {
-                            sheet.get_cell(m.row_start, m.col_start)
+                            sheet
+                                .get_cell(m.row_start, m.col_start)
                                 .and_then(|c| c.style.as_ref())
                                 .and_then(|s| s.bg.as_ref())
                                 .map(|c| Color::Rgb(c.r, c.g, c.b))
@@ -248,16 +266,32 @@ impl<'a> Widget for GridWidget<'a> {
                 } else {
                     // Normal (non-merged) cell
                     render_data_cell(
-                        buf, x, screen_y, col_width,
-                        row_idx, col_idx, cursor, &input.mode,
+                        buf,
+                        x,
+                        screen_y,
+                        col_width,
+                        row_idx,
+                        col_idx,
+                        cursor,
+                        &input.mode,
                         input.visual_anchor.as_ref(),
                         input.search_highlight(row_idx, col_idx),
-                        sheet, &input.edit_buffer, input.formula_origin,
-                        cursor_bg, cell_bg, selection_bg,
-                        number_color, cmd_color, vis_color, insert_color, normal_color,
+                        sheet,
+                        &input.edit_buffer,
+                        input.formula_origin,
+                        cursor_bg,
+                        cell_bg,
+                        selection_bg,
+                        number_color,
+                        cmd_color,
+                        vis_color,
+                        insert_color,
+                        normal_color,
                     );
                     if sheet.notes.contains_key(&(row_idx, col_idx)) {
-                        if let Some(cell) = buf.cell_mut((x + col_width.saturating_sub(1), screen_y)) {
+                        if let Some(cell) =
+                            buf.cell_mut((x + col_width.saturating_sub(1), screen_y))
+                        {
                             cell.set_char('▸');
                             cell.set_style(note_marker_style);
                         }
@@ -399,16 +433,32 @@ impl<'a> Widget for GridWidget<'a> {
                             .sum::<u16>()
                             .max(*col_width);
                         render_data_cell(
-                            buf, x, screen_y, actual_width,
-                            row_idx, *col_idx, cursor, &input.mode,
+                            buf,
+                            x,
+                            screen_y,
+                            actual_width,
+                            row_idx,
+                            *col_idx,
+                            cursor,
+                            &input.mode,
                             input.visual_anchor.as_ref(),
                             input.search_highlight(row_idx, *col_idx),
-                            sheet, &input.edit_buffer, input.formula_origin,
-                            cursor_bg, cell_bg, selection_bg,
-                            number_color, cmd_color, vis_color, insert_color, normal_color,
+                            sheet,
+                            &input.edit_buffer,
+                            input.formula_origin,
+                            cursor_bg,
+                            cell_bg,
+                            selection_bg,
+                            number_color,
+                            cmd_color,
+                            vis_color,
+                            insert_color,
+                            normal_color,
                         );
                         if sheet.notes.contains_key(&(row_idx, *col_idx)) {
-                            if let Some(cell) = buf.cell_mut((x + col_width.saturating_sub(1), screen_y)) {
+                            if let Some(cell) =
+                                buf.cell_mut((x + col_width.saturating_sub(1), screen_y))
+                            {
                                 cell.set_char('▸');
                                 cell.set_style(note_marker_style);
                             }
@@ -422,11 +472,13 @@ impl<'a> Widget for GridWidget<'a> {
                             .map(|(_, w)| *w)
                             .sum::<u16>()
                             .max(*col_width);
-                        let is_anchor_cursor = m.row_start == cursor.row && m.col_start == cursor.col;
+                        let is_anchor_cursor =
+                            m.row_start == cursor.row && m.col_start == cursor.col;
                         let bg = if is_anchor_cursor {
                             cursor_bg
                         } else {
-                            sheet.get_cell(m.row_start, m.col_start)
+                            sheet
+                                .get_cell(m.row_start, m.col_start)
                                 .and_then(|c| c.style.as_ref())
                                 .and_then(|s| s.bg.as_ref())
                                 .map(|c| Color::Rgb(c.r, c.g, c.b))
@@ -447,11 +499,22 @@ impl<'a> Widget for GridWidget<'a> {
                                 .take(chunk_size)
                                 .collect();
                             let style = Style::default()
-                                .fg(if is_anchor_cursor { Color::Black } else { Color::White })
+                                .fg(if is_anchor_cursor {
+                                    Color::Black
+                                } else {
+                                    Color::White
+                                })
                                 .bg(bg);
                             render_cell_str(buf, x, screen_y, actual_width, &chunk, style);
                         } else {
-                            render_cell_str(buf, x, screen_y, actual_width, "", Style::default().bg(bg));
+                            render_cell_str(
+                                buf,
+                                x,
+                                screen_y,
+                                actual_width,
+                                "",
+                                Style::default().bg(bg),
+                            );
                         }
                     }
                     // row == m.row_start, col != m.col_start: same-row covered, anchor painted it.
@@ -459,16 +522,32 @@ impl<'a> Widget for GridWidget<'a> {
                 } else {
                     // Normal (non-merged) cell
                     render_data_cell(
-                        buf, x, screen_y, *col_width,
-                        row_idx, *col_idx, cursor, &input.mode,
+                        buf,
+                        x,
+                        screen_y,
+                        *col_width,
+                        row_idx,
+                        *col_idx,
+                        cursor,
+                        &input.mode,
                         input.visual_anchor.as_ref(),
                         input.search_highlight(row_idx, *col_idx),
-                        sheet, &input.edit_buffer, input.formula_origin,
-                        cursor_bg, cell_bg, selection_bg,
-                        number_color, cmd_color, vis_color, insert_color, normal_color,
+                        sheet,
+                        &input.edit_buffer,
+                        input.formula_origin,
+                        cursor_bg,
+                        cell_bg,
+                        selection_bg,
+                        number_color,
+                        cmd_color,
+                        vis_color,
+                        insert_color,
+                        normal_color,
                     );
                     if sheet.notes.contains_key(&(row_idx, *col_idx)) {
-                        if let Some(cell) = buf.cell_mut((x + col_width.saturating_sub(1), screen_y)) {
+                        if let Some(cell) =
+                            buf.cell_mut((x + col_width.saturating_sub(1), screen_y))
+                        {
                             cell.set_char('▸');
                             cell.set_style(note_marker_style);
                         }
