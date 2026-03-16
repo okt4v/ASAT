@@ -292,12 +292,42 @@ fn run_app(
         // Render
         terminal.draw(|frame| {
             let msg_ref = status_message.as_ref().map(|(m, _)| m.as_str());
+            let formula_preview = if matches!(input_state.mode, Mode::Insert { .. })
+                && input_state.edit_buffer.starts_with('=')
+                && input_state.edit_buffer.len() > 1
+            {
+                let formula_str = &input_state.edit_buffer[1..];
+                let sheet_idx = workbook.active_sheet;
+                let row = input_state.cursor.row;
+                let col = input_state.cursor.col;
+                let val = asat_formula::evaluate(formula_str, &workbook, sheet_idx, row, col);
+                Some(val.display())
+            } else {
+                None
+            };
+            // Collect cell references for formula highlight (Feature 3)
+            let ref_cells: std::collections::HashSet<(u32, u32)> =
+                if matches!(input_state.mode, Mode::Normal) {
+                    let row = input_state.cursor.row;
+                    let col = input_state.cursor.col;
+                    match workbook.active().get_raw_value(row, col) {
+                        asat_core::CellValue::Formula(f) => {
+                            asat_formula::collect_cell_refs(f).into_iter().collect()
+                        }
+                        _ => std::collections::HashSet::new(),
+                    }
+                } else {
+                    std::collections::HashSet::new()
+                };
+
             let state = RenderState {
                 workbook: &workbook,
                 input: &input_state,
                 status_message: msg_ref,
                 show_side_panel: false,
                 config: &config,
+                formula_preview,
+                ref_cells,
             };
             render(frame, &state);
         })?;
@@ -1900,6 +1930,117 @@ fn process_action(
             }
         }
 
+        // ── Auto-Fill Series Down ──
+        AppAction::AutoFillDown {
+            row_start,
+            row_end,
+            col_start,
+            col_end,
+        } => {
+            let sheet_idx = workbook.active_sheet;
+            let col_end_c = col_end.min(workbook.active().max_col());
+            let mut cmds: Vec<Box<dyn asat_commands::Command>> = Vec::new();
+            for c in col_start..=col_end_c {
+                // Collect seed: up to first 2 rows
+                let seed_end = (row_start + 1).min(row_end);
+                let seed: Vec<CellValue> = (row_start..=seed_end)
+                    .map(|r| workbook.active().get_raw_value(r, c).clone())
+                    .collect();
+                let seed_len = seed.len() as u32;
+                if row_end < row_start + seed_len {
+                    // Selection is entirely within the seed — nothing to fill
+                    continue;
+                }
+                let filler = auto_fill_series(&seed);
+                for r in (row_start + seed_len)..=row_end {
+                    let idx = (r - row_start - seed_len) as usize;
+                    let new_value = filler(idx);
+                    let old_cell = workbook.active().get_cell(r, c);
+                    let old_val = old_cell
+                        .map(|x| x.value.clone())
+                        .unwrap_or(CellValue::Empty);
+                    let old_style = old_cell.and_then(|x| x.style.clone());
+                    cmds.push(Box::new(SetCell {
+                        sheet: sheet_idx,
+                        row: r,
+                        col: c,
+                        old_value: old_val,
+                        new_value,
+                        old_style,
+                        new_style: None,
+                    }));
+                }
+            }
+            if !cmds.is_empty() {
+                let grouped = Box::new(asat_commands::GroupedCommand {
+                    description: "auto-fill series down".to_string(),
+                    commands: cmds,
+                });
+                match grouped.execute(workbook) {
+                    Ok(_) => {
+                        undo.push(grouped);
+                        set_status(status, "Auto-fill series down".to_string());
+                    }
+                    Err(e) => set_status(status, format!("Error: {}", e)),
+                }
+            }
+        }
+
+        // ── Auto-Fill Series Right ──
+        AppAction::AutoFillRight {
+            row_start,
+            row_end,
+            col_start,
+            col_end,
+        } => {
+            let sheet_idx = workbook.active_sheet;
+            let row_end_c = row_end;
+            let mut cmds: Vec<Box<dyn asat_commands::Command>> = Vec::new();
+            for r in row_start..=row_end_c {
+                // Collect seed: up to first 2 columns
+                let seed_end = (col_start + 1).min(col_end);
+                let seed: Vec<CellValue> = (col_start..=seed_end)
+                    .map(|c| workbook.active().get_raw_value(r, c).clone())
+                    .collect();
+                let seed_len = seed.len() as u32;
+                if col_end < col_start + seed_len {
+                    continue;
+                }
+                let filler = auto_fill_series(&seed);
+                for c in (col_start + seed_len)..=col_end {
+                    let idx = (c - col_start - seed_len) as usize;
+                    let new_value = filler(idx);
+                    let old_cell = workbook.active().get_cell(r, c);
+                    let old_val = old_cell
+                        .map(|x| x.value.clone())
+                        .unwrap_or(CellValue::Empty);
+                    let old_style = old_cell.and_then(|x| x.style.clone());
+                    cmds.push(Box::new(SetCell {
+                        sheet: sheet_idx,
+                        row: r,
+                        col: c,
+                        old_value: old_val,
+                        new_value,
+                        old_style,
+                        new_style: None,
+                    }));
+                }
+            }
+            if !cmds.is_empty() {
+                let grouped = Box::new(asat_commands::GroupedCommand {
+                    description: "auto-fill series right".to_string(),
+                    commands: cmds,
+                });
+                match grouped.execute(workbook) {
+                    Ok(_) => {
+                        undo.push(grouped);
+                        set_status(status, "Auto-fill series right".to_string());
+                    }
+                    Err(e) => set_status(status, format!("Error: {}", e)),
+                }
+            }
+        }
+
         // ── Goto cell ──
         AppAction::GotoCell(addr) => {
             if let Some((r, c)) = parse_cell_address(&addr) {
@@ -1982,6 +2123,83 @@ fn process_action(
             } else {
                 undo.push(cmd);
                 set_status(status, format!("Unmerged {}", cell_address(row, col)));
+            }
+        }
+
+        // ── Repeat last change (.) ──
+        AppAction::RepeatLastChange => {
+            let keys = input.last_edit_keys.clone();
+            // Temporarily disable recording so replay doesn't overwrite last_edit_keys
+            let was_recording = input.recording_edit;
+            input.recording_edit = false;
+            replay_macro(
+                keys,
+                workbook,
+                input,
+                undo,
+                status,
+                config,
+                plugins,
+                visible_rows,
+                visible_cols,
+                edit_count,
+            );
+            input.recording_edit = was_recording;
+        }
+
+        // ── Change inner text object (ci"/ci'/ etc.) ──
+        AppAction::ChangeInner { open, close } => {
+            let sheet_idx = workbook.active_sheet;
+            let row = input.cursor.row;
+            let col = input.cursor.col;
+            let cell_str = workbook.active().get_value(row, col).display();
+            // Find innermost pair of open..close delimiters
+            let open_pos = cell_str.find(open);
+            let close_pos = cell_str.rfind(close);
+            if let (Some(op), Some(cp)) = (open_pos, close_pos) {
+                // Ensure the closing delimiter is after the opening one
+                // (or at least not the same character position for symmetric delimiters)
+                let inner_start = op + open.len_utf8();
+                if cp > op || (open == close && cp >= op) {
+                    let inner_end = cp;
+                    let inner_end = if inner_end > inner_start {
+                        inner_end
+                    } else {
+                        inner_start
+                    };
+                    let inner = cell_str[inner_start..inner_end].to_string();
+                    let prefix = cell_str[..inner_start].to_string();
+                    let suffix = cell_str[inner_end..].to_string();
+                    // Clear the cell first (for undo)
+                    let cmd = Box::new(SetCell::new(
+                        workbook,
+                        sheet_idx,
+                        row,
+                        col,
+                        CellValue::Empty,
+                    ));
+                    if let Err(e) = cmd.execute(workbook) {
+                        set_status(status, format!("Error: {}", e));
+                        return ActionResult::Continue;
+                    }
+                    undo.push(cmd);
+                    // Set up edit buffer with inner content; store prefix/suffix
+                    input.edit_buffer = inner;
+                    input.edit_cursor_pos = input.edit_buffer.len();
+                    input.ci_prefix = prefix;
+                    input.ci_suffix = suffix;
+                    input.mode = Mode::Insert { replace: false };
+                } else {
+                    // No valid delimiters found — just enter insert mode normally
+                    input.edit_buffer = cell_str;
+                    input.edit_cursor_pos = input.edit_buffer.len();
+                    input.mode = Mode::Insert { replace: false };
+                }
+            } else {
+                // Delimiter not found — enter insert mode normally
+                input.edit_buffer = cell_str;
+                input.edit_cursor_pos = input.edit_buffer.len();
+                input.mode = Mode::Insert { replace: false };
             }
         }
 
@@ -2881,10 +3099,25 @@ fn handle_ex_command(
         },
         // ── Sort ──
         "sort" | "so" => {
-            // :sort [asc|desc]  — sort all rows by the current cursor column
-            let descending = arg.trim().eq_ignore_ascii_case("desc");
+            // :sort [<col>][!|desc]  — sort rows by a column letter or cursor column
+            // Parse optional column letter prefix (A–Z, AA, AB, …)
+            let arg = arg.trim();
+            let (col, rest) = {
+                let bytes = arg.as_bytes();
+                let letter_end = bytes.iter().take_while(|b| b.is_ascii_uppercase()).count();
+                if letter_end > 0 {
+                    let letters = &arg[..letter_end];
+                    let idx = letters
+                        .chars()
+                        .fold(0u32, |acc, c| acc * 26 + (c as u32 - 'A' as u32 + 1))
+                        - 1;
+                    (idx, arg[letter_end..].trim())
+                } else {
+                    (input.cursor.col, arg)
+                }
+            };
+            let descending = rest == "!" || rest.eq_ignore_ascii_case("desc");
             let sheet_idx = workbook.active_sheet;
-            let col = input.cursor.col;
             let sheet = workbook.active();
 
             if sheet.cells.is_empty() {
@@ -3313,100 +3546,116 @@ fn handle_ex_command(
 
         // ── Conditional formatting ──
         "colfmt" | "cf" => {
-            // :colfmt <op> <val> <color>  e.g. :colfmt >100 red
-            // This applies a bg colour to all cells in the selection matching the condition
-            let fparts: Vec<&str> = arg.splitn(3, ' ').collect();
-            if fparts.len() < 2 {
+            // :cf <range> <condition> <value> bg=<hex> [fg=<hex>]
+            // :cf clear — remove all CF rules from active sheet
+            // :cf list  — show CF rule count
+            use asat_core::{CfCondition, ConditionalFormat};
+
+            if arg.trim() == "clear" {
+                workbook.active_mut().conditional_formats.clear();
+                workbook.dirty = true;
+                set_status(status, "Conditional formats cleared".to_string());
+                return ActionResult::Continue;
+            }
+            if arg.trim() == "list" {
+                let n = workbook.active().conditional_formats.len();
+                set_status(status, format!("{} conditional format rule(s)", n));
+                return ActionResult::Continue;
+            }
+
+            // Tokenise by whitespace, preserving bg=... fg=... tokens
+            let tokens: Vec<&str> = arg.split_whitespace().collect();
+            // Minimum: <range> <cond> [<value>] bg=<hex>
+            if tokens.len() < 3 {
                 set_status(
                     status,
-                    "Usage: :colfmt <op> <val> [color]  e.g. :colfmt >100 red".to_string(),
+                    "Usage: :cf <range> <cond> [val] bg=#rrggbb [fg=#rrggbb]".to_string(),
                 );
-            } else {
-                // op+val may be merged like ">100" or split as "> 100"
-                let (op_val, color_arg) = if fparts.len() == 2 {
-                    (format!("{} {}", fparts[0], fparts[1]), None)
-                } else {
-                    (format!("{} {}", fparts[0], fparts[1]), Some(fparts[2]))
-                };
-                let _ = op_val;
-                let op = fparts[0];
-                let val_str = fparts[1];
-                let color_str = color_arg.unwrap_or("yellow");
-                let val_num = val_str.parse::<f64>().ok();
+                return ActionResult::Continue;
+            }
 
-                let bg = parse_color_arg(color_str);
-                if bg.is_none() {
-                    set_status(status, format!("Unknown color: {}", color_str));
+            // Parse range (first token). Support whole-column like "A:A" by treating as
+            // full-sheet rows.
+            let range_str = tokens[0];
+            let sheet_idx = workbook.active_sheet;
+            let (row_start, col_start, row_end, col_end) =
+                if let Some(cr) = parse_range_address_cf(range_str, sheet_idx, workbook) {
+                    (cr.row_start, cr.col_start, cr.row_end, cr.col_end)
+                } else {
+                    set_status(status, format!("Invalid range: {}", range_str));
+                    return ActionResult::Continue;
+                };
+
+            // Parse condition keyword + optional value
+            let cond_str = tokens[1];
+            let val_token = tokens.get(2).copied().unwrap_or("");
+
+            // Collect bg= fg= tokens (may be at index 2 or 3 depending on whether
+            // condition takes a value)
+            let mut bg_hex: Option<String> = None;
+            let mut fg_hex: Option<String> = None;
+            for tok in &tokens {
+                if let Some(rest) = tok.strip_prefix("bg=") {
+                    bg_hex = Some(rest.to_string());
+                } else if let Some(rest) = tok.strip_prefix("fg=") {
+                    fg_hex = Some(rest.to_string());
+                }
+            }
+
+            if bg_hex.is_none() {
+                set_status(
+                    status,
+                    "Usage: :cf <range> <cond> [val] bg=#rrggbb [fg=#rrggbb]".to_string(),
+                );
+                return ActionResult::Continue;
+            }
+
+            // Parse value for numeric conditions; for "contains" it stays as string
+            let condition: Option<CfCondition> = match cond_str {
+                ">" => val_token.parse::<f64>().ok().map(CfCondition::Gt),
+                "<" => val_token.parse::<f64>().ok().map(CfCondition::Lt),
+                ">=" => val_token.parse::<f64>().ok().map(CfCondition::Gte),
+                "<=" => val_token.parse::<f64>().ok().map(CfCondition::Lte),
+                "=" | "==" => val_token.parse::<f64>().ok().map(CfCondition::Eq),
+                "!=" | "<>" => val_token.parse::<f64>().ok().map(CfCondition::Ne),
+                "contains" => Some(CfCondition::Contains(val_token.to_string())),
+                "blank" | "isblank" => Some(CfCondition::IsBlank),
+                "error" | "iserror" => Some(CfCondition::IsError),
+                _ => None,
+            };
+
+            let condition = match condition {
+                Some(c) => c,
+                None => {
+                    set_status(
+                        status,
+                        format!(
+                            "Unknown condition: {}.  Use >, <, >=, <=, =, !=, contains, blank, error",
+                            cond_str
+                        ),
+                    );
                     return ActionResult::Continue;
                 }
-                let bg_color = bg.unwrap();
-                let fg_color = if color_is_dark(&bg_color) {
-                    asat_core::Color::rgb(240, 240, 240)
-                } else {
-                    asat_core::Color::rgb(20, 20, 20)
-                };
+            };
 
-                let sheet_idx = workbook.active_sheet;
-                let (row_start, col_start, row_end, col_end) = {
-                    if let Some(anchor) = &input.visual_anchor {
-                        let cur = input.cursor;
-                        let s = workbook.active();
-                        (
-                            cur.row.min(anchor.row),
-                            cur.col.min(anchor.col),
-                            cur.row.max(anchor.row).min(s.max_row()),
-                            cur.col.max(anchor.col).min(s.max_col()),
-                        )
-                    } else {
-                        let s = workbook.active();
-                        (0, input.cursor.col, s.max_row(), input.cursor.col)
-                    }
-                };
-
-                let mut cmds: Vec<Box<dyn asat_commands::Command>> = Vec::new();
-                for r in row_start..=row_end {
-                    for c in col_start..=col_end {
-                        let cv = workbook.active().get_value(r, c).clone();
-                        if filter_row_matches(&cv, op, val_str, val_num) {
-                            let old_cell = workbook.active().get_cell(r, c);
-                            let old_val = old_cell
-                                .map(|x| x.value.clone())
-                                .unwrap_or(CellValue::Empty);
-                            let old_style = old_cell.and_then(|x| x.style.clone());
-                            let mut new_style = old_style.clone().unwrap_or_default();
-                            new_style.bg = Some(bg_color);
-                            new_style.fg = Some(fg_color);
-                            cmds.push(Box::new(SetCell {
-                                sheet: sheet_idx,
-                                row: r,
-                                col: c,
-                                old_value: old_val.clone(),
-                                new_value: old_val,
-                                old_style,
-                                new_style: Some(new_style),
-                            }));
-                        }
-                    }
-                }
-                let n = cmds.len();
-                if cmds.is_empty() {
-                    set_status(status, "No cells matched the condition".to_string());
-                } else {
-                    let grouped = Box::new(asat_commands::GroupedCommand {
-                        description: "conditional format".to_string(),
-                        commands: cmds,
-                    });
-                    match grouped.execute(workbook) {
-                        Ok(_) => {
-                            undo.push(grouped);
-                            set_status(status, format!("{} cell(s) highlighted", n));
-                        }
-                        Err(e) => set_status(status, format!("Error: {}", e)),
-                    }
-                }
-                input.visual_anchor = None;
-                input.mode = asat_input::Mode::Normal;
-            }
+            let cf = ConditionalFormat {
+                row_start,
+                col_start,
+                row_end,
+                col_end,
+                condition,
+                bg: bg_hex,
+                fg: fg_hex,
+            };
+            workbook.active_mut().conditional_formats.push(cf);
+            workbook.dirty = true;
+            let n = workbook.active().conditional_formats.len();
+            set_status(
+                status,
+                format!("Conditional format rule added (total: {})", n),
+            );
+            input.visual_anchor = None;
+            input.mode = asat_input::Mode::Normal;
         }
 
         // ── Fill down / fill right via ex-command ──
@@ -3905,6 +4154,127 @@ fn filter_row_matches(val: &CellValue, op: &str, val_str: &str, val_num: Option<
         "<>" | "!=" => cell_text != needle,
         _ => cell_text.contains(&needle),
     }
+}
+
+/// Parse a range for CF rules, also accepting whole-column ranges like "A:A" or "A:C".
+/// Falls back to parse_range_address, then tries to interpret a bare column letter range.
+fn parse_range_address_cf(
+    s: &str,
+    sheet: usize,
+    workbook: &Workbook,
+) -> Option<asat_core::CellRange> {
+    let upper = s.trim().to_uppercase();
+    // Handle "A:A" or "A:C" — letter-only ranges meaning entire column(s)
+    if let Some(colon) = upper.find(':') {
+        let left = &upper[..colon];
+        let right = &upper[colon + 1..];
+        // Both sides pure letters → whole-column range
+        if left.chars().all(|c| c.is_ascii_alphabetic())
+            && right.chars().all(|c| c.is_ascii_alphabetic())
+        {
+            let c1 = asat_core::letter_to_col(left)?;
+            let c2 = asat_core::letter_to_col(right)?;
+            let max_row = workbook.active().max_row().max(9999);
+            return Some(asat_core::CellRange::new(
+                sheet,
+                0,
+                c1.min(c2),
+                max_row,
+                c1.max(c2),
+            ));
+        }
+    }
+    parse_range_address(s, sheet)
+}
+
+// ── Auto-fill series detection ────────────────────────────────────────────────
+
+const WEEKDAYS: &[&str] = &["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const MONTHS: &[&str] = &[
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+fn weekday_index(s: &str) -> Option<usize> {
+    let lower = s.to_ascii_lowercase();
+    WEEKDAYS
+        .iter()
+        .position(|w| w.to_ascii_lowercase() == lower)
+}
+
+fn month_index(s: &str) -> Option<usize> {
+    let lower = s.to_ascii_lowercase();
+    MONTHS.iter().position(|m| m.to_ascii_lowercase() == lower)
+}
+
+/// Given a seed slice of CellValues, return a closure that produces
+/// the i-th fill value (0 = first cell *after* the seed).
+fn auto_fill_series(seed: &[CellValue]) -> Box<dyn Fn(usize) -> CellValue> {
+    if seed.is_empty() {
+        return Box::new(|_| CellValue::Empty);
+    }
+
+    // Try numeric arithmetic
+    let nums: Option<Vec<f64>> = seed
+        .iter()
+        .map(|v| {
+            if let CellValue::Number(n) = v {
+                Some(*n)
+            } else {
+                None
+            }
+        })
+        .collect();
+    if let Some(ns) = nums {
+        let start = ns[0];
+        let step = if ns.len() >= 2 { ns[1] - ns[0] } else { 1.0 };
+        let seed_len = ns.len() as f64;
+        return Box::new(move |i| CellValue::Number(start + (seed_len + i as f64) * step));
+    }
+
+    // Try weekday cycle
+    let wdays: Option<Vec<usize>> = seed
+        .iter()
+        .map(|v| {
+            if let CellValue::Text(s) = v {
+                weekday_index(s)
+            } else {
+                None
+            }
+        })
+        .collect();
+    if let Some(wd) = wdays {
+        let seed_len = wd.len();
+        let first = wd[0];
+        return Box::new(move |i| {
+            let idx = (first + seed_len + i) % WEEKDAYS.len();
+            CellValue::Text(WEEKDAYS[idx].to_string())
+        });
+    }
+
+    // Try month cycle
+    let mths: Option<Vec<usize>> = seed
+        .iter()
+        .map(|v| {
+            if let CellValue::Text(s) = v {
+                month_index(s)
+            } else {
+                None
+            }
+        })
+        .collect();
+    if let Some(ms) = mths {
+        let seed_len = ms.len();
+        let first = ms[0];
+        return Box::new(move |i| {
+            let idx = (first + seed_len + i) % MONTHS.len();
+            CellValue::Text(MONTHS[idx].to_string())
+        });
+    }
+
+    // Fallback: cycle through seed values
+    let owned: Vec<CellValue> = seed.to_vec();
+    let seed_len = owned.len();
+    Box::new(move |i| owned[(seed_len + i) % seed_len].clone())
 }
 
 /// Keep `input.subcmd_completions` in sync with the current command buffer.

@@ -484,6 +484,15 @@ pub enum AppAction {
         col: u32,
     }, // U in normal
 
+    // ── Repeat last change ──
+    RepeatLastChange, // . — replay last edit key sequence
+
+    // ── Change inner text object ──
+    ChangeInner {
+        open: char,
+        close: char,
+    }, // ci" / ci' / ci( / ci[ / ci{ / ci<
+
     // ── Fill ──
     /// Fill the anchor row/col values down / right across the selection
     FillDown {
@@ -496,6 +505,20 @@ pub enum AppAction {
         anchor_col: u32,
         row_start: u32,
         row_end: u32,
+        col_end: u32,
+    },
+    /// Auto-fill a series downward (detect arithmetic / weekday / month patterns)
+    AutoFillDown {
+        row_start: u32,
+        row_end: u32,
+        col_start: u32,
+        col_end: u32,
+    },
+    /// Auto-fill a series rightward
+    AutoFillRight {
+        row_start: u32,
+        row_end: u32,
+        col_start: u32,
         col_end: u32,
     },
 
@@ -592,6 +615,16 @@ pub struct InputState {
 
     key_buffer: Vec<KeyEvent>,
     count_buffer: String,
+
+    /// Keys captured during the last edit (for `.` repeat)
+    pub last_edit_keys: Vec<KeyEvent>,
+    /// True while we are recording keystrokes into last_edit_keys
+    pub recording_edit: bool,
+
+    /// Prefix text stored before the inner-object when using ci"/ci'/ etc.
+    pub ci_prefix: String,
+    /// Suffix text stored after the inner-object when using ci"/ci'/ etc.
+    pub ci_suffix: String,
 }
 
 impl InputState {
@@ -632,6 +665,10 @@ impl InputState {
             fn_completion_idx: None,
             key_buffer: Vec::new(),
             count_buffer: String::new(),
+            last_edit_keys: Vec::new(),
+            recording_edit: false,
+            ci_prefix: String::new(),
+            ci_suffix: String::new(),
         }
     }
 
@@ -803,6 +840,24 @@ impl InputState {
 
         // ── Pending multi-key sequence ────────────────────────────────────────
         if !self.key_buffer.is_empty() {
+            // Handle 3-key sequence: c i <delim>
+            if self.key_buffer.len() == 2
+                && self.key_buffer[0].code == KeyCode::Char('c')
+                && self.key_buffer[1].code == KeyCode::Char('i')
+            {
+                self.key_buffer.clear();
+                let (open, close) = match key.code {
+                    KeyCode::Char('"') => ('"', '"'),
+                    KeyCode::Char('\'') => ('\'', '\''),
+                    KeyCode::Char('(') | KeyCode::Char(')') => ('(', ')'),
+                    KeyCode::Char('[') | KeyCode::Char(']') => ('[', ']'),
+                    KeyCode::Char('{') | KeyCode::Char('}') => ('{', '}'),
+                    KeyCode::Char('<') | KeyCode::Char('>') => ('<', '>'),
+                    _ => return vec![AppAction::NoOp],
+                };
+                return vec![AppAction::ChangeInner { open, close }];
+            }
+
             let first = self.key_buffer[0].code;
             let _first_ctrl = self.key_buffer[0].modifiers.contains(KeyModifiers::CONTROL);
             self.key_buffer.clear();
@@ -826,13 +881,25 @@ impl InputState {
 
                 // dd / dc / dC / dj / dk
                 (KeyCode::Char('d'), KeyCode::Char('d')) => {
+                    self.last_edit_keys = vec![
+                        KeyEvent::new(KeyCode::Char('d'), KeyModifiers::NONE),
+                        KeyEvent::new(KeyCode::Char('d'), KeyModifiers::NONE),
+                    ];
                     (0..n).map(|_| AppAction::DeleteCurrentRow).collect()
                 }
                 (KeyCode::Char('d'), KeyCode::Char('c')) => {
                     // dc — clear cell content (same as x)
+                    self.last_edit_keys = vec![
+                        KeyEvent::new(KeyCode::Char('d'), KeyModifiers::NONE),
+                        KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE),
+                    ];
                     (0..n).map(|_| AppAction::DeleteCellContent).collect()
                 }
                 (KeyCode::Char('d'), KeyCode::Char('C')) => {
+                    self.last_edit_keys = vec![
+                        KeyEvent::new(KeyCode::Char('d'), KeyModifiers::NONE),
+                        KeyEvent::new(KeyCode::Char('C'), KeyModifiers::NONE),
+                    ];
                     (0..n).map(|_| AppAction::DeleteCurrentCol).collect()
                 }
                 (KeyCode::Char('d'), KeyCode::Char('j')) => {
@@ -920,9 +987,23 @@ impl InputState {
 
                 // c{c} — change cell
                 (KeyCode::Char('c'), KeyCode::Char('c')) => {
+                    self.recording_edit = true;
+                    self.last_edit_keys = vec![
+                        KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE),
+                        KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE),
+                    ];
                     self.edit_buffer.clear();
                     self.edit_cursor_pos = 0;
                     vec![AppAction::ChangeCell]
+                }
+
+                // c i — wait for delimiter (3-key sequence)
+                (KeyCode::Char('c'), KeyCode::Char('i')) => {
+                    // Rebuild the two-key prefix so the 3-key handler can pick it up
+                    self.key_buffer
+                        .push(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE));
+                    self.key_buffer.push(key); // push the 'i' key
+                    vec![AppAction::NoOp]
                 }
 
                 // yS — yank (copy) the current cell's style
@@ -1071,6 +1152,8 @@ impl InputState {
                     .get_value(self.cursor.row, self.cursor.col);
                 self.edit_buffer = val.formula_bar_display();
                 self.edit_cursor_pos = self.edit_buffer.len();
+                self.recording_edit = true;
+                self.last_edit_keys = vec![key];
                 vec![AppAction::EnterInsert { replace: false }]
             }
             KeyCode::Char('i') => {
@@ -1079,6 +1162,8 @@ impl InputState {
                     .get_value(self.cursor.row, self.cursor.col);
                 self.edit_buffer = val.formula_bar_display();
                 self.edit_cursor_pos = self.edit_buffer.len();
+                self.recording_edit = true;
+                self.last_edit_keys = vec![key];
                 vec![AppAction::EnterInsert { replace: false }]
             }
             KeyCode::Char('a') => {
@@ -1087,32 +1172,47 @@ impl InputState {
                     .get_value(self.cursor.row, self.cursor.col);
                 self.edit_buffer = val.formula_bar_display();
                 self.edit_cursor_pos = self.edit_buffer.len();
+                self.recording_edit = true;
+                self.last_edit_keys = vec![key];
                 vec![AppAction::EnterInsert { replace: false }]
             }
-            // c — change: buffer for cc, but single c acts on cell too
+            // c — change: buffer for cc, ci<delim>, but single c waits for next key
             KeyCode::Char('c') if !ctrl => {
                 self.key_buffer.push(key);
                 vec![AppAction::NoOp]
             }
             // s — substitute (clear + insert, no need for 2nd key)
             KeyCode::Char('s') => {
+                self.recording_edit = true;
+                self.last_edit_keys = vec![key];
                 self.edit_buffer.clear();
                 self.edit_cursor_pos = 0;
                 vec![AppAction::ChangeCell]
             }
             // r — replace mode
             KeyCode::Char('r') if !ctrl => {
+                self.recording_edit = true;
+                self.last_edit_keys = vec![key];
                 self.edit_buffer.clear();
                 self.edit_cursor_pos = 0;
                 vec![AppAction::EnterInsert { replace: true }]
             }
             // D — delete cell content
-            KeyCode::Char('D') => vec![AppAction::DeleteCellContent],
+            KeyCode::Char('D') => {
+                self.last_edit_keys = vec![key];
+                (0..n).map(|_| AppAction::DeleteCellContent).collect()
+            }
             // x / Del — delete cell content
-            KeyCode::Char('x') | KeyCode::Delete => vec![AppAction::DeleteCellContent],
+            KeyCode::Char('x') | KeyCode::Delete => {
+                self.last_edit_keys = vec![key];
+                (0..n).map(|_| AppAction::DeleteCellContent).collect()
+            }
 
             // ~ — toggle case
-            KeyCode::Char('~') => vec![AppAction::ToggleCase],
+            KeyCode::Char('~') => {
+                self.last_edit_keys = vec![key];
+                (0..n).map(|_| AppAction::ToggleCase).collect()
+            }
 
             // d prefix — dd or bail
             KeyCode::Char('d') if !ctrl => {
@@ -1247,6 +1347,10 @@ impl InputState {
                 self.count_buffer.clear();
                 vec![AppAction::ClearSearch]
             }
+
+            // . — repeat last change
+            KeyCode::Char('.') => vec![AppAction::RepeatLastChange],
+
             _ => vec![AppAction::NoOp],
         }
     }
@@ -1400,6 +1504,15 @@ impl InputState {
 
     fn handle_insert(&mut self, key: KeyEvent, _replace: bool) -> Vec<AppAction> {
         let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
+
+        // Record keystrokes for `.` repeat
+        if self.recording_edit {
+            self.last_edit_keys.push(key);
+            // If this is Esc or Enter, stop recording after this key
+            if matches!(key.code, KeyCode::Esc | KeyCode::Enter | KeyCode::Tab) {
+                self.recording_edit = false;
+            }
+        }
         match key.code {
             // Ctrl+R while editing a formula → enter cell-reference picking mode
             KeyCode::Char('r') if ctrl && self.edit_buffer.starts_with('=') => {
@@ -1480,11 +1593,18 @@ impl InputState {
             }
 
             KeyCode::Esc if !ctrl => {
-                let value = parse_cell_value(&self.edit_buffer);
+                let combined = if !self.ci_prefix.is_empty() || !self.ci_suffix.is_empty() {
+                    format!("{}{}{}", self.ci_prefix, self.edit_buffer, self.ci_suffix)
+                } else {
+                    self.edit_buffer.clone()
+                };
+                let value = parse_cell_value(&combined);
                 let row = self.cursor.row;
                 let col = self.cursor.col;
                 self.edit_buffer.clear();
                 self.edit_cursor_pos = 0;
+                self.ci_prefix.clear();
+                self.ci_suffix.clear();
                 vec![
                     AppAction::SetCell {
                         sheet: 0,
@@ -1496,11 +1616,18 @@ impl InputState {
                 ]
             }
             KeyCode::Enter => {
-                let value = parse_cell_value(&self.edit_buffer);
+                let combined = if !self.ci_prefix.is_empty() || !self.ci_suffix.is_empty() {
+                    format!("{}{}{}", self.ci_prefix, self.edit_buffer, self.ci_suffix)
+                } else {
+                    self.edit_buffer.clone()
+                };
+                let value = parse_cell_value(&combined);
                 let row = self.cursor.row;
                 let col = self.cursor.col;
                 self.edit_buffer.clear();
                 self.edit_cursor_pos = 0;
+                self.ci_prefix.clear();
+                self.ci_suffix.clear();
                 vec![
                     AppAction::SetCell {
                         sheet: 0,
@@ -1516,11 +1643,18 @@ impl InputState {
                 ]
             }
             KeyCode::Tab => {
-                let value = parse_cell_value(&self.edit_buffer);
+                let combined = if !self.ci_prefix.is_empty() || !self.ci_suffix.is_empty() {
+                    format!("{}{}{}", self.ci_prefix, self.edit_buffer, self.ci_suffix)
+                } else {
+                    self.edit_buffer.clone()
+                };
+                let value = parse_cell_value(&combined);
                 let row = self.cursor.row;
                 let col = self.cursor.col;
                 self.edit_buffer.clear();
                 self.edit_cursor_pos = 0;
+                self.ci_prefix.clear();
+                self.ci_suffix.clear();
                 vec![
                     AppAction::SetCell {
                         sheet: 0,
@@ -1618,6 +1752,34 @@ impl InputState {
                             anchor_col: col_start,
                             row_start,
                             row_end: row_end_c,
+                            col_end,
+                        },
+                        AppAction::ExitMode,
+                    ];
+                }
+                // Auto-fill series down — Ctrl+F
+                KeyCode::Char('f') => {
+                    let (row_start, col_start, row_end, col_end) = self.visual_selection_bounds();
+                    self.visual_anchor = None;
+                    return vec![
+                        AppAction::AutoFillDown {
+                            row_start,
+                            row_end,
+                            col_start,
+                            col_end,
+                        },
+                        AppAction::ExitMode,
+                    ];
+                }
+                // Auto-fill series right — Ctrl+E
+                KeyCode::Char('e') => {
+                    let (row_start, col_start, row_end, col_end) = self.visual_selection_bounds();
+                    self.visual_anchor = None;
+                    return vec![
+                        AppAction::AutoFillRight {
+                            row_start,
+                            row_end,
+                            col_start,
                             col_end,
                         },
                         AppAction::ExitMode,

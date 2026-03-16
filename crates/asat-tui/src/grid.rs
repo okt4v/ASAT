@@ -1,5 +1,5 @@
 use crate::{darken, parse_hex_color, RenderState};
-use asat_core::{col_to_letter, CellStyle, CellValue};
+use asat_core::{col_to_letter, CellStyle, CellValue, CfCondition};
 use asat_input::{Mode, VisualAnchor};
 use ratatui::{
     buffer::Buffer,
@@ -236,6 +236,7 @@ impl<'a> Widget for GridWidget<'a> {
                             vis_color,
                             insert_color,
                             normal_color,
+                            &self.state.ref_cells,
                         );
                         if sheet.notes.contains_key(&(row_idx, col_idx)) {
                             if let Some(cell) =
@@ -287,6 +288,7 @@ impl<'a> Widget for GridWidget<'a> {
                         vis_color,
                         insert_color,
                         normal_color,
+                        &self.state.ref_cells,
                     );
                     if sheet.notes.contains_key(&(row_idx, col_idx)) {
                         if let Some(cell) =
@@ -454,6 +456,7 @@ impl<'a> Widget for GridWidget<'a> {
                             vis_color,
                             insert_color,
                             normal_color,
+                            &self.state.ref_cells,
                         );
                         if sheet.notes.contains_key(&(row_idx, *col_idx)) {
                             if let Some(cell) =
@@ -543,6 +546,7 @@ impl<'a> Widget for GridWidget<'a> {
                         vis_color,
                         insert_color,
                         normal_color,
+                        &self.state.ref_cells,
                     );
                     if sheet.notes.contains_key(&(row_idx, *col_idx)) {
                         if let Some(cell) =
@@ -671,6 +675,7 @@ fn render_data_cell(
     vis_color: Color,
     insert_color: Color,
     normal_color: Color,
+    ref_cells: &std::collections::HashSet<(u32, u32)>,
 ) {
     let is_cursor = row_idx == cursor.row && col_idx == cursor.col;
 
@@ -716,6 +721,7 @@ fn render_data_cell(
         sheet.display_value(row_idx, col_idx)
     };
     let raw_value = sheet.get_value(row_idx, col_idx);
+    let is_ref_cell = ref_cells.contains(&(row_idx, col_idx));
 
     let cell_style = if is_fref_cursor {
         Style::default()
@@ -746,22 +752,78 @@ fn render_data_cell(
         let user_style: Option<&CellStyle> = sheet
             .get_cell(row_idx, col_idx)
             .and_then(|c| c.style.as_ref());
-        let bg = user_style
+        let base_bg = user_style
             .and_then(|s| s.bg.as_ref())
             .map(|c| Color::Rgb(c.r, c.g, c.b))
-            .unwrap_or(cell_bg);
+            .unwrap_or_else(|| {
+                if is_ref_cell {
+                    Color::Rgb(30, 40, 80)
+                } else {
+                    cell_bg
+                }
+            });
+        let is_formula_cell =
+            matches!(sheet.get_raw_value(row_idx, col_idx), CellValue::Formula(_));
         let default_fg = if matches!(raw_value, CellValue::Error(_)) {
             cmd_color
         } else if matches!(raw_value, CellValue::Number(_) | CellValue::Boolean(_)) {
             number_color
+        } else if is_formula_cell {
+            Color::Rgb(130, 150, 255)
         } else {
             Color::White
         };
-        let fg = user_style
+        let base_fg = user_style
             .and_then(|s| s.fg.as_ref())
             .map(|c| Color::Rgb(c.r, c.g, c.b))
             .unwrap_or(default_fg);
-        let mut s = Style::default().fg(fg).bg(bg);
+
+        // Apply conditional formatting rules (only when no explicit user style overrides bg/fg)
+        let has_user_bg = user_style.and_then(|s| s.bg.as_ref()).is_some();
+        let has_user_fg = user_style.and_then(|s| s.fg.as_ref()).is_some();
+        let mut cf_bg = base_bg;
+        let mut cf_fg = base_fg;
+        for cf in &sheet.conditional_formats {
+            if row_idx >= cf.row_start
+                && row_idx <= cf.row_end
+                && col_idx >= cf.col_start
+                && col_idx <= cf.col_end
+            {
+                let cell_f64 = if let CellValue::Number(n) = raw_value {
+                    *n
+                } else {
+                    f64::NAN
+                };
+                let cell_str = raw_value.display();
+                let cell_is_blank = matches!(raw_value, CellValue::Empty);
+                let cell_is_error = matches!(raw_value, CellValue::Error(_));
+                let matches_cf = match &cf.condition {
+                    CfCondition::Gt(v) => cell_f64 > *v,
+                    CfCondition::Lt(v) => cell_f64 < *v,
+                    CfCondition::Gte(v) => cell_f64 >= *v,
+                    CfCondition::Lte(v) => cell_f64 <= *v,
+                    CfCondition::Eq(v) => (cell_f64 - v).abs() < 1e-10,
+                    CfCondition::Ne(v) => (cell_f64 - v).abs() >= 1e-10,
+                    CfCondition::Contains(s) => cell_str.contains(s.as_str()),
+                    CfCondition::IsBlank => cell_is_blank,
+                    CfCondition::IsError => cell_is_error,
+                };
+                if matches_cf {
+                    if !has_user_bg {
+                        if let Some(hex) = &cf.bg {
+                            cf_bg = parse_hex_color(hex);
+                        }
+                    }
+                    if !has_user_fg {
+                        if let Some(hex) = &cf.fg {
+                            cf_fg = parse_hex_color(hex);
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut s = Style::default().fg(cf_fg).bg(cf_bg);
         if let Some(us) = user_style {
             if us.bold {
                 s = s.add_modifier(Modifier::BOLD);

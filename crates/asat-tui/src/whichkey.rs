@@ -35,6 +35,8 @@ const NORMAL_HINTS: &[Hint] = &[
     // Editing
     Hint::new("i / Enter", "edit cell"),
     Hint::new("s / cc", "clear cell + edit"),
+    Hint::new("ci\"/({[", "change inner text object"),
+    Hint::new(".", "repeat last change"),
     Hint::new("r", "replace cell"),
     Hint::new("o / O", "open row below / above"),
     Hint::new("x / D", "clear cell"),
@@ -78,6 +80,8 @@ const NORMAL_HINTS: &[Hint] = &[
     Hint::new("*", "search cell under cursor"),
     // Sheets
     Hint::new("gt / gT", "next / prev sheet"),
+    // Conditional formatting
+    Hint::new(":cf <range> cond val", "conditional format rule"),
 ];
 
 const VISUAL_HINTS: &[Hint] = &[
@@ -89,6 +93,8 @@ const VISUAL_HINTS: &[Hint] = &[
     Hint::new("M", "merge selection into one cell"),
     Hint::new("d / x", "delete selection"),
     Hint::new("y", "yank selection"),
+    Hint::new("^d / ^r", "fill down / right"),
+    Hint::new("^f / ^e", "auto-fill series down / right"),
     Hint::new("v / V", "swap mode / exit"),
     Hint::new("Esc", "exit visual"),
 ];

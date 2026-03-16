@@ -38,11 +38,19 @@ pub fn render(frame: &mut Frame, area: Rect, state: &RenderState<'_>) {
     let spans = match &state.input.mode {
         Mode::Insert { .. } => {
             // Show the edit buffer live while typing
-            vec![
+            let mut spans = vec![
                 Span::styled(format!(" {:>6} ", addr), addr_style),
                 Span::styled(" │ ", sep_style),
                 Span::styled(state.input.edit_buffer.clone(), content_style),
-            ]
+            ];
+            if let Some(preview) = &state.formula_preview {
+                let preview_style = Style::default()
+                    .fg(Color::Rgb(130, 150, 255))
+                    .bg(header_bg)
+                    .add_modifier(Modifier::DIM);
+                spans.push(Span::styled(format!(" → {}", preview), preview_style));
+            }
+            spans
         }
 
         Mode::FormulaSelect { anchor } => {

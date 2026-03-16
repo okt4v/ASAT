@@ -24,6 +24,9 @@ pub struct RenderState<'a> {
     pub status_message: Option<&'a str>,
     pub show_side_panel: bool,
     pub config: &'a Config,
+    pub formula_preview: Option<String>,
+    /// Cells referenced by the formula in the current cursor cell (for highlighting).
+    pub ref_cells: std::collections::HashSet<(u32, u32)>,
 }
 
 /// Parse a `#RRGGBB` hex string into a ratatui Color. Falls back to Reset on parse failure.

@@ -146,6 +146,32 @@ impl Default for CellStyle {
     }
 }
 
+// ── Conditional Formatting ───────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum CfCondition {
+    Gt(f64),          // > value
+    Lt(f64),          // < value
+    Gte(f64),         // >= value
+    Lte(f64),         // <= value
+    Eq(f64),          // == value (numeric)
+    Ne(f64),          // != value
+    Contains(String), // text contains
+    IsBlank,
+    IsError,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ConditionalFormat {
+    pub row_start: u32,
+    pub col_start: u32,
+    pub row_end: u32,
+    pub col_end: u32,
+    pub condition: CfCondition,
+    pub bg: Option<String>, // hex color like "#ff0000"
+    pub fg: Option<String>,
+}
+
 // ── Cell ────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -257,6 +283,8 @@ pub struct Sheet {
     pub dirty: HashSet<(u32, u32)>,
     pub notes: HashMap<(u32, u32), String>,
     pub merges: Vec<MergeRegion>,
+    #[serde(default)]
+    pub conditional_formats: Vec<ConditionalFormat>,
 }
 
 impl Sheet {
@@ -272,6 +300,7 @@ impl Sheet {
             dirty: HashSet::new(),
             notes: HashMap::new(),
             merges: Vec::new(),
+            conditional_formats: Vec::new(),
         }
     }
 
