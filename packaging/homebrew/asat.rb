@@ -2,7 +2,7 @@ class Asat < Formula
   desc "Terminal spreadsheet editor for Vim users — modal editing, 40+ formulas, CSV/XLSX/ODS"
   homepage "https://okt4v.github.io/ASAT/"
   license "GPL-3.0-or-later"
-  version "0.1.14"
+  version "0.1.15"
 
   on_macos do
     on_arm do
