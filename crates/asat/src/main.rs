@@ -3724,6 +3724,7 @@ fn cycle_date(text: &str, delta: i32) -> Option<String> {
 
     // Determine layout: (day_idx, month_idx, year_idx, year_is_first)
     #[derive(Clone, Copy)]
+    #[allow(clippy::upper_case_acronyms)]
     enum Layout {
         DMY,
         MDY,
@@ -3766,7 +3767,7 @@ fn cycle_date(text: &str, delta: i32) -> Option<String> {
     };
 
     // Basic validation
-    if month < 1 || month > 12 || day < 1 || day > 31 {
+    if !(1..=12).contains(&month) || !(1..=31).contains(&day) {
         return None;
     }
 

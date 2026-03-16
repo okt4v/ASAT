@@ -378,7 +378,7 @@ impl<'a> Widget for GridWidget<'a> {
                             (*w).max(1) as usize
                         };
                         let text_len = sheet.display_value(row_idx, *c).chars().count();
-                        Some(((text_len + cw - 1) / cw).max(1) as u16)
+                        Some(text_len.div_ceil(cw).max(1) as u16)
                     })
                     .max()
                     .unwrap_or(1);
