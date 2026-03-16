@@ -310,6 +310,10 @@ impl<'a> Widget for GridWidget<'a> {
                         if *c == u32::MAX {
                             return None;
                         }
+                        // Covered cells are handled by their anchor
+                        if sheet.is_covered(row_idx, *c) {
+                            return None;
+                        }
                         let has_wrap = sheet
                             .get_cell(row_idx, *c)
                             .and_then(|cell| cell.style.as_ref())
@@ -318,8 +322,20 @@ impl<'a> Widget for GridWidget<'a> {
                         if !has_wrap {
                             return None;
                         }
+                        // Use merged width if this cell is a merge anchor
+                        let cw = if let Some(m) = sheet.merge_at(row_idx, *c) {
+                            all_col_groups
+                                .iter()
+                                .filter(|(c2, _)| {
+                                    *c2 != u32::MAX && *c2 >= m.col_start && *c2 <= m.col_end
+                                })
+                                .map(|(_, mw)| *mw)
+                                .sum::<u16>()
+                                .max(1) as usize
+                        } else {
+                            (*w).max(1) as usize
+                        };
                         let text_len = sheet.display_value(row_idx, *c).chars().count();
-                        let cw = (*w).max(1) as usize;
                         Some(((text_len + cw - 1) / cw).max(1) as u16)
                     })
                     .max()
@@ -451,11 +467,22 @@ impl<'a> Widget for GridWidget<'a> {
                         ex += col_width;
                         continue;
                     }
-                    // Skip covered cells
+                    // Skip covered cells (same-row: anchor's wide render covers them)
                     if sheet.is_covered(row_idx, *col_idx) {
                         ex += col_width;
                         continue;
                     }
+                    // For merged anchors, use the full merged width
+                    let render_width = if let Some(m) = sheet.merge_at(row_idx, *col_idx) {
+                        all_col_groups
+                            .iter()
+                            .filter(|(c, _)| *c != u32::MAX && *c >= m.col_start && *c <= m.col_end)
+                            .map(|(_, w)| *w)
+                            .sum::<u16>()
+                            .max(*col_width)
+                    } else {
+                        *col_width
+                    };
                     let wrap_on = sheet
                         .get_cell(row_idx, *col_idx)
                         .and_then(|c| c.style.as_ref())
@@ -463,8 +490,7 @@ impl<'a> Widget for GridWidget<'a> {
                         .unwrap_or(false);
                     if wrap_on {
                         let display = sheet.display_value(row_idx, *col_idx);
-                        // Split into col_width-char chunks; `extra` is 1-based (line 2, 3, …)
-                        let chunk_size = (*col_width).max(1) as usize;
+                        let chunk_size = render_width.max(1) as usize;
                         let chunk: String = display
                             .chars()
                             .skip(chunk_size * extra as usize)
@@ -482,7 +508,7 @@ impl<'a> Widget for GridWidget<'a> {
                                 .unwrap_or(cell_bg);
                             Style::default().fg(Color::White).bg(user_bg)
                         };
-                        render_cell_str(buf, ex, ey, *col_width, &chunk, style);
+                        render_cell_str(buf, ex, ey, render_width, &chunk, style);
                     } else {
                         let bg_style = if is_cursor_row {
                             Style::default().fg(Color::Black).bg(cell_bg)
@@ -550,8 +576,21 @@ fn render_data_cell(
     let is_formula_origin =
         matches!(mode, Mode::FormulaSelect { .. }) && formula_origin == Some((row_idx, col_idx));
     let live_edit = (is_cursor && matches!(mode, Mode::Insert { .. })) || is_formula_origin;
+    let wrap_on = sheet
+        .get_cell(row_idx, col_idx)
+        .and_then(|c| c.style.as_ref())
+        .map(|s| s.wrap)
+        .unwrap_or(false);
     let display = if live_edit {
         edit_buffer.to_string()
+    } else if wrap_on {
+        // First line of a wrapped cell: take exactly col_width chars so render_cell_str
+        // doesn't see it as overflowing and doesn't add an ellipsis.
+        sheet
+            .display_value(row_idx, col_idx)
+            .chars()
+            .take(col_width as usize)
+            .collect()
     } else {
         sheet.display_value(row_idx, col_idx)
     };
