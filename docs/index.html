@@ -1021,7 +1021,7 @@
       <div class="feature-card">
         <span class="feature-icon">⇅</span>
         <div class="feature-title">Sort &amp; Replace</div>
-        <p class="feature-desc">Sort rows by any column (<code>:sort asc/desc</code>). Regex find &amp; replace across cells (<code>:s/pat/repl/g</code>). Both are fully undoable.</p>
+        <p class="feature-desc">Sort rows by any column letter (<code>:sort A</code>, <code>:sort B!</code> = descending). Regex find &amp; replace (<code>:s/pat/repl/g</code>). Both are fully undoable.</p>
       </div>
       <div class="feature-card">
         <span class="feature-icon">▼</span>
@@ -1041,12 +1041,32 @@
       <div class="feature-card">
         <span class="feature-icon">⬛</span>
         <div class="feature-title">Conditional Formatting</div>
-        <p class="feature-desc">Apply background colour to cells matching a rule with <code>:colfmt &gt; 1000 #FF6B6B</code>. Fully undoable.</p>
+        <p class="feature-desc">Live rules via <code>:cf A1:C10 &gt; 100 bg=#ff0000</code> — re-evaluated every frame. Supports <code>&gt;</code> <code>&lt;</code> <code>=</code> <code>!=</code> <code>contains</code> <code>blank</code> <code>error</code>. <code>:cf clear</code> removes all rules.</p>
       </div>
       <div class="feature-card">
         <span class="feature-icon">📋</span>
         <div class="feature-title">System Clipboard</div>
         <p class="feature-desc">Yank operations copy as TSV to your OS clipboard. <code>Ctrl+V</code> in Insert mode pastes from the system clipboard.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">⟳</span>
+        <div class="feature-title">Repeat Last Change</div>
+        <p class="feature-desc"><code>.</code> in Normal mode replays your last insert or destructive edit — just like Vim. Works for cell edits, deletes, and style changes.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">✦</span>
+        <div class="feature-title">Auto-Fill Series</div>
+        <p class="feature-desc">Select a range in Visual mode and press <code>Ctrl+F</code> to extend a pattern: arithmetic sequences, weekday names (Mon→Tue→…), month names (Jan→Feb→…), or cyclic repeat.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">◉</span>
+        <div class="feature-title">Formula Intelligence</div>
+        <p class="feature-desc">Live formula preview shows <code>→ result</code> in the formula bar as you type. Referenced cells highlight in the grid. Formula cells render in muted blue to distinguish them from data.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">ci</span>
+        <div class="feature-title">Text Objects</div>
+        <p class="feature-desc"><code>ci"</code> <code>ci(</code> <code>ci[</code> <code>ci{</code> — change content inside delimiter pairs, just like Vim. Works on any cell containing quoted or bracketed text.</p>
       </div>
     </div>
   </div>

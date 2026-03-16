@@ -1,6 +1,6 @@
 # ASAT — A Spreadsheet And Terminal
 
-> Terminal spreadsheet editor for Vim users. Modal editing (Normal/Insert/Visual/Command), 40+ live formulas, multi-sheet workbooks, CSV · XLSX · ODS support, full undo stack, system clipboard, named ranges, filter/freeze panes, cell notes, conditional formatting, macros, and marks. Written in Rust with ratatui.
+> Terminal spreadsheet editor for Vim users. Modal editing (Normal/Insert/Visual/Command), 40+ live formulas, multi-sheet workbooks, CSV · XLSX · ODS support, full undo stack, system clipboard, named ranges, filter/freeze panes, cell notes, live conditional formatting, auto-fill series, macros, marks, and `.` repeat. Written in Rust with ratatui.
 
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Built with Rust](https://img.shields.io/badge/built%20with-Rust-orange.svg)](https://www.rust-lang.org)
@@ -18,10 +18,16 @@
 - **File format support** — read and write CSV, TSV, XLSX, and ODS (OpenDocument Spreadsheet); native `.asat` format with bincode + zstd compression; ODS formula round-trip with cached computed values
 - **System clipboard** — yank (`yy`, `yc`, visual `y`) copies as TSV; `Ctrl+V` in Insert mode pastes from system clipboard
 - **Full undo stack** — 1000-deep undo/redo covering cell edits, row/column operations, pastes, and style changes
-- **Sort & find/replace** — `:sort asc/desc` sorts rows by the cursor column; `:s/pat/repl/g` does regex find & replace across cells; both undoable
+- **Sort & find/replace** — `:sort [COL] [!]` sorts rows by any column (e.g. `:sort B!` = column B descending); `:s/pat/repl/g` does regex find & replace across cells; both undoable
 - **Filter rows** — `:filter <col> <op> <val>` hides non-matching rows (supports `=`, `!=`, `>`, `<`, `>=`, `<=`, `~`); `:filter off` restores all rows
 - **Freeze panes** — frozen rows and columns render as sticky headers with a visual separator; set via `:freeze rows N` / `:freeze cols N`
-- **Fill down / right** — `Ctrl+D` / `Ctrl+R` in Visual mode; also `:filldown` / `:fillright` ex-commands
+- **Fill down / right** — `Ctrl+D` / `Ctrl+R` in Visual mode copies anchor cell across selection; also `:filldown` / `:fillright` ex-commands
+- **Auto-fill series** — `Ctrl+F` / `Ctrl+E` in Visual mode detects and extends arithmetic sequences, weekday names, and month names across the selection
+- **Live conditional formatting** — `:cf <range> <cond> <val> bg=#hex` applies colour rules that re-evaluate every frame; supports `>`, `<`, `>=`, `<=`, `=`, `!=`, `contains`, `blank`, `error`; `:cf clear` removes all rules
+- **Formula color distinction** — formula cells render in muted blue to distinguish them from literal data at a glance
+- **Live formula preview** — while typing a formula, the current evaluated result appears in the formula bar as `→ value`
+- **Cell reference highlighting** — when the cursor rests on a formula cell, all referenced cells are highlighted in the grid
+- **Repeat last change** — `.` in Normal mode replays the last insert or delete operation (like Vim)
 - **Goto cell** — `g<letter>` jumps to a column; `:goto B15` jumps to any cell address
 - **Transpose** — `:transpose` swaps rows and columns in the visual selection
 - **Remove duplicates** — `:dedup` removes duplicate rows by the current cursor column
@@ -142,9 +148,11 @@ asat new_file.csv      # create a new file at this path
 | `i` / `Enter` / `F2` | Edit current cell |
 | `a` | Edit current cell (append) |
 | `s` / `cc` | Clear cell and enter insert mode |
+| `ci"` / `ci(` / `ci[` / `ci{` | Change inner text object — clear content inside delimiters and edit |
+| `.` | Repeat last change (last insert, delete, or destructive key) |
 | `r` | Enter replace mode |
-| `x` / `Del` / `D` | Delete cell content |
-| `~` | Toggle case of text cell |
+| `x` / `Del` / `D` | Delete cell content (supports count, e.g. `3x`) |
+| `~` | Toggle case of text cell (supports count) |
 | `J` | Join cell below into current cell (space-separated), clear below |
 | `Ctrl+a` | Increment number / cycle date forward (day → month → weekday) |
 | `Ctrl+x` | Decrement number / cycle date backward |
@@ -160,8 +168,10 @@ asat new_file.csv      # create a new file at this path
 |-----|--------|
 | `yy` / `yr` | Yank current row → register + system clipboard |
 | `yc` | Yank current cell → register + system clipboard |
+| `yC` | Yank entire column → register + system clipboard |
+| `yj` / `yk` | Yank row below / above cursor |
 | `yS` | Copy current cell's style to style clipboard |
-| `p` / `P` | Paste after / before cursor |
+| `p` / `P` | Paste after / before cursor (supports count) |
 | `pS` | Paste style clipboard onto current cell |
 
 ### Normal Mode — Rows & Columns
@@ -169,7 +179,9 @@ asat new_file.csv      # create a new file at this path
 | Key | Action |
 |-----|--------|
 | `dd` | Delete current row |
+| `dc` | Clear cell content (alias for `x`) |
 | `dC` | Delete current column |
+| `dj` / `dk` | Delete row below / above cursor |
 | `>>` / `<<` | Increase / decrease current column width |
 | `=` | Auto-fit current column to widest content |
 | `+` / `-` | Increase / decrease current row height |
@@ -206,6 +218,8 @@ asat new_file.csv      # create a new file at this path
 | `>` / `<` | Widen / narrow all columns in selection |
 | `Ctrl+d` | Fill down — copy anchor row to all selected rows |
 | `Ctrl+r` | Fill right — copy anchor column to all selected columns |
+| `Ctrl+f` | Auto-fill series down — extends arithmetic, weekday, or month patterns |
+| `Ctrl+e` | Auto-fill series right |
 
 ### Marks & Macros
 
@@ -263,7 +277,7 @@ Enter command mode with `:`.
 | `:fmt <spec>` | Number format: `%`, `$`, `0.00`, `int`, `date`, `none` |
 | `:cs` | Clear all styles |
 | `:theme [name]` | Open theme picker or apply a theme by name |
-| `:sort [asc\|desc]` | Sort all rows by the current cursor column (undoable) |
+| `:sort [COL] [!]` | Sort by column letter (e.g. `:sort A`, `:sort B!` = descending); defaults to cursor column (undoable) |
 | `:s/pat/repl/[g][i]` | Find & replace in text cells — `g` = all occurrences, `i` = case-insensitive (undoable) |
 | `:goto <addr>` / `:go <addr>` | Jump to cell address (e.g. `:goto B15`) |
 | `:name <NAME> <range>` | Define a named range (e.g. `:name SALES A1:C10`) |
@@ -272,7 +286,9 @@ Enter command mode with `:`.
 | `:transpose` / `:tp` | Transpose the visual selection (swap rows and columns) |
 | `:dedup` | Remove duplicate rows by the current cursor column |
 | `:note [text]` | Set a note on current cell; `:note` shows it; `:note!` clears it |
-| `:colfmt <op> <val> <color>` / `:cf` | Conditional format — apply background colour to matching cells in column |
+| `:cf <range> <cond> <val> bg=#hex [fg=#hex]` | Add live conditional format rule (e.g. `:cf A1:C10 > 100 bg=#ff0000`); conditions: `>` `<` `>=` `<=` `=` `!=` `contains` `blank` `error` |
+| `:cf clear` | Remove all conditional format rules from the active sheet |
+| `:cf list` | Show number of active conditional format rules |
 | `:filldown` / `:fd` | Fill the cursor cell value down to the selection end |
 | `:fillright` / `:fr` | Fill the cursor cell value right to the selection end |
 | `:fmt thousands` / `:fmt t2` | Thousands-separator number format (`#,##0` or `#,##0.00`) |
