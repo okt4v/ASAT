@@ -543,37 +543,55 @@ fn process_action(
         } => {
             let new_row = (input.cursor.row as i64 + row_delta as i64).max(0) as u32;
             let new_col = (input.cursor.col as i64 + col_delta as i64).max(0) as u32;
-            input.cursor.row = new_row;
-            input.cursor.col = new_col;
+            let (sr, sc) = workbook.active().snap_to_anchor(new_row, new_col);
+            input.cursor.row = sr;
+            input.cursor.col = sc;
             input.scroll_to_cursor(visible_rows, visible_cols);
         }
         AppAction::MoveCursorTo { row, col } => {
-            input.cursor.row = row;
-            input.cursor.col = col;
+            let (sr, sc) = workbook.active().snap_to_anchor(row, col);
+            input.cursor.row = sr;
+            input.cursor.col = sc;
             input.scroll_to_cursor(visible_rows, visible_cols);
         }
         AppAction::MoveToFirstRow => {
-            input.cursor.row = 0;
+            let (sr, sc) = workbook.active().snap_to_anchor(0, input.cursor.col);
+            input.cursor.row = sr;
+            input.cursor.col = sc;
             input.scroll_to_cursor(visible_rows, visible_cols);
         }
         AppAction::MoveToLastRow => {
-            input.cursor.row = workbook.active().max_row();
+            let last = workbook.active().max_row();
+            let (sr, sc) = workbook.active().snap_to_anchor(last, input.cursor.col);
+            input.cursor.row = sr;
+            input.cursor.col = sc;
             input.scroll_to_cursor(visible_rows, visible_cols);
         }
         AppAction::MoveToFirstCol => {
-            input.cursor.col = 0;
+            let (sr, sc) = workbook.active().snap_to_anchor(input.cursor.row, 0);
+            input.cursor.row = sr;
+            input.cursor.col = sc;
             input.scroll_to_cursor(visible_rows, visible_cols);
         }
         AppAction::MoveToLastCol => {
-            input.cursor.col = workbook.active().max_col();
+            let last = workbook.active().max_col();
+            let (sr, sc) = workbook.active().snap_to_anchor(input.cursor.row, last);
+            input.cursor.row = sr;
+            input.cursor.col = sc;
             input.scroll_to_cursor(visible_rows, visible_cols);
         }
         AppAction::PageDown => {
-            input.cursor.row = (input.cursor.row + visible_rows).min(workbook.active().max_row());
+            let new_row = (input.cursor.row + visible_rows).min(workbook.active().max_row());
+            let (sr, sc) = workbook.active().snap_to_anchor(new_row, input.cursor.col);
+            input.cursor.row = sr;
+            input.cursor.col = sc;
             input.scroll_to_cursor(visible_rows, visible_cols);
         }
         AppAction::PageUp => {
-            input.cursor.row = input.cursor.row.saturating_sub(visible_rows);
+            let new_row = input.cursor.row.saturating_sub(visible_rows);
+            let (sr, sc) = workbook.active().snap_to_anchor(new_row, input.cursor.col);
+            input.cursor.row = sr;
+            input.cursor.col = sc;
             input.scroll_to_cursor(visible_rows, visible_cols);
         }
 
