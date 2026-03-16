@@ -41,6 +41,8 @@ pub fn render(frame: &mut Frame, area: Rect, state: &RenderState<'_>) {
         Mode::ThemeManager => ("THEMES", visual_color),
         Mode::FormulaSelect { anchor: None } => ("F-REF", insert_color),
         Mode::FormulaSelect { anchor: Some(_) } => ("F-RANGE", normal_color),
+        Mode::Help => ("HELP", normal_color),
+        Mode::PluginManager => ("PLUGINS", visual_color),
     };
 
     let mode_style = Style::default()

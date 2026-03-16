@@ -82,6 +82,15 @@ const NORMAL_HINTS: &[Hint] = &[
     Hint::new("gt / gT", "next / prev sheet"),
     // Conditional formatting
     Hint::new(":cf <range> cond val", "conditional format rule"),
+    // Go-to definition
+    Hint::new("gd", "jump to first cell ref in formula"),
+    // Join
+    Hint::new("J", "join cell below into current"),
+    // Help / plugins
+    Hint::new(":help / :h", "open help screen"),
+    Hint::new(":plugins", "open plugin manager"),
+    // Freeze panes
+    Hint::new(":freeze rows/cols <N>", "freeze panes"),
 ];
 
 const VISUAL_HINTS: &[Hint] = &[
@@ -93,8 +102,11 @@ const VISUAL_HINTS: &[Hint] = &[
     Hint::new("M", "merge selection into one cell"),
     Hint::new("d / x", "delete selection"),
     Hint::new("y", "yank selection"),
+    Hint::new("S", "insert SUM below/right of selection"),
     Hint::new("^d / ^r", "fill down / right"),
     Hint::new("^f / ^e", "auto-fill series down / right"),
+    Hint::new("> / <", "widen / narrow columns"),
+    Hint::new(":", "enter command for selection range"),
     Hint::new("v / V", "swap mode / exit"),
     Hint::new("Esc", "exit visual"),
 ];
@@ -123,6 +135,7 @@ pub fn render(frame: &mut Frame, area: Rect, state: &RenderState<'_>) {
                      | Mode::Insert { .. }
                      | Mode::FormulaSelect { .. }  // formula ref picker has its own UI
                      | Mode::Welcome | Mode::FileFind | Mode::RecentFiles | Mode::ThemeManager
+                     | Mode::Help | Mode::PluginManager
     ) {
         return;
     }

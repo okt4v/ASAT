@@ -1,18 +1,19 @@
 # ASAT — A Spreadsheet And Terminal
 
-> Terminal spreadsheet editor for Vim users. Modal editing (Normal/Insert/Visual/Command), 40+ live formulas, multi-sheet workbooks, CSV · XLSX · ODS support, full undo stack, system clipboard, named ranges, filter/freeze panes, cell notes, live conditional formatting, auto-fill series, macros, marks, and `.` repeat. Written in Rust with ratatui.
+> Terminal spreadsheet editor for Vim users. Modal editing (Normal/Insert/Visual/Command), 50+ live formulas, multi-sheet workbooks, CSV · XLSX · ODS support, full undo stack, system clipboard, named ranges, filter/freeze panes, cell notes, live conditional formatting, auto-fill series, macros, marks, `.` repeat, Python plugins, searchable help screen, and circular reference detection. Written in Rust with ratatui.
 
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Built with Rust](https://img.shields.io/badge/built%20with-Rust-orange.svg)](https://www.rust-lang.org)
 
-**Website:** https://okt4v.github.io/ASAT/
+**Website:** <https://okt4v.github.io/ASAT/>
 
 ---
 
 ## Features
 
 - **Modal editing** — Normal, Insert, Visual (char/line/block), Command, Search, and Macro Recording modes, exactly like Vim
-- **Live formula engine** — 40+ built-in functions across math, text, logic, lookup, statistical, and finance. Includes `AVERAGEIF`, `MAXIFS`, `MINIFS`, `RANK`, `PERCENTILE`, `QUARTILE`, `XLOOKUP`, and `CHOOSE`. Formulas re-evaluate after every edit (lazy dirty-cell tracking)
+- **Live formula engine** — 50+ built-in functions across math, text, logic, lookup, statistical, finance, and date. Includes volatile functions (`NOW`, `TODAY`, `RAND`, `RANDBETWEEN`) that recalculate every frame. Formulas re-evaluate after every edit (lazy dirty-cell tracking)
+- **Circular reference detection** — cells that form dependency cycles display `#CIRC!` instead of crashing or hanging
 - **Named ranges** — `:name SALES A1:C10` defines a named range usable in formulas as `=SUM(SALES)`
 - **Multi-sheet workbooks** — tab bar, `:tabnew`, `:tabclose`, `gt` / `gT` to switch sheets
 - **File format support** — read and write CSV, TSV, XLSX, and ODS (OpenDocument Spreadsheet); native `.asat` format with bincode + zstd compression; ODS formula round-trip with cached computed values
@@ -27,12 +28,13 @@
 - **Formula color distinction** — formula cells render in muted blue to distinguish them from literal data at a glance
 - **Live formula preview** — while typing a formula, the current evaluated result appears in the formula bar as `→ value`
 - **Cell reference highlighting** — when the cursor rests on a formula cell, all referenced cells are highlighted in the grid
+- **Go-to definition** — `gd` in Normal mode jumps to the first cell referenced in the current cell's formula
+- **Visual mode ex-commands** — press `:` from Visual/V-Row/V-Col mode to enter a command that applies to the entire selection (e.g. `:bold`, `:fg #ff0000`, `:sort`)
 - **Repeat last change** — `.` in Normal mode replays the last insert or delete operation (like Vim)
 - **Goto cell** — `g<letter>` jumps to a column; `:goto B15` jumps to any cell address
 - **Transpose** — `:transpose` swaps rows and columns in the visual selection
 - **Remove duplicates** — `:dedup` removes duplicate rows by the current cursor column
 - **Cell notes** — `:note <text>` attaches a comment to the current cell; cells with notes show a `▸` corner marker; `:note` with no argument shows the current note; `:note!` clears it
-- **Conditional formatting** — `:colfmt <op> <val> <color>` applies a background colour to all cells in the column matching the condition (undoable)
 - **Thousands separator** — `:fmt thousands` formats numbers with comma separators (`#,##0`); `:fmt t2` adds two decimal places
 - **Formula tab-completion** — press `Tab` while typing a formula (`=SU…`) to cycle through matching function names
 - **Time-based autosave** — configurable autosave interval in seconds (edit `autosave_interval` in `config.toml`; 0 = disabled)
@@ -43,7 +45,8 @@
 - **Cell styling** — bold, italic, underline, strikethrough, foreground/background colour, alignment, and number formats
 - **Themes** — built-in theme picker (`:theme`) with multiple colour presets, saved to config
 - **Formula reference picker** — press `Ctrl+R` inside a formula to navigate the grid and insert cell/range references interactively
-- **Plugin system** — extend ASAT with Python via PyO3; hook into cell changes, mode transitions, and file events; register custom formula functions from `~/.config/asat/init.py`
+- **Searchable help screen** — `:help` / `:h` opens a full-screen overlay with Keybindings and Formulas tabs; type to filter, `Tab` to switch tabs, `j`/`k` to scroll, `q` to close
+- **Plugin system** — extend ASAT with Python via PyO3 (enabled by default); hook into cell changes, mode transitions, and file events; register custom formula functions from `~/.config/asat/init.py`; manage plugins with `:plugins`
 
 ---
 
@@ -51,16 +54,16 @@
 
 ### Pre-built binaries (GitHub Releases)
 
-Download a binary for your platform from the [v0.1.15 release](https://github.com/okt4v/ASAT/releases/tag/v0.1.15):
+Download a binary for your platform from the [v0.1.16 release](https://github.com/okt4v/ASAT/releases/tag/v0.1.16):
 
 | Platform | Link |
 |----------|------|
-| Linux x86_64 (glibc) | [asat-x86_64-unknown-linux-gnu.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.15/asat-x86_64-unknown-linux-gnu.tar.gz) |
-| Linux x86_64 (musl)  | [asat-x86_64-unknown-linux-musl.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.15/asat-x86_64-unknown-linux-musl.tar.gz) |
-| Linux aarch64        | [asat-aarch64-unknown-linux-gnu.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.15/asat-aarch64-unknown-linux-gnu.tar.gz) |
-| macOS arm64          | [asat-aarch64-apple-darwin.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.15/asat-aarch64-apple-darwin.tar.gz) |
-| macOS x86_64         | [asat-x86_64-apple-darwin.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.15/asat-x86_64-apple-darwin.tar.gz) |
-| Windows x86_64       | [asat-x86_64-pc-windows-msvc.zip](https://github.com/okt4v/ASAT/releases/download/v0.1.15/asat-x86_64-pc-windows-msvc.zip) |
+| Linux x86_64 (glibc) | [asat-x86_64-unknown-linux-gnu.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.16/asat-x86_64-unknown-linux-gnu.tar.gz) |
+| Linux x86_64 (musl)  | [asat-x86_64-unknown-linux-musl.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.16/asat-x86_64-unknown-linux-musl.tar.gz) |
+| Linux aarch64        | [asat-aarch64-unknown-linux-gnu.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.16/asat-aarch64-unknown-linux-gnu.tar.gz) |
+| macOS arm64          | [asat-aarch64-apple-darwin.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.16/asat-aarch64-apple-darwin.tar.gz) |
+| macOS x86_64         | [asat-x86_64-apple-darwin.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.16/asat-x86_64-apple-darwin.tar.gz) |
+| Windows x86_64       | [asat-x86_64-pc-windows-msvc.zip](https://github.com/okt4v/ASAT/releases/download/v0.1.16/asat-x86_64-pc-windows-msvc.zip) |
 
 Extract the archive and place the `asat` binary somewhere on your `$PATH` (e.g. `~/.local/bin/`).
 
@@ -82,8 +85,8 @@ brew install asat
 ### Debian / Ubuntu (apt)
 
 ```bash
-curl -LO https://github.com/okt4v/ASAT/releases/download/v0.1.15/asat_0.1.15-1_amd64.deb
-sudo apt install ./asat_0.1.15-1_amd64.deb
+curl -LO https://github.com/okt4v/ASAT/releases/download/v0.1.16/asat_0.1.16-1_amd64.deb
+sudo apt install ./asat_0.1.16-1_amd64.deb
 ```
 
 `apt install ./file.deb` resolves dependencies automatically and registers the package so `apt remove asat` works as expected.
@@ -104,6 +107,8 @@ To build manually instead:
 cargo build --release
 cp target/release/asat ~/.local/bin/
 ```
+
+> **Note:** The Python plugin engine is enabled by default. To build without it (smaller binary, no Python dependency): `cargo build --release --no-default-features`
 
 ### Run
 
@@ -154,6 +159,7 @@ asat new_file.csv      # create a new file at this path
 | `x` / `Del` / `D` | Delete cell content (supports count, e.g. `3x`) |
 | `~` | Toggle case of text cell (supports count) |
 | `J` | Join cell below into current cell (space-separated), clear below |
+| `gd` | Jump to the first cell referenced in the current formula |
 | `Ctrl+a` | Increment number / cycle date forward (day → month → weekday) |
 | `Ctrl+x` | Decrement number / cycle date backward |
 | `gw` | Toggle line wrap on current cell |
@@ -220,6 +226,7 @@ asat new_file.csv      # create a new file at this path
 | `Ctrl+r` | Fill right — copy anchor column to all selected columns |
 | `Ctrl+f` | Auto-fill series down — extends arithmetic, weekday, or month patterns |
 | `Ctrl+e` | Auto-fill series right |
+| `:` | Enter Command mode with the selection range pre-loaded (e.g. `:bold`, `:fg #hex`) |
 
 ### Marks & Macros
 
@@ -254,7 +261,9 @@ asat new_file.csv      # create a new file at this path
 
 ## Ex Commands
 
-Enter command mode with `:`.
+Enter command mode with `:`. From Visual mode, `:` pre-loads the current selection range so style and formatting commands apply to all selected cells.
+
+Tab-completion works in command mode — press `Tab` to cycle through matching commands.
 
 | Command | Action |
 |---------|--------|
@@ -298,8 +307,8 @@ Enter command mode with `:`.
 | `:merge` | Merge visual selection (or current cell) into one spanning cell |
 | `:unmerge` | Unmerge the merged region under the cursor |
 | `:wrap` / `:ww` | Toggle line wrap on current cell or selection |
-
-Tab-completion works in command mode — press `Tab` to cycle through matching commands.
+| `:help` / `:h` | Open full-screen searchable help (Keybindings + Formulas tabs) |
+| `:plugins` | Open plugin manager TUI |
 
 ---
 
@@ -312,6 +321,8 @@ Start any cell with `=` to write a formula. Formulas re-evaluate automatically a
 =IF(B2>100, "Over budget", "OK")
 =AVERAGE(C1:C20) * 1.1
 =CONCATENATE(A1, " ", B1)
+=NOW()              → current date and time (recalculates every frame)
+=RAND()             → random float between 0 and 1
 ```
 
 **Supported functions:**
@@ -323,9 +334,14 @@ Start any cell with `=` to write a formula. Formulas re-evaluate automatically a
 | Logic | `IF`, `AND`, `OR`, `NOT`, `ISNUMBER`, `ISTEXT`, `ISBLANK`, `ISERROR`, `IFERROR`, `ISLOGICAL` |
 | Lookup | `VLOOKUP`, `HLOOKUP`, `XLOOKUP`, `INDEX`, `MATCH`, `OFFSET`, `CHOOSE` |
 | Date | `NOW`, `TODAY`, `DATE`, `YEAR`, `MONTH`, `DAY` |
+| Random | `RAND`, `RANDBETWEEN` |
 | Statistical | `COUNT`, `COUNTA`, `SUMIF`, `COUNTIF`, `AVERAGEIF`, `MAXIFS`, `MINIFS`, `SUMPRODUCT`, `MEDIAN`, `STDEV`, `VAR`, `LARGE`, `SMALL`, `RANK`, `PERCENTILE`, `QUARTILE` |
 | Finance | `PV`, `FV`, `PMT`, `NPER`, `RATE`, `NPV`, `IRR`, `MIRR`, `IPMT`, `PPMT`, `SLN`, `DDB`, `EFFECT`, `NOMINAL`, `CUMIPMT`, `CUMPRINC` |
 | Constants | `TRUE`, `FALSE`, `PI()` |
+
+**Volatile functions** (`NOW`, `TODAY`, `RAND`, `RANDBETWEEN`) recalculate on every frame, not just on cell edits.
+
+**Circular references:** If a formula creates a dependency cycle (e.g. `A1=B1+1` and `B1=A1+1`), all cells in the cycle display `#CIRC!`. Break the cycle by editing one of the cells.
 
 **Reference syntax:**
 
@@ -362,6 +378,7 @@ Start any cell with `=` to write a formula. Formulas re-evaluate automatically a
 **Convention:** `pv`/`pmt` follow the Excel cash-flow sign convention (money paid out is negative). `type` = 0 means end-of-period payments (default), 1 means beginning-of-period.
 
 **Examples:**
+
 ```
 =PMT(5%/12, 360, 200000)         → monthly payment on a 30yr £200k mortgage at 5%
 =PV(8%/12, 60, -500)             → present value of 60 monthly payments of £500
@@ -372,6 +389,17 @@ Start any cell with `=` to write a formula. Formulas re-evaluate automatically a
 =SLN(50000, 5000, 5)             → £9000/yr straight-line depreciation
 =EFFECT(5%, 12)                  → effective annual rate for 5% nominal compounded monthly
 ```
+
+---
+
+## Help Screen
+
+Press `:help` (or `:h`) to open a full-screen searchable help overlay.
+
+- **Keybindings tab** — all Normal, Insert, and Visual mode keybinds organized by category
+- **Formulas tab** — all 50+ built-in functions with one-line descriptions
+- **Search** — type any text to filter entries across both tabs instantly
+- **Navigation** — `j`/`k` to scroll, `Tab` to switch tabs, `q` or `Esc` to close
 
 ---
 
@@ -430,13 +458,7 @@ Browse and apply themes interactively with `:theme`.
 
 ## Plugin System
 
-ASAT supports Python plugins via PyO3. Build with the feature enabled:
-
-```bash
-cargo build --release --features asat-plugins/python
-```
-
-Place your script at `~/.config/asat/init.py`. It is loaded on startup and can be reloaded live with `:plugin reload`.
+ASAT includes a Python plugin engine via PyO3, **enabled by default**. Place your script at `~/.config/asat/init.py` — it is loaded on startup and can be hot-reloaded with `:plugin reload`.
 
 ```python
 import asat
@@ -468,7 +490,13 @@ def on_open(path):
 
 **Plugin API:** `asat.notify(msg)`, `asat.command(cmd)`, `asat.read("A1")`, `asat.write("A1", val)`, `asat.get_cell(row, col)`, `asat.set_cell(row, col, val)`
 
-**Commands:** `:plugin list` — show loaded handlers and functions; `:plugin reload` — hot-reload `init.py`
+**Commands:** `:plugins` — open the plugin manager TUI (shows engine status and registered custom functions); `:plugin reload` — hot-reload `init.py`; `:plugin list` — list loaded handlers
+
+**To build without Python** (smaller binary, no Python dependency):
+
+```bash
+cargo build --release --no-default-features
+```
 
 ---
 
@@ -491,28 +519,15 @@ ASAT is structured as a Cargo workspace with focused, single-responsibility crat
 ```
 crates/
   asat-core/      — Workbook, Sheet, Cell, CellValue, CellStyle (no internal deps)
-  asat-formula/   — Lexer, parser (AST), evaluator, 30+ built-in functions
+  asat-formula/   — Lexer, parser (AST), evaluator, 50+ built-in functions
   asat-io/        — CSV, XLSX, ODS, .asat drivers (calamine read / rust_xlsxwriter write)
   asat-tui/       — ratatui widgets: grid, formula bar, status bar, tab bar, command line
   asat-input/     — Modal state machine, InputState, AppAction enum
   asat-commands/  — Command trait, UndoStack, SetCell, InsertRow/Col, DeleteRow/Col
-  asat-plugins/   — Plugin manager: PyO3 Python backend (opt-in with --features asat-plugins/python)
+  asat-plugins/   — Plugin manager: PyO3 Python backend (enabled by default)
   asat-config/    — Config struct, config.toml parsing, ThemeConfig
   asat/           — Binary: main loop, AppAction dispatch, ex-command handler
 ```
-
----
-
-## Roadmap
-
-- [x] MVP — CSV, navigation, insert, undo, `:w` / `:q`
-- [x] Full Vim feel — `dd`/`yy`/`p`, marks, registers, visual mode, macros
-- [x] Multi-sheet + XLSX / ODS (read & write)
-- [x] Formula engine — 30+ functions, live evaluation, F-REF picker
-- [x] Styles + formatting — bold, italic, colour, alignment, number formats
-- [x] Sort & find/replace — `:sort`, `:s/pat/repl/g`
-- [x] Plugin system — PyO3 backend, `init.py`, `@asat.on`, `@asat.function`, live reload with `:plugin reload` (build with `--features asat-plugins/python`)
-- [x] Polish — filter rows, freeze panes, fill down/right, goto, transpose, dedup, named ranges, cell notes, conditional formatting, thousands separator, formula tab-completion, time-based autosave, ODS formula round-trip, XLOOKUP/AVERAGEIF/RANK/PERCENTILE/CHOOSE and more
 
 ---
 

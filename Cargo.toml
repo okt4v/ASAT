@@ -13,11 +13,11 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.1.15"
+version = "0.1.16"
 edition = "2021"
 license = "GPL-3.0"
 authors = ["okt4v"]
-description = "Terminal spreadsheet editor for Vim users — modal editing, 40+ formulas, CSV/XLSX/ODS, themes"
+description = "Terminal spreadsheet editor for Vim users — modal editing, 50+ formulas, CSV/XLSX/ODS, Python plugins, themes"
 repository = "https://github.com/okt4v/ASAT"
 homepage = "https://okt4v.github.io/ASAT/"
 documentation = "https://github.com/okt4v/ASAT/blob/main/README.md"

@@ -933,7 +933,7 @@
   </div>
 
   <div class="hero-content">
-    <div class="hero-badge">v0.1.15 — Written in Rust</div>
+    <div class="hero-badge">v0.1.16 — Written in Rust</div>
     <h1 class="hero-title">
       <span class="title-asat">ASAT</span><span class="title-cursor"></span>
     </h1>
@@ -954,7 +954,7 @@
         <span class="dot dot-g"></span>
         <span class="terminal-title">asat budget.xlsx</span>
       </div>
-      <div class="terminal-body"><span class="t-muted">ASAT v0.1.15 — Advanced Spreadsheet Alteration Tool</span>
+      <div class="terminal-body"><span class="t-muted">ASAT v0.1.16 — Advanced Spreadsheet Alteration Tool</span>
 <span class="t-addr">B3</span>  <span class="t-formula">=SUM(B1:B2)</span>
 <span class="t-header">     ┄┄┄┄┄┄ A ┄┄┄┄┄┄┄  ┄┄┄┄┄┄ B ┄┄┄┄┄┄</span>
 <span class="t-row-num">  1 </span> Revenue          <span class="t-number">84,200</span>
@@ -986,7 +986,7 @@
       <div class="feature-card">
         <span class="feature-icon">ƒ</span>
         <div class="feature-title">Formula Engine</div>
-        <p class="feature-desc">40+ built-in functions across math, text, logic, lookup, statistical, and finance. Includes <code>XLOOKUP</code>, <code>AVERAGEIF</code>, <code>MAXIFS</code>, <code>RANK</code>, <code>PERCENTILE</code>, and <code>CHOOSE</code>. Tab-completion as you type.</p>
+        <p class="feature-desc">50+ built-in functions across math, text, logic, lookup, statistical, finance, and date. Volatile functions (<code>NOW</code>, <code>TODAY</code>, <code>RAND</code>, <code>RANDBETWEEN</code>) recalculate every frame. Tab-completion as you type.</p>
       </div>
       <div class="feature-card">
         <span class="feature-icon">⊞</span>
@@ -1016,7 +1016,27 @@
       <div class="feature-card">
         <span class="feature-icon">🐍</span>
         <div class="feature-title">Plugin System</div>
-        <p class="feature-desc">Extend ASAT with Python via PyO3. Hook into cell changes, mode transitions, file events, and register custom formula functions via <code>~/.config/asat/init.py</code>.</p>
+        <p class="feature-desc">Python plugins via PyO3 — enabled by default. Hook into cell changes, mode transitions, and file events. Register custom formula functions via <code>~/.config/asat/init.py</code>. Manage with <code>:plugins</code>.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">?</span>
+        <div class="feature-title">Searchable Help</div>
+        <p class="feature-desc"><code>:help</code> opens a full-screen overlay with Keybindings and Formulas tabs. Type to filter entries instantly. <code>Tab</code> switches tabs, <code>j</code>/<code>k</code> scroll, <code>q</code> closes.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">⊘</span>
+        <div class="feature-title">Circular Ref Detection</div>
+        <p class="feature-desc">Formula dependency cycles are detected before evaluation. Cells in a cycle display <code>#CIRC!</code> — no hanging, no crash. Break the cycle to restore normal evaluation.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">⤵</span>
+        <div class="feature-title">Go-to Definition</div>
+        <p class="feature-desc"><code>gd</code> in Normal mode jumps to the first cell referenced in the current formula — like IDE go-to-definition for your spreadsheet.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">:</span>
+        <div class="feature-title">Visual Mode Commands</div>
+        <p class="feature-desc">Press <code>:</code> from any Visual mode to run an ex-command against the entire selection. Style commands like <code>:bold</code>, <code>:fg #hex</code>, <code>:sort</code> all apply to the range.</p>
       </div>
       <div class="feature-card">
         <span class="feature-icon">⇅</span>
@@ -1126,11 +1146,11 @@
           <div class="install-panel" id="ipanel-deb">
             <div class="install-panel-label">Debian / Ubuntu — install via apt</div>
             <div class="code-block">
-              <div><span class="prompt">$</span><span>curl -LO https://github.com/okt4v/ASAT/releases/download/v0.1.15/asat_0.1.15-1_amd64.deb</span></div>
+              <div><span class="prompt">$</span><span>curl -LO https://github.com/okt4v/ASAT/releases/download/v0.1.16/asat_0.1.16-1_amd64.deb</span></div>
               <button class="copy-btn" onclick="copyCode(this)">copy</button>
             </div>
             <div class="code-block" style="margin-top:0.5rem">
-              <div><span class="prompt">$</span><span>sudo apt install ./asat_0.1.15-1_amd64.deb</span></div>
+              <div><span class="prompt">$</span><span>sudo apt install ./asat_0.1.16-1_amd64.deb</span></div>
               <button class="copy-btn" onclick="copyCode(this)">copy</button>
             </div>
             <p style="color:var(--text-muted);font-size:0.8rem;margin-top:0.6rem">Resolves dependencies automatically. Uninstall with <code style="font-family:var(--mono)">sudo apt remove asat</code>.</p>
@@ -1160,7 +1180,7 @@
         <!-- Pre-built binaries note -->
         <p class="step-desc" style="margin-top:1rem">
           Pre-built binaries for Linux x86_64, Linux aarch64, macOS arm64, macOS x86_64, and Windows x86_64 are available on the
-          <a href="https://github.com/okt4v/ASAT/releases/tag/v0.1.15" style="color:var(--amber);text-decoration:none;">v0.1.15 GitHub Release</a>.
+          <a href="https://github.com/okt4v/ASAT/releases/tag/v0.1.16" style="color:var(--amber);text-decoration:none;">v0.1.16 GitHub Release</a>.
         </p>
       </div>
 
@@ -1438,6 +1458,7 @@
             <tr><td class="keys"><kbd>J</kbd></td><td>Join: concatenate cell below into current cell (space-separated), then clear the cell below</td></tr>
             <tr><td class="keys"><kbd>Ctrl</kbd><kbd>a</kbd></td><td>Increment number by 1 — or cycle date forward (day → month name → weekday)</td></tr>
             <tr><td class="keys"><kbd>Ctrl</kbd><kbd>x</kbd></td><td>Decrement number by 1 — or cycle date backward</td></tr>
+            <tr><td class="keys"><kbd>g</kbd><kbd>d</kbd></td><td>Go-to definition — jump to the first cell referenced in the current formula</td></tr>
             <tr><td class="keys"><kbd>g</kbd><kbd>w</kbd></td><td>Toggle line wrap on current cell (text reflows into merged rows below for vertical merges)</td></tr>
             <tr><td class="keys"><kbd>U</kbd></td><td>Unmerge the merged region under the cursor</td></tr>
 
@@ -1542,6 +1563,7 @@
             <tr><td class="keys"><kbd>S</kbd></td><td>Insert <code style="color:var(--teal)">= SUM(range)</code> formula into the cell immediately below the selection</td></tr>
             <tr><td class="keys"><kbd>></kbd></td><td>Widen all columns in the selection (+2 chars each)</td></tr>
             <tr><td class="keys"><kbd>&lt;</kbd></td><td>Narrow all columns in the selection (−2 chars each, min 3)</td></tr>
+            <tr><td class="keys"><kbd>:</kbd></td><td>Enter command mode with the selection range pre-loaded — style commands apply to all selected cells</td></tr>
           </tbody>
         </table>
       </div>
@@ -1696,6 +1718,10 @@
             </tr>
             <tr><td><code style="color:var(--teal);font-family:var(--mono)">:unmerge</code></td><td>Unmerge the merged region under the cursor</td></tr>
             <tr><td><code style="color:var(--teal);font-family:var(--mono)">:wrap</code> / <code style="color:var(--teal);font-family:var(--mono)">:ww</code></td><td>Toggle line wrap on current cell or visual selection</td></tr>
+            <tr style="border-top:1px solid var(--border2)">
+              <td><code style="color:var(--teal);font-family:var(--mono)">:help</code> / <code style="color:var(--teal);font-family:var(--mono)">:h</code></td><td>Open full-screen searchable help (Keybindings + Formulas tabs)</td>
+            </tr>
+            <tr><td><code style="color:var(--teal);font-family:var(--mono)">:plugins</code></td><td>Open plugin manager TUI (engine status, custom functions, reload)</td></tr>
           </tbody>
         </table>
       </div>
@@ -1791,7 +1817,7 @@
         </div>
       </div>
       <div class="fn-group">
-        <div class="fn-group-title">Date</div>
+        <div class="fn-group-title">Date &amp; Time</div>
         <div class="fn-chips">
           <button class="fn-chip" data-fn="NOW">NOW()</button>
           <button class="fn-chip" data-fn="TODAY">TODAY()</button>
@@ -1799,6 +1825,13 @@
           <button class="fn-chip" data-fn="YEAR">YEAR()</button>
           <button class="fn-chip" data-fn="MONTH">MONTH()</button>
           <button class="fn-chip" data-fn="DAY">DAY()</button>
+        </div>
+      </div>
+      <div class="fn-group">
+        <div class="fn-group-title">Random (volatile)</div>
+        <div class="fn-chips">
+          <button class="fn-chip" data-fn="RAND">RAND()</button>
+          <button class="fn-chip" data-fn="RANDBETWEEN">RANDBETWEEN()</button>
         </div>
       </div>
       <div class="fn-group">
@@ -2120,6 +2153,10 @@
     YEAR:       { sig: 'YEAR(date)', desc: 'Extracts the year from a date value. Useful for grouping or filtering data by year.', example: '=YEAR(TODAY())  →  2026\n=YEAR(A2)  →  year of date in A2', tags: ['date'] },
     MONTH:      { sig: 'MONTH(date)', desc: 'Extracts the month (1–12) from a date. Use with YEAR and DAY to decompose dates or build period labels.', example: '=MONTH(TODAY())  →  3\n=MONTH(A2)  →  month number of date in A2', tags: ['date'] },
     DAY:        { sig: 'DAY(date)', desc: 'Extracts the day of the month (1–31) from a date value.', example: '=DAY(TODAY())  →  16\n=DAY(A2)', tags: ['date'] },
+
+    // Random (volatile)
+    RAND:        { sig: 'RAND()', desc: 'Returns a random floating-point number between 0 (inclusive) and 1 (exclusive). Recalculates on every frame — volatile. Use RANDBETWEEN for integers in a range.', example: '=RAND()  →  0.6273… (changes every frame)\n=ROUND(RAND()*100, 0)  →  random integer 0–100', tags: ['random', 'volatile'] },
+    RANDBETWEEN: { sig: 'RANDBETWEEN(bottom, top)', desc: 'Returns a random integer between bottom and top (inclusive). Recalculates on every frame — volatile. Great for dice rolls, random sampling, or test data generation.', example: '=RANDBETWEEN(1, 6)  →  simulates a die roll\n=RANDBETWEEN(100, 999)  →  random 3-digit number', tags: ['random', 'volatile'] },
 
     // Text
     LEN:        { sig: 'LEN(text)', desc: 'Returns the number of characters in a text string, including spaces. Use to validate input length, find empty cells, or build padding logic.', example: '=LEN(A2)  →  character count\n=LEN(TRIM(A2))  →  length without leading/trailing spaces', tags: ['text'] },

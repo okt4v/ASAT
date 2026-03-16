@@ -198,7 +198,10 @@ mod python {
         match v {
             CellValue::Number(n) => n.into_pyobject(py).unwrap().into_any().unbind(),
             CellValue::Text(s) => s.into_pyobject(py).unwrap().into_any().unbind(),
-            CellValue::Boolean(b) => b.into_pyobject(py).unwrap().into_any().unbind(),
+            CellValue::Boolean(b) => {
+                let bound = pyo3::types::PyBool::new(py, *b);
+                bound.as_any().clone().unbind()
+            }
             CellValue::Empty => py.None(),
             CellValue::Error(e) => format!("#{:?}", e)
                 .into_pyobject(py)
@@ -439,10 +442,14 @@ asat = _Asat()
             globals.set_item("_set_cell", native.getattr("set_cell")?)?;
 
             // Run the shim — defines `asat` in globals
-            py.run(ASAT_SHIM, Some(&globals), None)?;
+            let shim_cstr = std::ffi::CString::new(ASAT_SHIM)
+                .expect("ASAT_SHIM contains no null bytes");
+            py.run(shim_cstr.as_c_str(), Some(&globals), None)?;
 
             // Now run the user's init.py
-            py.run(&user_code, Some(&globals), None)?;
+            let code_cstr = std::ffi::CString::new(user_code.as_str())
+                .map_err(|_| pyo3::exceptions::PySyntaxError::new_err("init.py contains null bytes"))?;
+            py.run(code_cstr.as_c_str(), Some(&globals), None)?;
 
             Ok(())
         }) {

@@ -47,6 +47,8 @@ pub const EX_COMMANDS: &[(&str, &str)] = &[
         "Find & replace in text cells (:s/pat/repl/g)",
     ),
     ("plugin", "Plugin engine: :plugin reload | :plugin list"),
+    ("plugins", "Open the plugin manager panel"),
+    ("help", "Open the searchable help screen"),
     ("goto <cell>", "Jump to cell address (e.g. :goto B15)"),
     (
         "name <n> <r>",
@@ -69,6 +71,10 @@ pub const EX_COMMANDS: &[(&str, &str)] = &[
     ("merge", "Merge visual selection into one cell"),
     ("unmerge", "Unmerge the cell under cursor"),
     ("wrap", "Toggle line-wrap on cell / selection"),
+    ("freeze rows <N>", "Freeze top N rows"),
+    ("freeze cols <N>", "Freeze left N columns"),
+    ("freeze off", "Clear freeze panes"),
+    ("J", "Join cell below into current cell"),
 ];
 
 /// All built-in formula function names, for Tab-completion in Insert mode.
@@ -158,6 +164,10 @@ pub const FN_NAMES: &[&str] = &[
     "NOMINAL",
     "CUMIPMT",
     "CUMPRINC",
+    "NOW",
+    "TODAY",
+    "RAND",
+    "RANDBETWEEN",
 ];
 
 /// Return completions whose command word starts with `prefix` (case-insensitive).
@@ -193,10 +203,12 @@ pub enum Mode {
     Recording {
         register: char,
     },
-    Welcome,      // home / start screen
-    FileFind,     // fuzzy file finder
-    RecentFiles,  // recent files list
-    ThemeManager, // theme picker
+    Welcome,       // home / start screen
+    FileFind,      // fuzzy file finder
+    RecentFiles,   // recent files list
+    ThemeManager,  // theme picker
+    Help,          // searchable help screen
+    PluginManager, // plugin manager panel
     /// Navigate the grid with hjkl to pick a cell/range reference while writing a formula.
     /// `anchor` is set when the user pressed `:` to start a range.
     FormulaSelect {
@@ -223,6 +235,8 @@ impl Mode {
             Mode::FileFind => "FIND FILE",
             Mode::RecentFiles => "RECENT",
             Mode::ThemeManager => "THEMES",
+            Mode::Help => "HELP",
+            Mode::PluginManager => "PLUGINS",
             Mode::FormulaSelect { anchor: None } => "F-REF",
             Mode::FormulaSelect { anchor: Some(_) } => "F-RANGE",
         }
@@ -535,6 +549,15 @@ pub enum AppAction {
     // ── Commands ──
     ExecuteCommand2(String),
 
+    // ── Help screen ──
+    OpenHelp,
+
+    // ── Plugin manager ──
+    OpenPluginManager,
+
+    // ── Go-to definition ──
+    GotoDefinition,
+
     // ── App ──
     Quit,
     QuitForce,
@@ -594,6 +617,21 @@ pub struct InputState {
 
     // ── Theme manager state ──
     pub theme_selected: usize,
+
+    // ── Visual→Command range ──
+    /// When the user presses `:` in visual mode we save the selection here so
+    /// ex-commands can apply to the range even after mode switched to Command.
+    /// Cleared when Command mode exits.
+    pub visual_command_range: Option<(u32, u32, u32, u32)>,
+
+    // ── Help screen state ──
+    pub help_tab: usize,    // 0 = Keybindings, 1 = Formulas
+    pub help_scroll: usize,
+    pub help_query: String,
+
+    // ── Plugin manager state ──
+    pub plugin_selected: usize,
+    pub plugin_show_output: bool,
 
     // ── Style clipboard ──
     pub style_clipboard: Option<CellStyle>,
@@ -656,6 +694,12 @@ impl InputState {
             recent_files: Vec::new(),
             recent_selected: 0,
             theme_selected: 0,
+            visual_command_range: None,
+            help_tab: 0,
+            help_scroll: 0,
+            help_query: String::new(),
+            plugin_selected: 0,
+            plugin_show_output: false,
             style_clipboard: None,
             formula_origin: None,
             subcmd_completions: Vec::new(),
@@ -823,6 +867,8 @@ impl InputState {
             Mode::FileFind => self.handle_file_find(key),
             Mode::RecentFiles => self.handle_recent_files(key),
             Mode::ThemeManager => self.handle_theme_manager(key),
+            Mode::Help => self.handle_help(key),
+            Mode::PluginManager => self.handle_plugin_manager(key),
             Mode::FormulaSelect { .. } => self.handle_formula_select(key),
         }
     }
@@ -871,6 +917,9 @@ impl InputState {
                 (KeyCode::Char('g'), KeyCode::Char('t')) => vec![AppAction::NextSheet],
                 (KeyCode::Char('g'), KeyCode::Char('T')) => vec![AppAction::PrevSheet],
                 (KeyCode::Char('g'), KeyCode::Char('w')) => vec![AppAction::ToggleWrap],
+
+                // gd — go to definition (first cell ref in formula)
+                (KeyCode::Char('g'), KeyCode::Char('d')) => vec![AppAction::GotoDefinition],
 
                 // g{A-Z} — goto column (single letter address shortcut)
                 (KeyCode::Char('g'), KeyCode::Char(c)) if c.is_ascii_uppercase() => {
@@ -1385,6 +1434,75 @@ impl InputState {
             KeyCode::Down | KeyCode::Char('j') if !ctrl => {
                 self.theme_selected += 1; // clamped in process_action after theme count is known
                 vec![AppAction::NoOp]
+            }
+            _ => vec![AppAction::NoOp],
+        }
+    }
+
+    // ── Help screen ───────────────────────────────────────────────────────────
+
+    fn handle_help(&mut self, key: KeyEvent) -> Vec<AppAction> {
+        match key.code {
+            KeyCode::Esc | KeyCode::Char('q') => {
+                self.help_query.clear();
+                self.help_scroll = 0;
+                self.mode = Mode::Normal;
+                vec![AppAction::NoOp]
+            }
+            KeyCode::Tab => {
+                self.help_tab = (self.help_tab + 1) % 2;
+                self.help_scroll = 0;
+                vec![AppAction::NoOp]
+            }
+            KeyCode::BackTab => {
+                self.help_tab = if self.help_tab == 0 { 1 } else { 0 };
+                self.help_scroll = 0;
+                vec![AppAction::NoOp]
+            }
+            KeyCode::Char('j') | KeyCode::Down => {
+                self.help_scroll += 1;
+                vec![AppAction::NoOp]
+            }
+            KeyCode::Char('k') | KeyCode::Up => {
+                self.help_scroll = self.help_scroll.saturating_sub(1);
+                vec![AppAction::NoOp]
+            }
+            KeyCode::Char(c) => {
+                self.help_query.push(c);
+                self.help_scroll = 0;
+                vec![AppAction::NoOp]
+            }
+            KeyCode::Backspace => {
+                self.help_query.pop();
+                self.help_scroll = 0;
+                vec![AppAction::NoOp]
+            }
+            _ => vec![AppAction::NoOp],
+        }
+    }
+
+    // ── Plugin manager ────────────────────────────────────────────────────────
+
+    fn handle_plugin_manager(&mut self, key: KeyEvent) -> Vec<AppAction> {
+        match key.code {
+            KeyCode::Esc | KeyCode::Char('q') => {
+                self.mode = Mode::Normal;
+                vec![AppAction::NoOp]
+            }
+            KeyCode::Char('j') | KeyCode::Down => {
+                self.plugin_selected += 1; // clamped in render
+                vec![AppAction::NoOp]
+            }
+            KeyCode::Char('k') | KeyCode::Up => {
+                self.plugin_selected = self.plugin_selected.saturating_sub(1);
+                vec![AppAction::NoOp]
+            }
+            KeyCode::Enter | KeyCode::Char('o') => {
+                self.plugin_show_output = !self.plugin_show_output;
+                vec![AppAction::NoOp]
+            }
+            KeyCode::Char('r') => {
+                vec![AppAction::ExecuteCommand2("plugin reload".to_string())]
             }
             _ => vec![AppAction::NoOp],
         }
@@ -1932,6 +2050,14 @@ impl InputState {
                     },
                     AppAction::ExitMode,
                 ]
+            }
+
+            // : — enter command mode while keeping visual selection for range commands
+            KeyCode::Char(':') => {
+                let (rs, cs, re, ce) = self.visual_selection_bounds();
+                self.visual_command_range = Some((rs, cs, re, ce));
+                self.command_buffer.clear();
+                vec![AppAction::EnterCommand]
             }
 
             _ => vec![AppAction::NoOp],

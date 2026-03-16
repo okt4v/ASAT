@@ -98,6 +98,12 @@ pub fn call(name: &str, args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) ->
         "XLOOKUP" => fn_xlookup(args, ctx, ev),
         "CHOOSE" => fn_choose(args, ctx, ev),
 
+        // ── Volatile / Date-Time ──
+        "NOW" => fn_now(),
+        "TODAY" => fn_today(),
+        "RAND" => fn_rand(),
+        "RANDBETWEEN" => fn_randbetween(args, ctx, ev),
+
         _ => {
             // Fall through to plugin-registered custom functions before giving up.
             if asat_core::has_custom_fn(name) {
@@ -1751,6 +1757,60 @@ fn fn_choose(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValue 
         return CellValue::Error(CellError::Value);
     }
     ev.eval(&choices[idx - 1], ctx)
+}
+
+// ── Volatile / Date-Time Functions ───────────────────────────────────────────
+
+/// Excel serial date for the current date+time (days since 1899-12-30).
+fn fn_now() -> CellValue {
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs_f64();
+    CellValue::Number(secs / 86400.0 + 25569.0)
+}
+
+/// Excel serial date for today (integer days since 1899-12-30).
+fn fn_today() -> CellValue {
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    CellValue::Number((secs / 86400) as f64 + 25569.0)
+}
+
+/// Random float in [0, 1) using subsecond-nanos as a one-shot LCG seed.
+fn fn_rand() -> CellValue {
+    let seed = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.subsec_nanos())
+        .unwrap_or(1234) as u64;
+    let v = seed
+        .wrapping_mul(6364136223846793005)
+        .wrapping_add(1442695040888963407)
+        >> 33;
+    CellValue::Number((v as f64) / (u32::MAX as f64))
+}
+
+/// Random integer in [lo, hi] inclusive.
+fn fn_randbetween(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValue {
+    let (lo, hi) = match first_two_nums(args, ctx, ev) {
+        Some(p) => p,
+        None => return CellValue::Error(CellError::Value),
+    };
+    if lo > hi {
+        return CellValue::Error(CellError::Num);
+    }
+    let seed = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.subsec_nanos())
+        .unwrap_or(42) as u64;
+    let v = seed
+        .wrapping_mul(6364136223846793005)
+        .wrapping_add(1442695040888963407)
+        >> 33;
+    let frac = (v as f64) / (u32::MAX as f64);
+    CellValue::Number((lo + frac * (hi - lo + 1.0)).floor())
 }
 
 /// Helper: check if two CellValues are equal for XLOOKUP exact match

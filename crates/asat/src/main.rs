@@ -325,6 +325,8 @@ fn run_app(
                     std::collections::HashSet::new()
                 };
 
+            let plugin_info = plugins.info();
+            let plugin_custom_fns = asat_core::list_custom_fns();
             let state = RenderState {
                 workbook: &workbook,
                 input: &input_state,
@@ -333,6 +335,8 @@ fn run_app(
                 config: &config,
                 formula_preview,
                 ref_cells,
+                plugin_info,
+                plugin_custom_fns,
             };
             render(frame, &state);
         })?;
@@ -456,10 +460,86 @@ fn recalculate_sheet(workbook: &mut Workbook, sheet_idx: usize) {
 
     workbook.sheets[sheet_idx].computed.clear();
 
+    // ── Circular reference detection ──────────────────────────────────────────
+    // Build a dependency map: (row, col) → set of (row, col) it references on the same sheet.
+    let formula_set: std::collections::HashSet<(u32, u32)> = formula_cells
+        .iter()
+        .map(|(r, c, _)| (*r, *c))
+        .collect();
+
+    let deps: std::collections::HashMap<(u32, u32), Vec<(u32, u32)>> = formula_cells
+        .iter()
+        .map(|(r, c, f)| {
+            let refs: Vec<(u32, u32)> = asat_formula::collect_cell_refs(f)
+                .into_iter()
+                .filter(|rc| formula_set.contains(rc))
+                .collect();
+            ((*r, *c), refs)
+        })
+        .collect();
+
+    // DFS cycle detection: cells found in a cycle get #CIRC! instead of being evaluated.
+    let mut cycle_cells = std::collections::HashSet::new();
+    {
+        #[derive(PartialEq)]
+        enum Color {
+            White,
+            Gray,
+            Black,
+        }
+        let mut color: std::collections::HashMap<(u32, u32), Color> =
+            formula_cells.iter().map(|(r, c, _)| ((*r, *c), Color::White)).collect();
+
+        fn dfs(
+            node: (u32, u32),
+            deps: &std::collections::HashMap<(u32, u32), Vec<(u32, u32)>>,
+            color: &mut std::collections::HashMap<(u32, u32), Color>,
+            cycle_cells: &mut std::collections::HashSet<(u32, u32)>,
+        ) {
+            if color.get(&node) == Some(&Color::Black) {
+                return;
+            }
+            if color.get(&node) == Some(&Color::Gray) {
+                cycle_cells.insert(node);
+                return;
+            }
+            color.insert(node, Color::Gray);
+            if let Some(neighbors) = deps.get(&node) {
+                for &neighbor in neighbors {
+                    if color.get(&neighbor) == Some(&Color::Gray) {
+                        // Back-edge: both ends are in a cycle
+                        cycle_cells.insert(node);
+                        cycle_cells.insert(neighbor);
+                    } else {
+                        dfs(neighbor, deps, color, cycle_cells);
+                        if cycle_cells.contains(&neighbor) {
+                            cycle_cells.insert(node);
+                        }
+                    }
+                }
+            }
+            color.insert(node, Color::Black);
+        }
+
+        let keys: Vec<(u32, u32)> = deps.keys().copied().collect();
+        for node in keys {
+            dfs(node, &deps, &mut color, &mut cycle_cells);
+        }
+    }
+
+    // Mark cycle cells immediately so passes skip them.
+    let sheet = &mut workbook.sheets[sheet_idx];
+    for &(r, c) in &cycle_cells {
+        sheet
+            .computed
+            .insert((r, c), asat_core::CellValue::Error(asat_core::CellError::CircularRef));
+    }
+
     // Up to 3 passes so formula→formula chains resolve correctly
     for _pass in 0..3 {
         let results: Vec<(u32, u32, CellValue)> = formula_cells
             .iter()
+            .filter(|(r, c, _)| !cycle_cells.contains(&(*r, *c)))
             .map(|(r, c, f)| {
                 let val = asat_formula::evaluate(f, workbook, sheet_idx, *r, *c);
                 (*r, *c, val)
@@ -673,6 +753,8 @@ fn process_action(
             input.mode = Mode::Search { forward };
         }
         AppAction::ExitMode => {
+            input.visual_command_range = None;
+            input.visual_anchor = None;
             input.mode = Mode::Normal;
         }
 
@@ -1430,6 +1512,49 @@ fn process_action(
         AppAction::ThemeManagerCancel => {
             input.mode = Mode::Welcome;
         }
+
+        AppAction::OpenHelp => {
+            input.help_tab = 0;
+            input.help_scroll = 0;
+            input.help_query.clear();
+            input.mode = Mode::Help;
+        }
+
+        AppAction::OpenPluginManager => {
+            input.plugin_selected = 0;
+            input.plugin_show_output = false;
+            input.mode = Mode::PluginManager;
+        }
+
+        AppAction::GotoDefinition => {
+            let sheet_idx = workbook.active_sheet;
+            let row = input.cursor.row;
+            let col = input.cursor.col;
+            if let CellValue::Formula(formula) = workbook.active().get_raw_value(row, col) {
+                let formula = formula.clone();
+                if let Some((target_sheet_name, target_row, target_col)) =
+                    find_first_cell_ref(&formula)
+                {
+                    let target_sheet_idx = if let Some(name) = target_sheet_name {
+                        workbook
+                            .sheets
+                            .iter()
+                            .position(|s| s.name.eq_ignore_ascii_case(&name))
+                            .unwrap_or(sheet_idx)
+                    } else {
+                        sheet_idx
+                    };
+                    input.save_position(sheet_idx);
+                    workbook.active_sheet = target_sheet_idx;
+                    input.cursor.row = target_row;
+                    input.cursor.col = target_col;
+                    input.scroll_to_cursor(visible_rows, visible_cols);
+                } else {
+                    set_status(status, "No cell reference in formula".to_string());
+                }
+            }
+        }
+
 
         // ── Style copy / paste ──
         AppAction::YankStyle => {
@@ -2413,6 +2538,10 @@ fn style_range(workbook: &Workbook, input: &InputState) -> (u32, u32, u32, u32) 
         let (rs, cs, re, ce) = input.visual_selection_bounds();
         let sh = workbook.active();
         (rs, cs, re.min(sh.max_row()), ce.min(sh.max_col()))
+    } else if let Some((rs, cs, re, ce)) = input.visual_command_range {
+        // Entered Command mode from Visual — apply to the saved selection
+        let sh = workbook.active();
+        (rs, cs, re.min(sh.max_row()), ce.min(sh.max_col()))
     } else {
         (
             input.cursor.row,
@@ -3094,6 +3223,21 @@ fn handle_ex_command(
                 set_status(status, format!("Unknown option: {}", arg));
             }
         }
+        // ── Help screen ──
+        "help" | "h" => {
+            input.help_tab = 0;
+            input.help_scroll = 0;
+            input.help_query.clear();
+            input.mode = Mode::Help;
+        }
+
+        // ── Plugin manager panel ──
+        "plugins" | "plug-ui" => {
+            input.plugin_selected = 0;
+            input.plugin_show_output = false;
+            input.mode = Mode::PluginManager;
+        }
+
         // ── Plugin management ──
         "plugin" | "plug" => match arg {
             "reload" | "r" => {
@@ -4437,4 +4581,39 @@ fn open_config_in_editor() {
     // Restore the TUI
     let _ = enable_raw_mode();
     let _ = execute!(std::io::stdout(), crossterm::terminal::EnterAlternateScreen);
+}
+
+// ── Go-to definition helpers ──────────────────────────────────────────────────
+
+/// Parse a formula string (without leading '=') and return the first cell reference:
+/// `(sheet_name: Option<String>, row: u32, col: u32)`
+fn find_first_cell_ref(formula: &str) -> Option<(Option<String>, u32, u32)> {
+    let tokens = asat_formula::lexer::lex(formula).ok()?;
+    let expr = asat_formula::parser::parse(&tokens).ok()?;
+    find_first_ref_in_expr(&expr)
+}
+
+fn find_first_ref_in_expr(expr: &asat_formula::parser::Expr) -> Option<(Option<String>, u32, u32)> {
+    use asat_formula::parser::Expr;
+    match expr {
+        Expr::CellRef { sheet, row, col } => Some((sheet.clone(), *row, *col)),
+        Expr::RangeRef {
+            sheet, row1, col1, ..
+        } => Some((sheet.clone(), *row1, *col1)),
+        Expr::UnaryMinus(e) | Expr::UnaryPlus(e) => find_first_ref_in_expr(e),
+        Expr::Add(a, b)
+        | Expr::Sub(a, b)
+        | Expr::Mul(a, b)
+        | Expr::Div(a, b)
+        | Expr::Pow(a, b)
+        | Expr::Concat(a, b)
+        | Expr::Eq(a, b)
+        | Expr::Neq(a, b)
+        | Expr::Lt(a, b)
+        | Expr::Lte(a, b)
+        | Expr::Gt(a, b)
+        | Expr::Gte(a, b) => find_first_ref_in_expr(a).or_else(|| find_first_ref_in_expr(b)),
+        Expr::Call { args, .. } => args.iter().find_map(find_first_ref_in_expr),
+        _ => None,
+    }
 }

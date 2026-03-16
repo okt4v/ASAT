@@ -64,6 +64,7 @@ pub enum CellError {
     Num,
     NA,
     Null,
+    CircularRef,
 }
 
 impl std::fmt::Display for CellError {
@@ -76,6 +77,7 @@ impl std::fmt::Display for CellError {
             CellError::Num => write!(f, "#NUM!"),
             CellError::NA => write!(f, "#N/A"),
             CellError::Null => write!(f, "#NULL!"),
+            CellError::CircularRef => write!(f, "#CIRC!"),
         }
     }
 }

@@ -3,7 +3,9 @@ pub mod completion;
 pub mod formula_bar;
 pub mod formula_hint;
 pub mod grid;
+pub mod help;
 pub mod notification;
+pub mod plugin_manager;
 pub mod status_bar;
 pub mod tab_bar;
 pub mod theme_manager;
@@ -27,6 +29,10 @@ pub struct RenderState<'a> {
     pub formula_preview: Option<String>,
     /// Cells referenced by the formula in the current cursor cell (for highlighting).
     pub ref_cells: std::collections::HashSet<(u32, u32)>,
+    /// Human-readable plugin engine status string.
+    pub plugin_info: String,
+    /// Custom function names registered by plugins.
+    pub plugin_custom_fns: Vec<String>,
 }
 
 /// Parse a `#RRGGBB` hex string into a ratatui Color. Falls back to Reset on parse failure.
@@ -72,7 +78,12 @@ pub fn render(frame: &mut Frame, state: &RenderState<'_>) {
     let show_command = matches!(mode, Mode::Command | Mode::Search { .. });
     let is_special = matches!(
         mode,
-        Mode::Welcome | Mode::FileFind | Mode::RecentFiles | Mode::ThemeManager
+        Mode::Welcome
+            | Mode::FileFind
+            | Mode::RecentFiles
+            | Mode::ThemeManager
+            | Mode::Help
+            | Mode::PluginManager
     );
 
     if is_special {
@@ -93,6 +104,8 @@ pub fn render(frame: &mut Frame, state: &RenderState<'_>) {
                 welcome::render_recent_files(frame, rows[0], state);
             }
             Mode::ThemeManager => theme_manager::render(frame, rows[0], state),
+            Mode::Help => help::render(frame, rows[0], state),
+            Mode::PluginManager => plugin_manager::render(frame, rows[0], state),
             _ => {}
         }
 

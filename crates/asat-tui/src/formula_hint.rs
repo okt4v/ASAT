@@ -322,6 +322,13 @@ static FN_DEFS: &[FnDef] = &[
         ["rate", "nper", "pv", "start", "end", "type"],
         "Cumulative principal paid"
     ),
+    // Volatile
+    fn_def!("RAND", [], "Random float in [0, 1)"),
+    fn_def!(
+        "RANDBETWEEN",
+        ["lo", "hi"],
+        "Random integer between lo and hi (inclusive)"
+    ),
     // Constants
     fn_def!("TRUE", [], "Boolean true"),
     fn_def!("FALSE", [], "Boolean false"),

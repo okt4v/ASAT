@@ -35,6 +35,7 @@ assets = [
 ]
 
 [features]
+default = ["python"]
 python = ["asat-plugins/python"]
 
 [dependencies]
