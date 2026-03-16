@@ -341,6 +341,9 @@ pub enum AppAction {
     OpenRowBelow, // o — insert row below + move there + insert mode
     OpenRowAbove, // O — insert row above + stay + insert mode
     DeleteCurrentRow,
+    DeleteRowAt {
+        row: u32,
+    }, // dj/dk — delete specific row
     InsertColLeft,
     InsertColRight,
     DeleteCurrentCol,
@@ -365,6 +368,10 @@ pub enum AppAction {
 
     // ── Yank / paste ──
     YankRow,
+    YankRowAt {
+        row: u32,
+    }, // yj/yk — yank a specific row
+    YankCol,  // yC — yank entire column
     YankCell, // yc — yank single cell to register + system clipboard
     YankCellRange {
         row_start: u32,
@@ -817,13 +824,34 @@ impl InputState {
                     vec![AppAction::MoveCursorTo { row: 0, col }]
                 }
 
-                // dd / yy / yc / yr / dC
+                // dd / dc / dC / dj / dk
                 (KeyCode::Char('d'), KeyCode::Char('d')) => {
                     (0..n).map(|_| AppAction::DeleteCurrentRow).collect()
+                }
+                (KeyCode::Char('d'), KeyCode::Char('c')) => {
+                    // dc — clear cell content (same as x)
+                    (0..n).map(|_| AppAction::DeleteCellContent).collect()
                 }
                 (KeyCode::Char('d'), KeyCode::Char('C')) => {
                     (0..n).map(|_| AppAction::DeleteCurrentCol).collect()
                 }
+                (KeyCode::Char('d'), KeyCode::Char('j')) => {
+                    // dj — delete row below cursor
+                    (0..n)
+                        .map(|i| AppAction::DeleteRowAt {
+                            row: self.cursor.row + 1 + i,
+                        })
+                        .collect()
+                }
+                (KeyCode::Char('d'), KeyCode::Char('k')) => {
+                    // dk — delete row above cursor
+                    (0..n)
+                        .map(|i| AppAction::DeleteRowAt {
+                            row: self.cursor.row.saturating_sub(1 + i),
+                        })
+                        .collect()
+                }
+                // yy / yr / yc / yC / yj / yk
                 (KeyCode::Char('y'), KeyCode::Char('y')) => {
                     (0..n).map(|_| AppAction::YankRow).collect()
                 }
@@ -834,6 +862,22 @@ impl InputState {
                 (KeyCode::Char('y'), KeyCode::Char('c')) => {
                     // yc — yank current cell only
                     vec![AppAction::YankCell]
+                }
+                (KeyCode::Char('y'), KeyCode::Char('C')) => {
+                    // yC — yank entire column
+                    vec![AppAction::YankCol]
+                }
+                (KeyCode::Char('y'), KeyCode::Char('j')) => {
+                    // yj — yank row below cursor
+                    vec![AppAction::YankRowAt {
+                        row: self.cursor.row + 1,
+                    }]
+                }
+                (KeyCode::Char('y'), KeyCode::Char('k')) => {
+                    // yk — yank row above cursor
+                    vec![AppAction::YankRowAt {
+                        row: self.cursor.row.saturating_sub(1),
+                    }]
                 }
 
                 // f{A-Za-z} — jump to column by letter (A=0, B=1, …, Z=25)

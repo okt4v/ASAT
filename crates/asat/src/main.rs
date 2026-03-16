@@ -748,6 +748,21 @@ fn process_action(
                 undo.push(cmd);
             }
         }
+        AppAction::DeleteRowAt { row } => {
+            let sheet_idx = workbook.active_sheet;
+            let max_row = workbook.active().max_row();
+            if row > max_row {
+                set_status(status, "No row there".to_string());
+            } else {
+                let cmd = Box::new(asat_commands::DeleteRow::new(workbook, sheet_idx, row));
+                if let Err(e) = cmd.execute(workbook) {
+                    set_status(status, format!("Error: {}", e));
+                } else {
+                    undo.push(cmd);
+                    set_status(status, format!("Deleted row {}", row + 1));
+                }
+            }
+        }
 
         // ── Undo/Redo ──
         AppAction::Undo => match undo.undo(workbook) {
@@ -1152,6 +1167,34 @@ fn process_action(
             let cells = vec![vec![val]];
             input.registers.yank(None, cells, false);
             set_status(status, format!("Yanked cell → clipboard: {}", text));
+        }
+        AppAction::YankRowAt { row } => {
+            let sheet = workbook.active();
+            let max_row = sheet.max_row();
+            if row > max_row {
+                set_status(status, "No row there".to_string());
+            } else {
+                let max_col = sheet.max_col();
+                let cells: Vec<Vec<CellValue>> = vec![(0..=max_col)
+                    .map(|c| sheet.get_value(row, c).clone())
+                    .collect()];
+                let tsv = cells_to_tsv(&cells);
+                copy_to_clipboard(&tsv);
+                input.registers.yank(None, cells, true);
+                set_status(status, format!("Yanked row {} → clipboard", row + 1));
+            }
+        }
+        AppAction::YankCol => {
+            let sheet = workbook.active();
+            let col = input.cursor.col;
+            let max_row = sheet.max_row();
+            let cells: Vec<Vec<CellValue>> = (0..=max_row)
+                .map(|r| vec![sheet.get_value(r, col).clone()])
+                .collect();
+            let tsv = cells_to_tsv(&cells);
+            copy_to_clipboard(&tsv);
+            input.registers.yank(None, cells, false);
+            set_status(status, format!("Yanked column {} → clipboard", col + 1));
         }
         AppAction::YankCellRange {
             row_start,

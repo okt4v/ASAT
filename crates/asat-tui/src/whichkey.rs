@@ -39,6 +39,9 @@ const NORMAL_HINTS: &[Hint] = &[
     Hint::new("o / O", "open row below / above"),
     Hint::new("x / D", "clear cell"),
     Hint::new("dd", "delete row"),
+    Hint::new("dc", "clear cell (alias x)"),
+    Hint::new("dC", "delete column"),
+    Hint::new("dj / dk", "delete row below / above"),
     Hint::new("~", "toggle case"),
     // Column / row sizing
     Hint::new(">> / <<", "widen / narrow column"),
@@ -49,7 +52,10 @@ const NORMAL_HINTS: &[Hint] = &[
     Hint::new("U", "unmerge cell under cursor"),
     Hint::new("gw", "toggle line-wrap on cell"),
     // Yank / paste
-    Hint::new("yy", "yank row"),
+    Hint::new("yy / yr", "yank row"),
+    Hint::new("yc", "yank cell"),
+    Hint::new("yC", "yank column"),
+    Hint::new("yj / yk", "yank row below / above"),
     Hint::new("p / P", "paste after / before"),
     // Macros
     Hint::new("q{a-z}", "start recording macro"),
