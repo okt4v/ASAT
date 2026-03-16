@@ -310,7 +310,10 @@ impl<'a> Widget for GridWidget<'a> {
                         if *c == u32::MAX {
                             return None;
                         }
-                        // Covered cells are handled by their anchor
+                        // Covered cells and vertically-merged anchors are excluded:
+                        // covered cells are handled by their anchor, and vertical merges
+                        // use their covered rows as continuation lines rather than extra
+                        // lines within the same row.
                         if sheet.is_covered(row_idx, *c) {
                             return None;
                         }
@@ -322,8 +325,13 @@ impl<'a> Widget for GridWidget<'a> {
                         if !has_wrap {
                             return None;
                         }
-                        // Use merged width if this cell is a merge anchor
+                        // For merge anchors with a vertical span, the covered rows act as
+                        // continuation lines — no extra row_h needed.
                         let cw = if let Some(m) = sheet.merge_at(row_idx, *c) {
+                            if m.row_end > m.row_start {
+                                return None;
+                            }
+                            // Horizontal-only merge: use merged width
                             all_col_groups
                                 .iter()
                                 .filter(|(c2, _)| {
@@ -405,8 +413,15 @@ impl<'a> Widget for GridWidget<'a> {
                                 cell.set_style(note_marker_style);
                             }
                         }
-                    } else if row_idx > m.row_start {
-                        // Covered cell in a row below anchor — paint matching background
+                    } else if row_idx > m.row_start && *col_idx == m.col_start {
+                        // Leftmost column of a covered row — render with full merged width.
+                        // Remaining covered columns will just advance x (we painted them here).
+                        let actual_width = all_col_groups
+                            .iter()
+                            .filter(|(c, _)| *c != u32::MAX && *c >= m.col_start && *c <= m.col_end)
+                            .map(|(_, w)| *w)
+                            .sum::<u16>()
+                            .max(*col_width);
                         let is_anchor_cursor = m.row_start == cursor.row && m.col_start == cursor.col;
                         let bg = if is_anchor_cursor {
                             cursor_bg
@@ -417,9 +432,30 @@ impl<'a> Widget for GridWidget<'a> {
                                 .map(|c| Color::Rgb(c.r, c.g, c.b))
                                 .unwrap_or(cell_bg)
                         };
-                        render_cell_str(buf, x, screen_y, *col_width, "", Style::default().bg(bg));
+                        let anchor_wrap = sheet
+                            .get_cell(m.row_start, m.col_start)
+                            .and_then(|c| c.style.as_ref())
+                            .map(|s| s.wrap)
+                            .unwrap_or(false);
+                        if anchor_wrap {
+                            let display = sheet.display_value(m.row_start, m.col_start);
+                            let chunk_size = actual_width.max(1) as usize;
+                            let line_idx = (row_idx - m.row_start) as usize;
+                            let chunk: String = display
+                                .chars()
+                                .skip(chunk_size * line_idx)
+                                .take(chunk_size)
+                                .collect();
+                            let style = Style::default()
+                                .fg(if is_anchor_cursor { Color::Black } else { Color::White })
+                                .bg(bg);
+                            render_cell_str(buf, x, screen_y, actual_width, &chunk, style);
+                        } else {
+                            render_cell_str(buf, x, screen_y, actual_width, "", Style::default().bg(bg));
+                        }
                     }
                     // row == m.row_start, col != m.col_start: same-row covered, anchor painted it.
+                    // row > m.row_start, col != m.col_start: leftmost covered-row col painted it.
                 } else {
                     // Normal (non-merged) cell
                     render_data_cell(
@@ -472,8 +508,14 @@ impl<'a> Widget for GridWidget<'a> {
                         ex += col_width;
                         continue;
                     }
-                    // For merged anchors, use the full merged width
+                    // For merged anchors, use the full merged width.
+                    // Vertically-merged anchors (row_end > row_start) use covered rows
+                    // for continuation — skip them in the extra lines loop.
                     let render_width = if let Some(m) = sheet.merge_at(row_idx, *col_idx) {
+                        if m.row_end > m.row_start {
+                            ex += col_width;
+                            continue;
+                        }
                         all_col_groups
                             .iter()
                             .filter(|(c, _)| *c != u32::MAX && *c >= m.col_start && *c <= m.col_end)
