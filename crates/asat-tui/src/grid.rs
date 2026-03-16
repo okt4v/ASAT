@@ -301,7 +301,31 @@ impl<'a> Widget for GridWidget<'a> {
                 continue;
             }
 
-            let row_h = sheet.row_height(row_idx).max(1);
+            let row_h = {
+                let stored = sheet.row_height(row_idx).max(1);
+                // Auto-expand height for any wrapped cell in this row
+                let wrap_h = all_col_groups
+                    .iter()
+                    .filter_map(|(c, w)| {
+                        if *c == u32::MAX {
+                            return None;
+                        }
+                        let has_wrap = sheet
+                            .get_cell(row_idx, *c)
+                            .and_then(|cell| cell.style.as_ref())
+                            .map(|s| s.wrap)
+                            .unwrap_or(false);
+                        if !has_wrap {
+                            return None;
+                        }
+                        let text_len = sheet.display_value(row_idx, *c).chars().count();
+                        let cw = (*w).max(1) as usize;
+                        Some(((text_len + cw - 1) / cw).max(1) as u16)
+                    })
+                    .max()
+                    .unwrap_or(1);
+                stored.max(wrap_h)
+            };
             let is_cursor_row = row_idx == cursor.row;
 
             // ── First line: gutter + cell content ────────────────────────────
