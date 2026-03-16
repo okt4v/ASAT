@@ -1313,8 +1313,10 @@
             <tr><td class="keys"><kbd>~</kbd></td><td>Toggle case of text cell (upper ↔ lower)</td></tr>
             <tr><td class="keys"><kbd>x</kbd> <span class="key-sep">/</span> <kbd>Del</kbd> <span class="key-sep">/</span> <kbd>D</kbd></td><td>Delete cell content (clear to empty)</td></tr>
             <tr><td class="keys"><kbd>J</kbd></td><td>Join: concatenate cell below into current cell (space-separated), then clear the cell below</td></tr>
-            <tr><td class="keys"><kbd>Ctrl</kbd><kbd>a</kbd></td><td>Increment number in current cell by 1 (creates 1 if empty)</td></tr>
-            <tr><td class="keys"><kbd>Ctrl</kbd><kbd>x</kbd></td><td>Decrement number in current cell by 1 (creates −1 if empty)</td></tr>
+            <tr><td class="keys"><kbd>Ctrl</kbd><kbd>a</kbd></td><td>Increment number by 1 — or cycle date forward (day → month name → weekday)</td></tr>
+            <tr><td class="keys"><kbd>Ctrl</kbd><kbd>x</kbd></td><td>Decrement number by 1 — or cycle date backward</td></tr>
+            <tr><td class="keys"><kbd>g</kbd><kbd>w</kbd></td><td>Toggle line wrap on current cell (text reflows into merged rows below for vertical merges)</td></tr>
+            <tr><td class="keys"><kbd>U</kbd></td><td>Unmerge the merged region under the cursor</td></tr>
 
             <tr><td colspan="2" style="color:var(--amber);font-family:var(--mono);font-size:0.78rem;padding:0.8rem 1.2rem 0.5rem;letter-spacing:0.06em;border-top:1px solid var(--border2)">INSERT MODE — while editing a cell</td></tr>
             <tr><td class="keys"><kbd>Esc</kbd></td><td>Confirm edit and return to Normal mode</td></tr>
@@ -1410,6 +1412,7 @@
             <tr style="border-top:1px solid var(--border2)">
               <td colspan="2" style="color:var(--amber);font-family:var(--mono);font-size:0.78rem;padding:0.5rem 1.2rem;letter-spacing:0.06em">ACTIONS ON SELECTION</td>
             </tr>
+            <tr><td class="keys"><kbd>M</kbd></td><td>Merge selection into one spanning cell (undoable)</td></tr>
             <tr><td class="keys"><kbd>d</kbd> <span class="key-sep">/</span> <kbd>x</kbd> <span class="key-sep">/</span> <kbd>Del</kbd></td><td>Delete all cells in selection (undoable)</td></tr>
             <tr><td class="keys"><kbd>c</kbd> <span class="key-sep">/</span> <kbd>s</kbd></td><td>Clear selection and enter insert mode at top-left cell</td></tr>
             <tr><td class="keys"><kbd>y</kbd></td><td>Yank selection → register + system clipboard (tab-separated)</td></tr>
@@ -1565,6 +1568,11 @@
             <tr><td><code style="color:var(--teal);font-family:var(--mono)">:filldown</code></td><td>Fill the anchor cell's value down through the selection</td></tr>
             <tr><td><code style="color:var(--teal);font-family:var(--mono)">:fillright</code></td><td>Fill the anchor cell's value right through the selection</td></tr>
             <tr><td><code style="color:var(--teal);font-family:var(--mono)">:fmt thousands</code></td><td>Thousands-separator number format (#,##0); <code>:fmt t2</code> adds 2 decimal places</td></tr>
+            <tr style="border-top:1px solid var(--border2)">
+              <td><code style="color:var(--teal);font-family:var(--mono)">:merge</code></td><td>Merge visual selection (or current cell) into one spanning cell</td>
+            </tr>
+            <tr><td><code style="color:var(--teal);font-family:var(--mono)">:unmerge</code></td><td>Unmerge the merged region under the cursor</td></tr>
+            <tr><td><code style="color:var(--teal);font-family:var(--mono)">:wrap</code> / <code style="color:var(--teal);font-family:var(--mono)">:ww</code></td><td>Toggle line wrap on current cell or visual selection</td></tr>
           </tbody>
         </table>
       </div>

@@ -45,6 +45,9 @@ const NORMAL_HINTS: &[Hint] = &[
     Hint::new("=", "auto-fit column width"),
     Hint::new("+ / -", "taller / shorter row"),
     Hint::new("_", "reset row height"),
+    // Cell merging / wrap
+    Hint::new("U", "unmerge cell under cursor"),
+    Hint::new("gw", "toggle line-wrap on cell"),
     // Yank / paste
     Hint::new("yy", "yank row"),
     Hint::new("p / P", "paste after / before"),
@@ -77,6 +80,7 @@ const VISUAL_HINTS: &[Hint] = &[
     Hint::new("} / {", "extend by paragraph"),
     Hint::new("0 / $", "first / last column"),
     Hint::new("gg / G", "first / last row"),
+    Hint::new("M", "merge selection into one cell"),
     Hint::new("d / x", "delete selection"),
     Hint::new("y", "yank selection"),
     Hint::new("v / V", "swap mode / exit"),

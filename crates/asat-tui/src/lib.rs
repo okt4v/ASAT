@@ -1,6 +1,7 @@
 pub mod command_line;
 pub mod completion;
 pub mod formula_bar;
+pub mod formula_hint;
 pub mod grid;
 pub mod notification;
 pub mod status_bar;
@@ -129,6 +130,9 @@ pub fn render(frame: &mut Frame, state: &RenderState<'_>) {
         command_line::render(frame, rows[4], state);
         completion::render(frame, area, state);
     }
+
+    // Formula hint popup — shown when editing a formula cell.
+    formula_hint::render(frame, rows[1], state);
 
     // Which-key overlay — rendered last so it floats above everything.
     whichkey::render(frame, rows[1], state);

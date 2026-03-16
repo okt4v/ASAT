@@ -32,6 +32,8 @@
 - **Time-based autosave** — configurable autosave interval in seconds (edit `autosave_interval` in `config.toml`; 0 = disabled)
 - **Macros** — record key sequences to named registers (`qa` … `qz`), replay with `@a`, chain with `{N}@a`
 - **Marks** — set named positions (`ma`), jump back (`'a`), and swap with `''`
+- **Cell merging** — merge a visual selection into one spanning cell with `M` in Visual mode or `:merge`; unmerge with `U` or `:unmerge`; line wrap flows text into covered rows below the anchor
+- **Line wrap** — toggle per-cell line wrap with `gw` (Normal mode) or `:wrap`; text reflows into merged rows below for vertical merges, and row height auto-expands for single cells
 - **Cell styling** — bold, italic, underline, strikethrough, foreground/background colour, alignment, and number formats
 - **Themes** — built-in theme picker (`:theme`) with multiple colour presets, saved to config
 - **Formula reference picker** — press `Ctrl+R` inside a formula to navigate the grid and insert cell/range references interactively
@@ -43,16 +45,16 @@
 
 ### Pre-built binaries (GitHub Releases)
 
-Download a binary for your platform from the [v0.1.3 release](https://github.com/okt4v/ASAT/releases/tag/v0.1.3):
+Download a binary for your platform from the [v0.1.14 release](https://github.com/okt4v/ASAT/releases/tag/v0.1.14):
 
 | Platform | Link |
 |----------|------|
-| Linux x86_64 (glibc) | [asat-x86_64-unknown-linux-gnu.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.3/asat-x86_64-unknown-linux-gnu.tar.gz) |
-| Linux x86_64 (musl)  | [asat-x86_64-unknown-linux-musl.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.3/asat-x86_64-unknown-linux-musl.tar.gz) |
-| Linux aarch64        | [asat-aarch64-unknown-linux-gnu.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.3/asat-aarch64-unknown-linux-gnu.tar.gz) |
-| macOS arm64          | [asat-aarch64-apple-darwin.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.3/asat-aarch64-apple-darwin.tar.gz) |
-| macOS x86_64         | [asat-x86_64-apple-darwin.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.3/asat-x86_64-apple-darwin.tar.gz) |
-| Windows x86_64       | [asat-x86_64-pc-windows-msvc.zip](https://github.com/okt4v/ASAT/releases/download/v0.1.3/asat-x86_64-pc-windows-msvc.zip) |
+| Linux x86_64 (glibc) | [asat-x86_64-unknown-linux-gnu.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.14/asat-x86_64-unknown-linux-gnu.tar.gz) |
+| Linux x86_64 (musl)  | [asat-x86_64-unknown-linux-musl.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.14/asat-x86_64-unknown-linux-musl.tar.gz) |
+| Linux aarch64        | [asat-aarch64-unknown-linux-gnu.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.14/asat-aarch64-unknown-linux-gnu.tar.gz) |
+| macOS arm64          | [asat-aarch64-apple-darwin.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.14/asat-aarch64-apple-darwin.tar.gz) |
+| macOS x86_64         | [asat-x86_64-apple-darwin.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.14/asat-x86_64-apple-darwin.tar.gz) |
+| Windows x86_64       | [asat-x86_64-pc-windows-msvc.zip](https://github.com/okt4v/ASAT/releases/download/v0.1.14/asat-x86_64-pc-windows-msvc.zip) |
 
 Extract the archive and place the `asat` binary somewhere on your `$PATH` (e.g. `~/.local/bin/`).
 
@@ -74,8 +76,8 @@ brew install asat
 ### Debian / Ubuntu (.deb)
 
 ```bash
-wget https://github.com/okt4v/ASAT/releases/download/v0.1.3/asat_0.1.0-1_amd64.deb
-sudo dpkg -i asat_0.1.0-1_amd64.deb
+wget https://github.com/okt4v/ASAT/releases/download/v0.1.14/asat_0.1.14-1_amd64.deb
+sudo dpkg -i asat_0.1.14-1_amd64.deb
 ```
 
 ### Build from source
@@ -142,8 +144,10 @@ asat new_file.csv      # create a new file at this path
 | `x` / `Del` / `D` | Delete cell content |
 | `~` | Toggle case of text cell |
 | `J` | Join cell below into current cell (space-separated), clear below |
-| `Ctrl+a` | Increment number in cell by 1 |
-| `Ctrl+x` | Decrement number in cell by 1 |
+| `Ctrl+a` | Increment number / cycle date forward (day → month → weekday) |
+| `Ctrl+x` | Decrement number / cycle date backward |
+| `gw` | Toggle line wrap on current cell |
+| `U` | Unmerge cell under cursor |
 | `o` / `O` | Insert row below / above and enter insert mode |
 | `u` | Undo |
 | `Ctrl+r` | Redo |
@@ -192,6 +196,7 @@ asat new_file.csv      # create a new file at this path
 | `v` | Character/cell visual mode |
 | `V` | Line (full-row) visual mode |
 | `Ctrl+v` | Column block visual mode |
+| `M` | Merge selection into one spanning cell |
 | `d` / `x` / `Del` | Delete selection |
 | `c` / `s` | Clear selection and enter insert mode |
 | `y` | Yank selection → register + system clipboard (TSV) |
@@ -272,6 +277,9 @@ Enter command mode with `:`.
 | `:freeze rows <N>` | Freeze top N rows as sticky header |
 | `:freeze cols <N>` | Freeze left N columns as sticky header |
 | `:freeze off` | Clear all frozen panes |
+| `:merge` | Merge visual selection (or current cell) into one spanning cell |
+| `:unmerge` | Unmerge the merged region under the cursor |
+| `:wrap` / `:ww` | Toggle line wrap on current cell or selection |
 
 Tab-completion works in command mode — press `Tab` to cycle through matching commands.
 
