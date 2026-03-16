@@ -73,12 +73,14 @@ brew tap okt4v/tap
 brew install asat
 ```
 
-### Debian / Ubuntu (.deb)
+### Debian / Ubuntu (apt)
 
 ```bash
-wget https://github.com/okt4v/ASAT/releases/download/v0.1.14/asat_0.1.14-1_amd64.deb
-sudo dpkg -i asat_0.1.14-1_amd64.deb
+curl -LO https://github.com/okt4v/ASAT/releases/download/v0.1.14/asat_0.1.14-1_amd64.deb
+sudo apt install ./asat_0.1.14-1_amd64.deb
 ```
+
+`apt install ./file.deb` resolves dependencies automatically and registers the package so `apt remove asat` works as expected.
 
 ### Build from source
 

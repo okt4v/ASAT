@@ -968,7 +968,7 @@
         <div class="install-tab-bar">
           <button class="install-tab active" data-panel="aur">AUR</button>
           <button class="install-tab" data-panel="brew">Homebrew</button>
-          <button class="install-tab" data-panel="deb">.deb</button>
+          <button class="install-tab" data-panel="deb">apt / .deb</button>
           <button class="install-tab" data-panel="src">Source</button>
         </div>
         <div class="install-panels">
@@ -1002,15 +1002,16 @@
 
           <!-- .deb -->
           <div class="install-panel" id="ipanel-deb">
-            <div class="install-panel-label">Debian / Ubuntu — .deb package</div>
+            <div class="install-panel-label">Debian / Ubuntu — install via apt</div>
             <div class="code-block">
-              <div><span class="prompt">$</span><span>wget https://github.com/okt4v/ASAT/releases/download/v0.1.14/asat_0.1.14-1_amd64.deb</span></div>
+              <div><span class="prompt">$</span><span>curl -LO https://github.com/okt4v/ASAT/releases/download/v0.1.14/asat_0.1.14-1_amd64.deb</span></div>
               <button class="copy-btn" onclick="copyCode(this)">copy</button>
             </div>
             <div class="code-block" style="margin-top:0.5rem">
-              <div><span class="prompt">$</span><span>sudo dpkg -i asat_0.1.14-1_amd64.deb</span></div>
+              <div><span class="prompt">$</span><span>sudo apt install ./asat_0.1.14-1_amd64.deb</span></div>
               <button class="copy-btn" onclick="copyCode(this)">copy</button>
             </div>
+            <p style="color:var(--text-muted);font-size:0.8rem;margin-top:0.6rem">Resolves dependencies automatically. Uninstall with <code style="font-family:var(--mono)">sudo apt remove asat</code>.</p>
           </div>
 
           <!-- Build from source -->
