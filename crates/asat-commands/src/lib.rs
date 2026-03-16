@@ -1,4 +1,4 @@
-use asat_core::{Cell, CellStyle, CellValue, Workbook};
+use asat_core::{Cell, CellStyle, CellValue, MergeRegion, Workbook};
 use thiserror::Error;
 
 // ── Error ────────────────────────────────────────────────────────────────────
@@ -531,5 +531,128 @@ impl RegisterMap {
         } else {
             &self.unnamed
         }
+    }
+}
+
+// ── MergeCells ───────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone)]
+pub struct MergeCells {
+    pub sheet: usize,
+    pub row_start: u32,
+    pub col_start: u32,
+    pub row_end: u32,
+    pub col_end: u32,
+    /// Overlapping merges that were removed — restored on undo.
+    pub removed_merges: Vec<MergeRegion>,
+}
+
+impl MergeCells {
+    pub fn new(
+        workbook: &Workbook,
+        sheet: usize,
+        row_start: u32,
+        col_start: u32,
+        row_end: u32,
+        col_end: u32,
+    ) -> Self {
+        let removed_merges = workbook
+            .sheets
+            .get(sheet)
+            .map(|s| {
+                s.merges
+                    .iter()
+                    .filter(|m| {
+                        !(m.row_end < row_start
+                            || m.row_start > row_end
+                            || m.col_end < col_start
+                            || m.col_start > col_end)
+                    })
+                    .cloned()
+                    .collect()
+            })
+            .unwrap_or_default();
+        MergeCells { sheet, row_start, col_start, row_end, col_end, removed_merges }
+    }
+}
+
+impl Command for MergeCells {
+    fn execute(&self, workbook: &mut Workbook) -> Result<(), CommandError> {
+        let sheet = workbook
+            .sheets
+            .get_mut(self.sheet)
+            .ok_or(CommandError::SheetOutOfRange(self.sheet))?;
+        sheet.add_merge(self.row_start, self.col_start, self.row_end, self.col_end);
+        workbook.dirty = true;
+        Ok(())
+    }
+
+    fn undo(&self, workbook: &mut Workbook) -> Result<(), CommandError> {
+        let sheet = workbook
+            .sheets
+            .get_mut(self.sheet)
+            .ok_or(CommandError::SheetOutOfRange(self.sheet))?;
+        sheet.remove_merge(self.row_start, self.col_start);
+        for m in &self.removed_merges {
+            sheet.merges.push(m.clone());
+        }
+        workbook.dirty = true;
+        Ok(())
+    }
+
+    fn description(&self) -> &str {
+        "merge cells"
+    }
+}
+
+// ── UnmergeCells ─────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone)]
+pub struct UnmergeCells {
+    pub sheet: usize,
+    pub anchor_row: u32,
+    pub anchor_col: u32,
+    pub saved: Option<MergeRegion>,
+}
+
+impl UnmergeCells {
+    pub fn new(workbook: &Workbook, sheet: usize, row: u32, col: u32) -> Self {
+        // Find merge whose anchor is exactly (row, col) OR that contains (row, col)
+        let saved = workbook.sheets.get(sheet).and_then(|s| {
+            s.merge_at(row, col).cloned()
+        });
+        UnmergeCells { sheet, anchor_row: row, anchor_col: col, saved }
+    }
+}
+
+impl Command for UnmergeCells {
+    fn execute(&self, workbook: &mut Workbook) -> Result<(), CommandError> {
+        let sheet = workbook
+            .sheets
+            .get_mut(self.sheet)
+            .ok_or(CommandError::SheetOutOfRange(self.sheet))?;
+        if let Some(ref m) = self.saved {
+            sheet.remove_merge(m.row_start, m.col_start);
+            workbook.dirty = true;
+            Ok(())
+        } else {
+            Err(CommandError::Invalid("no merged cell at cursor".to_string()))
+        }
+    }
+
+    fn undo(&self, workbook: &mut Workbook) -> Result<(), CommandError> {
+        if let Some(ref m) = self.saved {
+            let sheet = workbook
+                .sheets
+                .get_mut(self.sheet)
+                .ok_or(CommandError::SheetOutOfRange(self.sheet))?;
+            sheet.merges.push(m.clone());
+            workbook.dirty = true;
+        }
+        Ok(())
+    }
+
+    fn description(&self) -> &str {
+        "unmerge cells"
     }
 }

@@ -205,33 +205,49 @@ impl<'a> Widget for GridWidget<'a> {
                     x += col_width;
                     continue;
                 }
-                render_data_cell(
-                    buf,
-                    x,
-                    screen_y,
-                    col_width,
-                    row_idx,
-                    col_idx,
-                    cursor,
-                    &input.mode,
-                    input.visual_anchor.as_ref(),
-                    input.search_highlight(row_idx, col_idx),
-                    sheet,
-                    &input.edit_buffer,
-                    input.formula_origin,
-                    cursor_bg,
-                    cell_bg,
-                    selection_bg,
-                    number_color,
-                    cmd_color,
-                    vis_color,
-                    insert_color,
-                    normal_color,
-                );
-                if sheet.notes.contains_key(&(row_idx, col_idx)) {
-                    if let Some(cell) = buf.cell_mut((x + col_width.saturating_sub(1), screen_y)) {
-                        cell.set_char('▸');
-                        cell.set_style(note_marker_style);
+                if sheet.is_covered(row_idx, col_idx) {
+                    // Covered by a merge — paint blank background only
+                    render_cell_str(buf, x, screen_y, col_width, &" ".repeat(col_width as usize), Style::default().bg(cell_bg));
+                } else {
+                    let actual_width = sheet
+                        .merge_at(row_idx, col_idx)
+                        .map(|m| {
+                            all_col_groups
+                                .iter()
+                                .filter(|(c, _)| *c != u32::MAX && *c >= m.col_start && *c <= m.col_end)
+                                .map(|(_, w)| *w)
+                                .sum::<u16>()
+                                .max(col_width)
+                        })
+                        .unwrap_or(col_width);
+                    render_data_cell(
+                        buf,
+                        x,
+                        screen_y,
+                        actual_width,
+                        row_idx,
+                        col_idx,
+                        cursor,
+                        &input.mode,
+                        input.visual_anchor.as_ref(),
+                        input.search_highlight(row_idx, col_idx),
+                        sheet,
+                        &input.edit_buffer,
+                        input.formula_origin,
+                        cursor_bg,
+                        cell_bg,
+                        selection_bg,
+                        number_color,
+                        cmd_color,
+                        vis_color,
+                        insert_color,
+                        normal_color,
+                    );
+                    if sheet.notes.contains_key(&(row_idx, col_idx)) {
+                        if let Some(cell) = buf.cell_mut((x + col_width.saturating_sub(1), screen_y)) {
+                            cell.set_char('▸');
+                            cell.set_style(note_marker_style);
+                        }
                     }
                 }
                 x += col_width;
@@ -312,34 +328,50 @@ impl<'a> Widget for GridWidget<'a> {
                     continue;
                 }
 
-                render_data_cell(
-                    buf,
-                    x,
-                    screen_y,
-                    *col_width,
-                    row_idx,
-                    *col_idx,
-                    cursor,
-                    &input.mode,
-                    input.visual_anchor.as_ref(),
-                    input.search_highlight(row_idx, *col_idx),
-                    sheet,
-                    &input.edit_buffer,
-                    input.formula_origin,
-                    cursor_bg,
-                    cell_bg,
-                    selection_bg,
-                    number_color,
-                    cmd_color,
-                    vis_color,
-                    insert_color,
-                    normal_color,
-                );
-                // Note indicator — small amber marker in top-right corner of the cell
-                if sheet.notes.contains_key(&(row_idx, *col_idx)) {
-                    if let Some(cell) = buf.cell_mut((x + col_width.saturating_sub(1), screen_y)) {
-                        cell.set_char('▸');
-                        cell.set_style(note_marker_style);
+                if sheet.is_covered(row_idx, *col_idx) {
+                    // Covered by a merge — paint blank background only
+                    render_cell_str(buf, x, screen_y, *col_width, &" ".repeat(*col_width as usize), Style::default().bg(cell_bg));
+                } else {
+                    let actual_width = sheet
+                        .merge_at(row_idx, *col_idx)
+                        .map(|m| {
+                            all_col_groups
+                                .iter()
+                                .filter(|(c, _)| *c != u32::MAX && *c >= m.col_start && *c <= m.col_end)
+                                .map(|(_, w)| *w)
+                                .sum::<u16>()
+                                .max(*col_width)
+                        })
+                        .unwrap_or(*col_width);
+                    render_data_cell(
+                        buf,
+                        x,
+                        screen_y,
+                        actual_width,
+                        row_idx,
+                        *col_idx,
+                        cursor,
+                        &input.mode,
+                        input.visual_anchor.as_ref(),
+                        input.search_highlight(row_idx, *col_idx),
+                        sheet,
+                        &input.edit_buffer,
+                        input.formula_origin,
+                        cursor_bg,
+                        cell_bg,
+                        selection_bg,
+                        number_color,
+                        cmd_color,
+                        vis_color,
+                        insert_color,
+                        normal_color,
+                    );
+                    // Note indicator — small amber marker in top-right corner of the cell
+                    if sheet.notes.contains_key(&(row_idx, *col_idx)) {
+                        if let Some(cell) = buf.cell_mut((x + col_width.saturating_sub(1), screen_y)) {
+                            cell.set_char('▸');
+                            cell.set_style(note_marker_style);
+                        }
                     }
                 }
 

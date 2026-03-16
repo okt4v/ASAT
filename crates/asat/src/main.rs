@@ -12,7 +12,7 @@ use crossterm::{
 use ratatui::{backend::CrosstermBackend, Terminal};
 use regex::Regex;
 
-use asat_commands::{Command, DeleteCol, InsertCol, SetCell, UndoStack};
+use asat_commands::{Command, DeleteCol, InsertCol, MergeCells, SetCell, UnmergeCells, UndoStack};
 use asat_config::Config;
 use asat_core::{cell_address, CellStyle, CellValue, Workbook};
 use asat_input::{AppAction, InputState, Mode};
@@ -1605,10 +1605,19 @@ fn process_action(
             let sheet_idx = workbook.active_sheet;
             let (row, col) = (input.cursor.row, input.cursor.col);
             let val = workbook.active().get_value(row, col).clone();
-            let new_val = match val {
+            let new_val = match &val {
                 CellValue::Number(n) => CellValue::Number(n + 1.0),
                 CellValue::Empty => CellValue::Number(1.0),
-                other => other, // non-numeric: no-op
+                CellValue::Text(s) => {
+                    if let Some(cycled) = cycle_date(s, 1) {
+                        CellValue::Text(cycled)
+                    } else if let Some(cycled) = cycle_text_sequence(s, 1) {
+                        CellValue::Text(cycled)
+                    } else {
+                        val.clone()
+                    }
+                }
+                _ => val.clone(),
             };
             let cmd = Box::new(SetCell::new(workbook, sheet_idx, row, col, new_val));
             if let Err(e) = cmd.execute(workbook) {
@@ -1621,10 +1630,19 @@ fn process_action(
             let sheet_idx = workbook.active_sheet;
             let (row, col) = (input.cursor.row, input.cursor.col);
             let val = workbook.active().get_value(row, col).clone();
-            let new_val = match val {
+            let new_val = match &val {
                 CellValue::Number(n) => CellValue::Number(n - 1.0),
                 CellValue::Empty => CellValue::Number(-1.0),
-                other => other,
+                CellValue::Text(s) => {
+                    if let Some(cycled) = cycle_date(s, -1) {
+                        CellValue::Text(cycled)
+                    } else if let Some(cycled) = cycle_text_sequence(s, -1) {
+                        CellValue::Text(cycled)
+                    } else {
+                        val.clone()
+                    }
+                }
+                _ => val.clone(),
             };
             let cmd = Box::new(SetCell::new(workbook, sheet_idx, row, col, new_val));
             if let Err(e) = cmd.execute(workbook) {
@@ -1822,6 +1840,47 @@ fn process_action(
         }
 
         // ── Insert SUM formula ──
+        AppAction::MergeCells {
+            row_start,
+            col_start,
+            row_end,
+            col_end,
+        } => {
+            let sheet_idx = workbook.active_sheet;
+            let cmd = Box::new(MergeCells::new(
+                workbook, sheet_idx, row_start, col_start, row_end, col_end,
+            ));
+            if let Err(e) = cmd.execute(workbook) {
+                set_status(status, format!("Error: {}", e));
+            } else {
+                undo.push(cmd);
+                input.cursor.row = row_start;
+                input.cursor.col = col_start;
+                input.scroll_to_cursor(visible_rows, visible_cols);
+                set_status(
+                    status,
+                    format!(
+                        "Merged {}:{} → {}:{}",
+                        cell_address(row_start, col_start),
+                        cell_address(row_end, col_end),
+                        cell_address(row_start, col_start),
+                        cell_address(row_end, col_end),
+                    ),
+                );
+            }
+        }
+
+        AppAction::UnmergeCells { row, col } => {
+            let sheet_idx = workbook.active_sheet;
+            let cmd = Box::new(UnmergeCells::new(workbook, sheet_idx, row, col));
+            if let Err(e) = cmd.execute(workbook) {
+                set_status(status, format!("Error: {}", e));
+            } else {
+                undo.push(cmd);
+                set_status(status, format!("Unmerged {}", cell_address(row, col)));
+            }
+        }
+
         AppAction::InsertSumBelow {
             row_start,
             col_start,
@@ -3352,6 +3411,54 @@ fn handle_ex_command(
             }
         }
 
+        "merge" => {
+            let (row_start, col_start, row_end, col_end) = {
+                if let Some(anchor) = &input.visual_anchor {
+                    let cur = input.cursor;
+                    let s = workbook.active();
+                    (
+                        cur.row.min(anchor.row),
+                        cur.col.min(anchor.col),
+                        cur.row.max(anchor.row).min(s.max_row()),
+                        cur.col.max(anchor.col).min(s.max_col()),
+                    )
+                } else {
+                    (input.cursor.row, input.cursor.col, input.cursor.row, input.cursor.col)
+                }
+            };
+            let sheet_idx = workbook.active_sheet;
+            let cmd = Box::new(MergeCells::new(workbook, sheet_idx, row_start, col_start, row_end, col_end));
+            match cmd.execute(workbook) {
+                Ok(_) => {
+                    undo.push(cmd);
+                    input.visual_anchor = None;
+                    set_status(
+                        status,
+                        format!(
+                            "Merged {}:{}",
+                            cell_address(row_start, col_start),
+                            cell_address(row_end, col_end),
+                        ),
+                    );
+                }
+                Err(e) => set_status(status, format!("Error: {}", e)),
+            }
+        }
+
+        "unmerge" => {
+            let sheet_idx = workbook.active_sheet;
+            let row = input.cursor.row;
+            let col = input.cursor.col;
+            let cmd = Box::new(UnmergeCells::new(workbook, sheet_idx, row, col));
+            match cmd.execute(workbook) {
+                Ok(_) => {
+                    undo.push(cmd);
+                    set_status(status, format!("Unmerged {}", cell_address(row, col)));
+                }
+                Err(e) => set_status(status, format!("Error: {}", e)),
+            }
+        }
+
         // :freeze rows N  /  :freeze cols N  /  :freeze off
         "freeze" => {
             let sheet = workbook.sheets.get_mut(workbook.active_sheet).unwrap();
@@ -3392,6 +3499,197 @@ fn handle_ex_command(
 
 fn set_status(status: &mut Option<(String, std::time::Instant)>, msg: String) {
     *status = Some((msg, std::time::Instant::now()));
+}
+
+/// Cycle a month or weekday name by `delta` steps (+1 or -1).
+/// Returns `Some(new_text)` preserving the original's format (case + long/short),
+/// or `None` if the text is not a recognised sequence member.
+fn cycle_text_sequence(text: &str, delta: i32) -> Option<String> {
+    const MONTHS_LONG: [&str; 12] = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December",
+    ];
+    const MONTHS_SHORT: [&str; 12] = [
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ];
+    const DAYS_LONG: [&str; 7] = [
+        "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday",
+    ];
+    const DAYS_SHORT: [&str; 7] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+    // Detect the case style of the input so we can reproduce it.
+    let apply_case = |template: &str| -> String {
+        let all_upper = text.chars().all(|c| !c.is_alphabetic() || c.is_uppercase());
+        let all_lower = text.chars().all(|c| !c.is_alphabetic() || c.is_lowercase());
+        if all_upper {
+            template.to_uppercase()
+        } else if all_lower {
+            template.to_lowercase()
+        } else {
+            template.to_string() // title-case (canonical)
+        }
+    };
+
+    let lower = text.to_lowercase();
+
+    // Try long month names first (e.g. "january"), then short (e.g. "jan").
+    // Long must be checked first so "may" (== both long and short for May) resolves to long.
+    // However "may" (3 chars) == MONTHS_SHORT "May" too — either gives the same result.
+    for lists in [
+        (&MONTHS_LONG[..], 12usize),
+        (&MONTHS_SHORT[..], 12),
+        (&DAYS_LONG[..], 7),
+        (&DAYS_SHORT[..], 7),
+    ] {
+        let (names, len) = lists;
+        if let Some(idx) = names.iter().position(|&n| n.to_lowercase() == lower) {
+            let next = ((idx as i32 + delta).rem_euclid(len as i32)) as usize;
+            return Some(apply_case(names[next]));
+        }
+    }
+    None
+}
+
+fn days_in_month(month: i32, year: i32) -> i32 {
+    match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 => {
+            if (year % 4 == 0 && year % 100 != 0) || year % 400 == 0 {
+                29
+            } else {
+                28
+            }
+        }
+        _ => 30,
+    }
+}
+
+/// Add `delta` days to (day, month, year), returning the new (day, month, year).
+fn add_days_to_date(mut day: i32, mut month: i32, mut year: i32, delta: i32) -> (i32, i32, i32) {
+    day += delta;
+    loop {
+        if day < 1 {
+            month -= 1;
+            if month < 1 {
+                month = 12;
+                year -= 1;
+            }
+            day += days_in_month(month, year);
+        } else if day > days_in_month(month, year) {
+            day -= days_in_month(month, year);
+            month += 1;
+            if month > 12 {
+                month = 1;
+                year += 1;
+            }
+        } else {
+            break;
+        }
+    }
+    (day, month, year)
+}
+
+/// Try to parse, increment/decrement, and reformat a date string.
+/// Supported formats (auto-detected):
+///   DD.MM.YYYY  DD/MM/YYYY  DD-MM-YYYY
+///   DD.MM.YY    DD/MM/YY    DD-MM-YY
+///   YYYY-MM-DD  YYYY.MM.DD  YYYY/MM/DD
+///   MM/DD/YYYY  (detected when first part ≤ 12 AND second part > 12)
+fn cycle_date(text: &str, delta: i32) -> Option<String> {
+    // Detect separator: must be exactly one type present
+    let sep = if text.contains('.') && !text.contains('/') && !text.contains('-') {
+        '.'
+    } else if text.contains('/') && !text.contains('.') && !text.contains('-') {
+        '/'
+    } else if text.contains('-') && !text.contains('.') && !text.contains('/') {
+        '-'
+    } else {
+        return None;
+    };
+
+    let parts: Vec<&str> = text.splitn(4, sep).collect();
+    if parts.len() != 3 {
+        return None;
+    }
+    // All parts must be purely numeric
+    if parts.iter().any(|p| !p.chars().all(|c| c.is_ascii_digit())) {
+        return None;
+    }
+
+    let n: Vec<i32> = parts.iter().filter_map(|p| p.parse().ok()).collect();
+    if n.len() != 3 {
+        return None;
+    }
+
+    // Determine layout: (day_idx, month_idx, year_idx, year_is_first)
+    #[derive(Clone, Copy)]
+    enum Layout { DMY, MDY, YMD }
+
+    let (layout, two_digit_year) = if parts[0].len() == 4 {
+        // YYYY-MM-DD / YYYY.MM.DD / YYYY/MM/DD
+        (Layout::YMD, false)
+    } else if parts[2].len() == 4 {
+        // n[0] and n[1] both ≤ 12 → ambiguous → assume DD/MM/YYYY (European)
+        // n[0] > 12 → must be day, so DD/MM
+        // n[1] > 12 → n[0] must be month, so MM/DD (US)
+        if n[0] <= 12 && n[1] > 12 {
+            (Layout::MDY, false)
+        } else {
+            (Layout::DMY, false)
+        }
+    } else if parts[2].len() == 2 {
+        (Layout::DMY, true)
+    } else {
+        return None;
+    };
+
+    let (day, month, full_year) = match layout {
+        Layout::DMY => {
+            let y = if two_digit_year {
+                if n[2] < 70 { 2000 + n[2] } else { 1900 + n[2] }
+            } else {
+                n[2]
+            };
+            (n[0], n[1], y)
+        }
+        Layout::MDY => (n[1], n[0], n[2]),
+        Layout::YMD => (n[2], n[1], n[0]),
+    };
+
+    // Basic validation
+    if month < 1 || month > 12 || day < 1 || day > 31 {
+        return None;
+    }
+
+    let (nd, nm, ny) = add_days_to_date(day, month, full_year, delta);
+
+    // Preserve original field widths (zero-padded to original length)
+    let fmt_field = |val: i32, orig: &str| -> String {
+        format!("{:0>width$}", val, width = orig.len())
+    };
+
+    Some(match layout {
+        Layout::DMY => format!(
+            "{}{}{}{}{}",
+            fmt_field(nd, parts[0]), sep,
+            fmt_field(nm, parts[1]), sep,
+            fmt_field(if two_digit_year { ny % 100 } else { ny }, parts[2])
+        ),
+        Layout::MDY => format!(
+            "{}{}{}{}{}",
+            fmt_field(nm, parts[0]), sep,
+            fmt_field(nd, parts[1]), sep,
+            fmt_field(ny, parts[2])
+        ),
+        Layout::YMD => format!(
+            "{}{}{}{}{}",
+            fmt_field(ny, parts[0]), sep,
+            fmt_field(nm, parts[1]), sep,
+            fmt_field(nd, parts[2])
+        ),
+    })
 }
 
 /// Parse an Excel-style cell address like "B15" or "AA3" into (row, col) 0-indexed.

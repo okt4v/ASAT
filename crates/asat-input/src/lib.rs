@@ -66,6 +66,8 @@ pub const EX_COMMANDS: &[(&str, &str)] = &[
     ),
     ("filldown", "Fill selection down from top row"),
     ("fillright", "Fill selection right from leftmost column"),
+    ("merge", "Merge visual selection into one cell"),
+    ("unmerge", "Unmerge the cell under cursor"),
 ];
 
 /// All built-in formula function names, for Tab-completion in Insert mode.
@@ -458,6 +460,18 @@ pub enum AppAction {
 
     // ── Clipboard ──
     PasteFromClipboard, // Ctrl+V in Insert — paste system clipboard text into edit buffer
+
+    // ── Cell merging ──
+    MergeCells {
+        row_start: u32,
+        col_start: u32,
+        row_end: u32,
+        col_end: u32,
+    }, // M in visual
+    UnmergeCells {
+        row: u32,
+        col: u32,
+    }, // U in normal
 
     // ── Fill ──
     /// Fill the anchor row/col values down / right across the selection
@@ -1090,6 +1104,12 @@ impl InputState {
             // J — join: concat cell below into current cell, then clear below
             KeyCode::Char('J') => vec![AppAction::JoinCellBelow],
 
+            // U — unmerge cell under cursor
+            KeyCode::Char('U') => vec![AppAction::UnmergeCells {
+                row: self.cursor.row,
+                col: self.cursor.col,
+            }],
+
             // > / < prefix — column width
             KeyCode::Char('>') => {
                 self.key_buffer.push(key);
@@ -1683,6 +1703,21 @@ impl InputState {
                         row_end,
                         col_end,
                         is_line,
+                    },
+                    AppAction::ExitMode,
+                ]
+            }
+
+            // M — merge visual selection into one cell
+            KeyCode::Char('M') => {
+                let (row_start, col_start, row_end, col_end) = self.visual_selection_bounds();
+                self.visual_anchor = None;
+                vec![
+                    AppAction::MergeCells {
+                        row_start,
+                        col_start,
+                        row_end,
+                        col_end,
                     },
                     AppAction::ExitMode,
                 ]

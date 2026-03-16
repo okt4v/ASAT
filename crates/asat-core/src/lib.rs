@@ -229,6 +229,16 @@ impl CellRange {
     }
 }
 
+// ── Merge Region ─────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MergeRegion {
+    pub row_start: u32,
+    pub col_start: u32,
+    pub row_end: u32, // inclusive
+    pub col_end: u32, // inclusive
+}
+
 // ── Sheet ───────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -244,6 +254,7 @@ pub struct Sheet {
     #[serde(skip)]
     pub dirty: HashSet<(u32, u32)>,
     pub notes: HashMap<(u32, u32), String>,
+    pub merges: Vec<MergeRegion>,
 }
 
 impl Sheet {
@@ -258,7 +269,60 @@ impl Sheet {
             computed: HashMap::new(),
             dirty: HashSet::new(),
             notes: HashMap::new(),
+            merges: Vec::new(),
         }
+    }
+
+    /// Returns the MergeRegion covering (row, col), if any.
+    pub fn merge_at(&self, row: u32, col: u32) -> Option<&MergeRegion> {
+        self.merges.iter().find(|m| {
+            row >= m.row_start && row <= m.row_end && col >= m.col_start && col <= m.col_end
+        })
+    }
+
+    /// True if (row, col) is a covered (non-anchor) cell of any merge.
+    pub fn is_covered(&self, row: u32, col: u32) -> bool {
+        self.merges.iter().any(|m| {
+            (row != m.row_start || col != m.col_start)
+                && row >= m.row_start
+                && row <= m.row_end
+                && col >= m.col_start
+                && col <= m.col_end
+        })
+    }
+
+    /// If (row, col) is inside a merge, return the anchor; otherwise return (row, col).
+    pub fn snap_to_anchor(&self, row: u32, col: u32) -> (u32, u32) {
+        if let Some(m) = self.merge_at(row, col) {
+            (m.row_start, m.col_start)
+        } else {
+            (row, col)
+        }
+    }
+
+    /// Add a merge. Returns false if the range is a single cell (nothing to merge).
+    /// Any overlapping existing merges are removed first.
+    pub fn add_merge(&mut self, row_start: u32, col_start: u32, row_end: u32, col_end: u32) -> bool {
+        if row_start == row_end && col_start == col_end {
+            return false;
+        }
+        // Remove any overlapping merges
+        self.merges.retain(|m| {
+            m.row_end < row_start
+                || m.row_start > row_end
+                || m.col_end < col_start
+                || m.col_start > col_end
+        });
+        self.merges.push(MergeRegion { row_start, col_start, row_end, col_end });
+        true
+    }
+
+    /// Remove the merge anchored at (row, col). Returns true if one was removed.
+    pub fn remove_merge(&mut self, row: u32, col: u32) -> bool {
+        let before = self.merges.len();
+        self.merges
+            .retain(|m| !(m.row_start == row && m.col_start == col));
+        self.merges.len() < before
     }
 
     pub fn get_cell(&self, row: u32, col: u32) -> Option<&Cell> {
