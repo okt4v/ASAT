@@ -543,7 +543,25 @@ fn process_action(
         } => {
             let new_row = (input.cursor.row as i64 + row_delta as i64).max(0) as u32;
             let new_col = (input.cursor.col as i64 + col_delta as i64).max(0) as u32;
-            let (sr, sc) = workbook.active().snap_to_anchor(new_row, new_col);
+            let (sr, sc) = if let Some(m) = workbook.active().merge_at(new_row, new_col) {
+                let at_anchor = input.cursor.row == m.row_start && input.cursor.col == m.col_start;
+                if at_anchor {
+                    // Moving out of the anchor: jump past the far edge of the merge
+                    let r = if row_delta > 0 { m.row_end + 1 }
+                            else if row_delta < 0 { m.row_start.saturating_sub(1) }
+                            else { new_row };
+                    let c = if col_delta > 0 { m.col_end + 1 }
+                            else if col_delta < 0 { m.col_start.saturating_sub(1) }
+                            else { new_col };
+                    // The position after the merge might itself be covered by another merge
+                    workbook.active().snap_to_anchor(r, c)
+                } else {
+                    // Entering the merge from outside → land on anchor
+                    (m.row_start, m.col_start)
+                }
+            } else {
+                (new_row, new_col)
+            };
             input.cursor.row = sr;
             input.cursor.col = sc;
             input.scroll_to_cursor(visible_rows, visible_cols);
