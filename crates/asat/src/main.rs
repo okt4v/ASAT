@@ -755,7 +755,15 @@ fn process_action(
         AppAction::ExitMode => {
             input.visual_command_range = None;
             input.visual_anchor = None;
-            input.mode = Mode::Normal;
+            // Don't reset the mode if ExecuteCommand2 just switched to a screen overlay.
+            // Those modes handle their own Exit (q/Esc sets mode back to Normal themselves).
+            if !matches!(
+                input.mode,
+                Mode::Help | Mode::PluginManager | Mode::ThemeManager
+                    | Mode::FileFind | Mode::RecentFiles
+            ) {
+                input.mode = Mode::Normal;
+            }
         }
 
         // ── Cell editing ──
@@ -3038,7 +3046,8 @@ fn handle_ex_command(
                 "€" | "eur" => Some(NumberFormat::Currency("€".to_string())),
                 "£" | "gbp" => Some(NumberFormat::Currency("£".to_string())),
                 "¥" | "jpy" => Some(NumberFormat::Currency("¥".to_string())),
-                "date" => Some(NumberFormat::Date("%Y-%m-%d".to_string())),
+                "date" => Some(NumberFormat::Date(String::new())),
+                "datetime" | "dt" | "now" => Some(NumberFormat::DateTime),
                 "#,##0" | "thousands" | "t" => Some(NumberFormat::Thousands),
                 "#,##0.00" | "t2" | "thousands2" => Some(NumberFormat::ThousandsDecimals(2)),
                 other => {
@@ -3674,12 +3683,17 @@ fn handle_ex_command(
         }
 
         // ── Cell note / comment ──
-        "note" | "comment" => {
+        "note" | "note!" | "comment" => {
             let row = input.cursor.row;
             let col = input.cursor.col;
             let sheet = workbook.active_mut();
-            if arg.is_empty() {
-                // Show note
+            if verb == "note!" || arg == "-" || arg == "clear" {
+                // :note! or :note clear or :note - — remove the note
+                sheet.notes.remove(&(row, col));
+                workbook.dirty = true;
+                set_status(status, "Note cleared".to_string());
+            } else if arg.is_empty() {
+                // :note — show existing note in status bar
                 if let Some(note) = sheet.notes.get(&(row, col)) {
                     set_status(status, format!("Note: {}", note));
                 } else {
@@ -3688,11 +3702,8 @@ fn handle_ex_command(
                         "No note on this cell (use :note <text> to set)".to_string(),
                     );
                 }
-            } else if arg == "-" || arg == "clear" {
-                sheet.notes.remove(&(row, col));
-                workbook.dirty = true;
-                set_status(status, "Note cleared".to_string());
             } else {
+                // :note <text> — set/replace the note
                 sheet.notes.insert((row, col), arg.to_string());
                 workbook.dirty = true;
                 set_status(status, format!("Note set: {}", arg));

@@ -113,7 +113,8 @@ pub enum NumberFormat {
     Decimal(u8), // decimal places
     Percentage(u8),
     Currency(String), // symbol
-    Date(String),     // strftime-style pattern
+    Date(String),     // pattern string (kept for compat but uses proper conversion now)
+    DateTime,         // YYYY-MM-DD HH:MM
     Custom(String),
     Thousands,             // #,##0
     ThousandsDecimals(u8), // #,##0.00
@@ -407,6 +408,16 @@ impl Sheet {
         {
             return apply_number_format(val, fmt);
         }
+        // Auto-format volatile date functions that have no explicit style
+        if let CellValue::Formula(f) = self.get_raw_value(row, col) {
+            let upper = f.trim().to_ascii_uppercase();
+            if upper == "NOW()" {
+                return apply_number_format(val, &NumberFormat::DateTime);
+            }
+            if upper == "TODAY()" {
+                return apply_number_format(val, &NumberFormat::Date(String::new()));
+            }
+        }
         val.display()
     }
 
@@ -530,6 +541,23 @@ pub fn letter_to_col(s: &str) -> Option<u32> {
     }
 }
 
+/// Convert days-since-Unix-epoch to (year, month, day).
+/// Uses the civil calendar algorithm (Chrono-compatible, no external deps).
+fn excel_serial_to_ymd(unix_days: i64) -> (i32, u32, u32) {
+    // Algorithm from http://howardhinnant.github.io/date_algorithms.html
+    let z = unix_days + 719468;
+    let era = if z >= 0 { z } else { z - 146096 } / 146097;
+    let doe = z - era * 146097;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 };
+    let year = if month <= 2 { y + 1 } else { y };
+    (year as i32, month as u32, day as u32)
+}
+
 /// Format a CellValue according to a NumberFormat.
 pub fn apply_number_format(val: &CellValue, fmt: &NumberFormat) -> String {
     let n = match val {
@@ -549,11 +577,19 @@ pub fn apply_number_format(val: &CellValue, fmt: &NumberFormat) -> String {
             }
         }
         NumberFormat::Date(_pat) => {
-            // Treat n as days since 1900-01-01 (Excel epoch)
-            let days = n as i64;
-            let y = 1900 + days / 365;
-            let d_in_year = days % 365;
-            format!("{}-{:02}-{:02}", y, d_in_year / 30 + 1, d_in_year % 30 + 1)
+            // Excel serial: days since 1899-12-30 (offset 25569 from Unix epoch)
+            let unix_days = (n as i64) - 25569;
+            let (y, mo, d) = excel_serial_to_ymd(unix_days);
+            format!("{}-{:02}-{:02}", y, mo, d)
+        }
+        NumberFormat::DateTime => {
+            // Integer part = date serial, fractional part = time-of-day
+            let unix_days = (n.trunc() as i64) - 25569;
+            let (y, mo, d) = excel_serial_to_ymd(unix_days);
+            let total_secs = (n.fract().abs() * 86400.0).round() as u32;
+            let hh = total_secs / 3600;
+            let mm = (total_secs % 3600) / 60;
+            format!("{}-{:02}-{:02} {:02}:{:02}", y, mo, d, hh, mm)
         }
         NumberFormat::Custom(_) => val.display(),
         NumberFormat::Thousands => {

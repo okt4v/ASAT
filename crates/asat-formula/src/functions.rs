@@ -1789,7 +1789,7 @@ fn fn_rand() -> CellValue {
         .wrapping_mul(6364136223846793005)
         .wrapping_add(1442695040888963407)
         >> 33;
-    CellValue::Number((v as f64) / (u32::MAX as f64))
+    CellValue::Number((v as f64) / ((1u64 << 31) as f64))
 }
 
 /// Random integer in [lo, hi] inclusive.
@@ -1809,7 +1809,7 @@ fn fn_randbetween(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellV
         .wrapping_mul(6364136223846793005)
         .wrapping_add(1442695040888963407)
         >> 33;
-    let frac = (v as f64) / (u32::MAX as f64);
+    let frac = (v as f64) / ((1u64 << 31) as f64);
     CellValue::Number((lo + frac * (hi - lo + 1.0)).floor())
 }
 

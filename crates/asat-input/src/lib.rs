@@ -32,7 +32,7 @@ pub const EX_COMMANDS: &[(&str, &str)] = &[
     ("hl <color>", "Highlight: set bg + auto-contrast fg"),
     ("hl", "Clear highlight (remove bg/fg colours)"),
     ("align <l/c/r>", "Set alignment: left, center, or right"),
-    ("fmt <spec>", "Number format: %, $, 0.00, int, date, none"),
+    ("fmt <spec>", "Number format: %, $, 0.00, int, date, datetime, none"),
     ("copystyle", "Copy current cell style to clipboard"),
     ("pastestyle", "Paste style clipboard to cell / selection"),
     ("cs", "Clear all styles from cell / selection"),
@@ -61,7 +61,7 @@ pub const EX_COMMANDS: &[(&str, &str)] = &[
     ("filter off", "Clear row filter"),
     ("transpose", "Transpose current visual selection"),
     ("dedup", "Remove duplicate rows (by cursor column)"),
-    ("note <text>", "Set a note/comment on the current cell"),
+    ("note <text>", "Set note on cell; :note = view; :note! = clear"),
     (
         "colfmt <op> <v> <color>",
         "Conditional format (e.g. :colfmt >100 red)",
