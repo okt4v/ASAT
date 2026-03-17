@@ -872,7 +872,7 @@ impl InputState {
 
         match self.mode.clone() {
             Mode::Normal => self.handle_normal(key, workbook),
-            Mode::Insert { replace } => self.handle_insert(key, replace),
+            Mode::Insert { replace } => self.handle_insert(key, replace, workbook.active_sheet),
             Mode::Visual { .. } => self.handle_visual(key, false),
             Mode::VisualLine => self.handle_visual(key, true),
             Mode::Command => self.handle_command(key),
@@ -927,6 +927,7 @@ impl InputState {
             let _first_ctrl = self.key_buffer[0].modifiers.contains(KeyModifiers::CONTROL);
             self.key_buffer.clear();
             let n = std::mem::replace(&mut self.key_buffer_count, 1);
+            self.count_buffer.clear(); // drop any digits typed between the two keys
 
             return match (first, key.code) {
                 // gg / gt / gT / gw
@@ -1377,6 +1378,8 @@ impl InputState {
 
             KeyCode::Esc => {
                 self.count_buffer.clear();
+                self.key_buffer.clear();
+                self.key_buffer_count = 1;
                 vec![AppAction::ClearSearch]
             }
 
@@ -1603,7 +1606,12 @@ impl InputState {
 
     // ── Insert mode ───────────────────────────────────────────────────────────
 
-    fn handle_insert(&mut self, key: KeyEvent, _replace: bool) -> Vec<AppAction> {
+    fn handle_insert(
+        &mut self,
+        key: KeyEvent,
+        _replace: bool,
+        active_sheet: usize,
+    ) -> Vec<AppAction> {
         let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
 
         // Record keystrokes for `.` repeat
@@ -1708,7 +1716,7 @@ impl InputState {
                 self.ci_suffix.clear();
                 vec![
                     AppAction::SetCell {
-                        sheet: 0,
+                        sheet: active_sheet,
                         row,
                         col,
                         value,
@@ -1731,7 +1739,7 @@ impl InputState {
                 self.ci_suffix.clear();
                 vec![
                     AppAction::SetCell {
-                        sheet: 0,
+                        sheet: active_sheet,
                         row,
                         col,
                         value,
@@ -1758,7 +1766,7 @@ impl InputState {
                 self.ci_suffix.clear();
                 vec![
                     AppAction::SetCell {
-                        sheet: 0,
+                        sheet: active_sheet,
                         row,
                         col,
                         value,
