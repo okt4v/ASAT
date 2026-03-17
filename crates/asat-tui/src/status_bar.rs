@@ -34,7 +34,6 @@ pub fn render(frame: &mut Frame, area: Rect, state: &RenderState<'_>) {
         Mode::Command => ("COMMAND", command_color),
         Mode::Search { forward: true } => ("SEARCH↓", Color::Rgb(42, 161, 152)),
         Mode::Search { forward: false } => ("SEARCH↑", Color::Rgb(42, 161, 152)),
-        Mode::Recording { .. } => ("REC", Color::Red),
         Mode::Welcome => ("WELCOME", normal_color),
         Mode::FileFind => ("FIND", insert_color),
         Mode::RecentFiles => ("RECENT", insert_color),
@@ -62,14 +61,21 @@ pub fn render(frame: &mut Frame, area: Rect, state: &RenderState<'_>) {
         &sheet.name,
     );
 
-    // Status bar: [mode] [file_info] [spacer fills] [pos_info]
-    let line = Line::from(vec![
-        Span::styled(format!(" {} ", mode_str), mode_style),
-        Span::styled(" ", bg_style),
-        Span::styled(file_info, bg_style),
-        Span::styled("", bg_style), // flex spacer
-        Span::styled(pos_info, right_style),
-    ]);
+    let rec_style = Style::default()
+        .fg(Color::Black)
+        .bg(Color::Red)
+        .add_modifier(Modifier::BOLD);
+
+    // Status bar: [mode] [●REC register] [file_info] [spacer fills] [pos_info]
+    let mut spans = vec![Span::styled(format!(" {} ", mode_str), mode_style)];
+    if let Some(reg) = state.input.macro_recording {
+        spans.push(Span::styled(format!(" ●REC({}) ", reg), rec_style));
+    }
+    spans.push(Span::styled(" ", bg_style));
+    spans.push(Span::styled(file_info, bg_style));
+    spans.push(Span::styled("", bg_style)); // flex spacer
+    spans.push(Span::styled(pos_info, right_style));
+    let line = Line::from(spans);
 
     frame.render_widget(Paragraph::new(line).style(bg_style), area);
 }

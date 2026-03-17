@@ -1816,21 +1816,20 @@ fn process_action(
         // ── Macro recording / playback ──
         AppAction::StartRecording { register } => {
             input.recording_buffer.clear();
-            input.mode = Mode::Recording { register };
+            input.macro_recording = Some(register);
             set_status(
                 status,
                 format!("Recording to \"{}\"... (q to stop)", register),
             );
         }
         AppAction::StopRecording => {
-            if let Mode::Recording { register } = input.mode {
+            if let Some(register) = input.macro_recording.take() {
                 let count = input.recording_buffer.len();
                 input
                     .macro_registers
                     .insert(register, input.recording_buffer.clone());
                 input.last_macro_register = Some(register);
                 input.recording_buffer.clear();
-                input.mode = Mode::Normal;
                 set_status(
                     status,
                     format!("Recorded {} keys to \"{}\"", count, register),

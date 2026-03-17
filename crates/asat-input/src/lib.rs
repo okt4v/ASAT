@@ -200,9 +200,6 @@ pub enum Mode {
     Search {
         forward: bool,
     },
-    Recording {
-        register: char,
-    },
     Welcome,       // home / start screen
     FileFind,      // fuzzy file finder
     RecentFiles,   // recent files list
@@ -228,9 +225,6 @@ impl Mode {
             Mode::Command => "COMMAND",
             Mode::Search { forward: true } => "SEARCH",
             Mode::Search { forward: false } => "SEARCH↑",
-            Mode::Recording { register } => {
-                Box::leak(format!("REC({})", register).into_boxed_str())
-            }
             Mode::Welcome => "WELCOME",
             Mode::FileFind => "FIND FILE",
             Mode::RecentFiles => "RECENT",
@@ -594,6 +588,8 @@ pub struct InputState {
     pub macro_registers: std::collections::HashMap<char, Vec<KeyEvent>>,
     /// Last-used macro register (for `@@`)
     pub last_macro_register: Option<char>,
+    /// Set to the register char while a macro is being recorded (independent of modal state)
+    pub macro_recording: Option<char>,
 
     /// Number of rows/cols to keep between cursor and viewport edge (scrolloff)
     pub scroll_padding: u32,
@@ -652,6 +648,8 @@ pub struct InputState {
     pub fn_completion_idx: Option<usize>,
 
     key_buffer: Vec<KeyEvent>,
+    /// Count saved when the first key of a multi-key sequence was buffered.
+    key_buffer_count: u32,
     count_buffer: String,
 
     /// Keys captured during the last edit (for `.` repeat)
@@ -685,6 +683,7 @@ impl InputState {
             recording_buffer: Vec::new(),
             macro_registers: std::collections::HashMap::new(),
             last_macro_register: None,
+            macro_recording: None,
             scroll_padding: 3,
             completion_idx: None,
             completion_prefix: String::new(),
@@ -708,6 +707,7 @@ impl InputState {
             fn_completion_candidates: Vec::new(),
             fn_completion_idx: None,
             key_buffer: Vec::new(),
+            key_buffer_count: 1,
             count_buffer: String::new(),
             last_edit_keys: Vec::new(),
             recording_edit: false,
@@ -733,6 +733,15 @@ impl InputState {
         let n = self.count();
         self.count_buffer.clear();
         n
+    }
+
+    /// Push `key` onto the key_buffer as the first key of a multi-key sequence.
+    /// `n` is the count already taken by the caller; it is saved so it survives
+    /// until the second key arrives and the multi-key handler consumes it.
+    fn buffer_key(&mut self, key: KeyEvent, n: u32) -> Vec<AppAction> {
+        self.key_buffer_count = n;
+        self.key_buffer.push(key);
+        vec![AppAction::NoOp]
     }
 
     /// Returns the current partial key sequence as a display string
@@ -851,7 +860,7 @@ impl InputState {
     pub fn handle_key(&mut self, key: KeyEvent, workbook: &Workbook) -> Vec<AppAction> {
         // Capture key while recording (before dispatch, so the stop-key handler
         // can pop it back off if it decides not to record it).
-        if matches!(self.mode, Mode::Recording { .. }) {
+        if self.macro_recording.is_some() {
             self.recording_buffer.push(key);
         }
 
@@ -862,7 +871,6 @@ impl InputState {
             Mode::VisualLine => self.handle_visual(key, true),
             Mode::Command => self.handle_command(key),
             Mode::Search { forward } => self.handle_search(key, forward),
-            Mode::Recording { .. } => self.handle_normal(key, workbook),
             Mode::Welcome => self.handle_welcome(key),
             Mode::FileFind => self.handle_file_find(key),
             Mode::RecentFiles => self.handle_recent_files(key),
@@ -878,8 +886,13 @@ impl InputState {
     fn handle_normal(&mut self, key: KeyEvent, workbook: &Workbook) -> Vec<AppAction> {
         let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
 
-        // ── Stop recording when 'q' pressed in Recording mode ─────────────────
-        if matches!(self.mode, Mode::Recording { .. }) && key.code == KeyCode::Char('q') && !ctrl {
+        // ── Stop recording when 'q' pressed in Normal mode while recording ────
+        // key_buffer must be empty — if '@' is pending, 'q' is the register name, not stop-rec
+        if self.macro_recording.is_some()
+            && self.key_buffer.is_empty()
+            && key.code == KeyCode::Char('q')
+            && !ctrl
+        {
             self.recording_buffer.pop(); // remove the 'q' itself from the buffer
             return vec![AppAction::StopRecording];
         }
@@ -907,7 +920,7 @@ impl InputState {
             let first = self.key_buffer[0].code;
             let _first_ctrl = self.key_buffer[0].modifiers.contains(KeyModifiers::CONTROL);
             self.key_buffer.clear();
-            let n = self.take_count();
+            let n = std::mem::replace(&mut self.key_buffer_count, 1);
 
             return match (first, key.code) {
                 // gg / gt / gT / gw
@@ -1149,10 +1162,7 @@ impl InputState {
             KeyCode::Char('$') | KeyCode::End => vec![AppAction::MoveToLastCol],
 
             // File extremes (multi-key: buffer 'g')
-            KeyCode::Char('g') => {
-                self.key_buffer.push(key);
-                vec![AppAction::NoOp]
-            }
+            KeyCode::Char('g') => self.buffer_key(key, n),
             KeyCode::Char('G') => vec![AppAction::MoveToLastRow],
 
             // Screen jumps
@@ -1173,10 +1183,7 @@ impl InputState {
             KeyCode::PageUp => (0..n).map(|_| AppAction::PageUp).collect(),
 
             // z prefix — scroll
-            KeyCode::Char('z') => {
-                self.key_buffer.push(key);
-                vec![AppAction::NoOp]
-            }
+            KeyCode::Char('z') => self.buffer_key(key, n),
 
             // ── Tab / sheet ───────────────────────────────────────────────────
             KeyCode::Tab => (0..n)
@@ -1226,10 +1233,7 @@ impl InputState {
                 vec![AppAction::EnterInsert { replace: false }]
             }
             // c — change: buffer for cc, ci<delim>, but single c waits for next key
-            KeyCode::Char('c') if !ctrl => {
-                self.key_buffer.push(key);
-                vec![AppAction::NoOp]
-            }
+            KeyCode::Char('c') if !ctrl => self.buffer_key(key, n),
             // s — substitute (clear + insert, no need for 2nd key)
             KeyCode::Char('s') => {
                 self.recording_edit = true;
@@ -1264,10 +1268,7 @@ impl InputState {
             }
 
             // d prefix — dd or bail
-            KeyCode::Char('d') if !ctrl => {
-                self.key_buffer.push(key);
-                vec![AppAction::NoOp]
-            }
+            KeyCode::Char('d') if !ctrl => self.buffer_key(key, n),
 
             // o / O — open row
             KeyCode::Char('o') => vec![AppAction::OpenRowBelow],
@@ -1294,10 +1295,7 @@ impl InputState {
             }],
 
             // f prefix — column jump by letter
-            KeyCode::Char('f') if !ctrl => {
-                self.key_buffer.push(key);
-                vec![AppAction::NoOp]
-            }
+            KeyCode::Char('f') if !ctrl => self.buffer_key(key, n),
 
             // J — join: concat cell below into current cell, then clear below
             KeyCode::Char('J') => vec![AppAction::JoinCellBelow],
@@ -1309,20 +1307,11 @@ impl InputState {
             }],
 
             // > / < prefix — column width
-            KeyCode::Char('>') => {
-                self.key_buffer.push(key);
-                vec![AppAction::NoOp]
-            }
-            KeyCode::Char('<') => {
-                self.key_buffer.push(key);
-                vec![AppAction::NoOp]
-            }
+            KeyCode::Char('>') => self.buffer_key(key, n),
+            KeyCode::Char('<') => self.buffer_key(key, n),
 
             // ── Yank / paste ──────────────────────────────────────────────────
-            KeyCode::Char('y') => {
-                self.key_buffer.push(key);
-                vec![AppAction::NoOp]
-            }
+            KeyCode::Char('y') => self.buffer_key(key, n),
             KeyCode::Char('p') => (0..n).map(|_| AppAction::PasteAfter).collect(),
             KeyCode::Char('P') => (0..n).map(|_| AppAction::PasteBefore).collect(),
 
@@ -1371,26 +1360,14 @@ impl InputState {
             KeyCode::Char('*') => vec![AppAction::SearchCurrentCell],
 
             // ── Marks ─────────────────────────────────────────────────────────
-            KeyCode::Char('m') => {
-                self.key_buffer.push(key);
-                vec![AppAction::NoOp]
-            }
-            KeyCode::Char('\'') => {
-                self.key_buffer.push(key);
-                vec![AppAction::NoOp]
-            }
+            KeyCode::Char('m') => self.buffer_key(key, n),
+            KeyCode::Char('\'') => self.buffer_key(key, n),
 
             // ── Macro recording / playback ─────────────────────────────────────
             // q alone buffers; q{char} starts recording (handled in multi-key block above)
-            KeyCode::Char('q') if !ctrl => {
-                self.key_buffer.push(key);
-                vec![AppAction::NoOp]
-            }
+            KeyCode::Char('q') if !ctrl => self.buffer_key(key, n),
             // @ alone buffers; @{char} plays macro (handled in multi-key block above)
-            KeyCode::Char('@') if !ctrl => {
-                self.key_buffer.push(key);
-                vec![AppAction::NoOp]
-            }
+            KeyCode::Char('@') if !ctrl => self.buffer_key(key, n),
 
             KeyCode::Esc => {
                 self.count_buffer.clear();
