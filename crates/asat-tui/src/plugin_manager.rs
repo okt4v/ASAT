@@ -24,11 +24,14 @@ pub fn render(frame: &mut Frame, area: Rect, state: &RenderState<'_>) {
     // Entry 1+: custom functions registered by plugins
     let custom_fns = &state.plugin_custom_fns;
     let total_entries = 1 + custom_fns.len();
-    let selected = state.input.plugin_selected.min(total_entries.saturating_sub(1));
+    let selected = state
+        .input
+        .plugin_selected
+        .min(total_entries.saturating_sub(1));
 
     // ── Panel ─────────────────────────────────────────────────────────────────
-    let panel_w = area.width.min(80).max(50);
-    let panel_h = area.height.min(30).max(10);
+    let panel_w = area.width.clamp(50, 80);
+    let panel_h = area.height.clamp(10, 30);
     let panel_x = area.x + area.width.saturating_sub(panel_w) / 2;
     let panel_y = area.y + area.height.saturating_sub(panel_h) / 2;
     let panel = Rect {
@@ -110,10 +113,7 @@ pub fn render(frame: &mut Frame, area: Rect, state: &RenderState<'_>) {
                         if is_sel { " ▶ " } else { "   " },
                         Style::default().fg(amber),
                     ),
-                    Span::styled(
-                        format!("fn {}", name),
-                        Style::default().fg(fg),
-                    ),
+                    Span::styled(format!("fn {}", name), Style::default().fg(fg)),
                 ]))
                 .style(Style::default().bg(item_bg)),
             );

@@ -442,13 +442,14 @@ asat = _Asat()
             globals.set_item("_set_cell", native.getattr("set_cell")?)?;
 
             // Run the shim — defines `asat` in globals
-            let shim_cstr = std::ffi::CString::new(ASAT_SHIM)
-                .expect("ASAT_SHIM contains no null bytes");
+            let shim_cstr =
+                std::ffi::CString::new(ASAT_SHIM).expect("ASAT_SHIM contains no null bytes");
             py.run(shim_cstr.as_c_str(), Some(&globals), None)?;
 
             // Now run the user's init.py
-            let code_cstr = std::ffi::CString::new(user_code.as_str())
-                .map_err(|_| pyo3::exceptions::PySyntaxError::new_err("init.py contains null bytes"))?;
+            let code_cstr = std::ffi::CString::new(user_code.as_str()).map_err(|_| {
+                pyo3::exceptions::PySyntaxError::new_err("init.py contains null bytes")
+            })?;
             py.run(code_cstr.as_c_str(), Some(&globals), None)?;
 
             Ok(())

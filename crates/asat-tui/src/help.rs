@@ -15,6 +15,13 @@ struct Section {
     entries: &'static [(&'static str, &'static str)],
 }
 
+struct HelpColors {
+    amber: Color,
+    header_fg: Color,
+    dim: Color,
+    bg: Color,
+}
+
 const KEYBIND_SECTIONS: &[Section] = &[
     Section {
         title: "Navigation",
@@ -148,6 +155,12 @@ pub fn render(frame: &mut Frame, area: Rect, state: &RenderState<'_>) {
     let bg = parse_hex_color(&theme.cell_bg);
     let header_bg = parse_hex_color(&theme.header_bg);
     let dim = darken(header_fg, 0.55);
+    let colors = HelpColors {
+        amber,
+        header_fg,
+        dim,
+        bg,
+    };
     let border_c = darken(header_fg, 0.4);
 
     frame.render_widget(Paragraph::new("").style(Style::default().bg(bg)), area);
@@ -197,7 +210,10 @@ pub fn render(frame: &mut Frame, area: Rect, state: &RenderState<'_>) {
             Style::default().fg(dim),
         ));
     let filter_line = Line::from(vec![
-        Span::styled(" ❯ ", Style::default().fg(amber).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            " ❯ ",
+            Style::default().fg(amber).add_modifier(Modifier::BOLD),
+        ),
         Span::styled(query.as_str(), Style::default().fg(Color::White)),
         Span::styled("█", Style::default().fg(dim)),
     ]);
@@ -209,21 +225,13 @@ pub fn render(frame: &mut Frame, area: Rect, state: &RenderState<'_>) {
     let scroll = state.input.help_scroll;
 
     match state.input.help_tab {
-        0 => render_keybindings(frame, content_area, query, scroll, amber, header_fg, dim, bg),
-        _ => render_formulas(frame, content_area, query, scroll, amber, header_fg, dim, bg),
+        0 => render_keybindings(frame, content_area, query, scroll, &colors),
+        _ => render_formulas(frame, content_area, query, scroll, &colors),
     }
 }
 
-fn render_keybindings(
-    frame: &mut Frame,
-    area: Rect,
-    query: &str,
-    scroll: usize,
-    amber: ratatui::style::Color,
-    header_fg: ratatui::style::Color,
-    dim: ratatui::style::Color,
-    bg: ratatui::style::Color,
-) {
+fn render_keybindings(frame: &mut Frame, area: Rect, query: &str, scroll: usize, c: &HelpColors) {
+    let (amber, header_fg, dim, bg) = (c.amber, c.header_fg, c.dim, c.bg);
     let q = query.to_ascii_lowercase();
 
     // Build all visible lines
@@ -242,14 +250,12 @@ fn render_keybindings(
             continue;
         }
         // Section header
-        lines.push(Line::from(vec![
-            Span::styled(
-                format!("  {}  ", section.title),
-                Style::default()
-                    .fg(amber)
-                    .add_modifier(Modifier::BOLD | Modifier::UNDERLINED),
-            ),
-        ]));
+        lines.push(Line::from(vec![Span::styled(
+            format!("  {}  ", section.title),
+            Style::default()
+                .fg(amber)
+                .add_modifier(Modifier::BOLD | Modifier::UNDERLINED),
+        )]));
         for (keys, desc) in &matching {
             lines.push(Line::from(vec![
                 Span::styled("  ", Style::default()),
@@ -275,22 +281,11 @@ fn render_keybindings(
     let scroll = scroll.min(max_scroll);
 
     let shown: Vec<Line> = lines.into_iter().skip(scroll).take(visible_h).collect();
-    frame.render_widget(
-        Paragraph::new(shown).style(Style::default().bg(bg)),
-        area,
-    );
+    frame.render_widget(Paragraph::new(shown).style(Style::default().bg(bg)), area);
 }
 
-fn render_formulas(
-    frame: &mut Frame,
-    area: Rect,
-    query: &str,
-    scroll: usize,
-    amber: ratatui::style::Color,
-    header_fg: ratatui::style::Color,
-    dim: ratatui::style::Color,
-    bg: ratatui::style::Color,
-) {
+fn render_formulas(frame: &mut Frame, area: Rect, query: &str, scroll: usize, c: &HelpColors) {
+    let (amber, header_fg, dim, bg) = (c.amber, c.header_fg, c.dim, c.bg);
     let q = query.to_ascii_uppercase();
 
     // Build formula doc entries from FN_NAMES
@@ -334,10 +329,7 @@ fn render_formulas(
     let scroll = scroll.min(max_scroll);
 
     let shown: Vec<Line> = lines.into_iter().skip(scroll).take(visible_h).collect();
-    frame.render_widget(
-        Paragraph::new(shown).style(Style::default().bg(bg)),
-        area,
-    );
+    frame.render_widget(Paragraph::new(shown).style(Style::default().bg(bg)), area);
 }
 
 /// Brief one-line description for each formula function.

@@ -462,10 +462,8 @@ fn recalculate_sheet(workbook: &mut Workbook, sheet_idx: usize) {
 
     // ── Circular reference detection ──────────────────────────────────────────
     // Build a dependency map: (row, col) → set of (row, col) it references on the same sheet.
-    let formula_set: std::collections::HashSet<(u32, u32)> = formula_cells
-        .iter()
-        .map(|(r, c, _)| (*r, *c))
-        .collect();
+    let formula_set: std::collections::HashSet<(u32, u32)> =
+        formula_cells.iter().map(|(r, c, _)| (*r, *c)).collect();
 
     let deps: std::collections::HashMap<(u32, u32), Vec<(u32, u32)>> = formula_cells
         .iter()
@@ -487,8 +485,10 @@ fn recalculate_sheet(workbook: &mut Workbook, sheet_idx: usize) {
             Gray,
             Black,
         }
-        let mut color: std::collections::HashMap<(u32, u32), Color> =
-            formula_cells.iter().map(|(r, c, _)| ((*r, *c), Color::White)).collect();
+        let mut color: std::collections::HashMap<(u32, u32), Color> = formula_cells
+            .iter()
+            .map(|(r, c, _)| ((*r, *c), Color::White))
+            .collect();
 
         fn dfs(
             node: (u32, u32),
@@ -530,9 +530,10 @@ fn recalculate_sheet(workbook: &mut Workbook, sheet_idx: usize) {
     // Mark cycle cells immediately so passes skip them.
     let sheet = &mut workbook.sheets[sheet_idx];
     for &(r, c) in &cycle_cells {
-        sheet
-            .computed
-            .insert((r, c), asat_core::CellValue::Error(asat_core::CellError::CircularRef));
+        sheet.computed.insert(
+            (r, c),
+            asat_core::CellValue::Error(asat_core::CellError::CircularRef),
+        );
     }
 
     // Up to 3 passes so formula→formula chains resolve correctly
@@ -759,8 +760,11 @@ fn process_action(
             // Those modes handle their own Exit (q/Esc sets mode back to Normal themselves).
             if !matches!(
                 input.mode,
-                Mode::Help | Mode::PluginManager | Mode::ThemeManager
-                    | Mode::FileFind | Mode::RecentFiles
+                Mode::Help
+                    | Mode::PluginManager
+                    | Mode::ThemeManager
+                    | Mode::FileFind
+                    | Mode::RecentFiles
             ) {
                 input.mode = Mode::Normal;
             }
@@ -1562,7 +1566,6 @@ fn process_action(
                 }
             }
         }
-
 
         // ── Style copy / paste ──
         AppAction::YankStyle => {
