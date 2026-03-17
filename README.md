@@ -54,16 +54,16 @@
 
 ### Pre-built binaries (GitHub Releases)
 
-Download a binary for your platform from the [v0.1.19 release](https://github.com/okt4v/ASAT/releases/tag/v0.1.19):
+Download a binary for your platform from the [v0.1.21 release](https://github.com/okt4v/ASAT/releases/tag/v0.1.21):
 
 | Platform | Link |
 |----------|------|
-| Linux x86_64 (glibc) | [asat-x86_64-unknown-linux-gnu.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.19/asat-x86_64-unknown-linux-gnu.tar.gz) |
-| Linux x86_64 (musl)  | [asat-x86_64-unknown-linux-musl.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.19/asat-x86_64-unknown-linux-musl.tar.gz) |
-| Linux aarch64        | [asat-aarch64-unknown-linux-gnu.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.19/asat-aarch64-unknown-linux-gnu.tar.gz) |
-| macOS arm64          | [asat-aarch64-apple-darwin.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.19/asat-aarch64-apple-darwin.tar.gz) |
-| macOS x86_64         | [asat-x86_64-apple-darwin.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.19/asat-x86_64-apple-darwin.tar.gz) |
-| Windows x86_64       | [asat-x86_64-pc-windows-msvc.zip](https://github.com/okt4v/ASAT/releases/download/v0.1.19/asat-x86_64-pc-windows-msvc.zip) |
+| Linux x86_64 (glibc) | [asat-x86_64-unknown-linux-gnu.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.21/asat-x86_64-unknown-linux-gnu.tar.gz) |
+| Linux x86_64 (musl)  | [asat-x86_64-unknown-linux-musl.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.21/asat-x86_64-unknown-linux-musl.tar.gz) |
+| Linux aarch64        | [asat-aarch64-unknown-linux-gnu.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.21/asat-aarch64-unknown-linux-gnu.tar.gz) |
+| macOS arm64          | [asat-aarch64-apple-darwin.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.21/asat-aarch64-apple-darwin.tar.gz) |
+| macOS x86_64         | [asat-x86_64-apple-darwin.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.21/asat-x86_64-apple-darwin.tar.gz) |
+| Windows x86_64       | [asat-x86_64-pc-windows-msvc.zip](https://github.com/okt4v/ASAT/releases/download/v0.1.21/asat-x86_64-pc-windows-msvc.zip) |
 
 Extract the archive and place the `asat` binary somewhere on your `$PATH` (e.g. `~/.local/bin/`).
 
@@ -85,8 +85,8 @@ brew install asat
 ### Debian / Ubuntu (apt)
 
 ```bash
-curl -LO https://github.com/okt4v/ASAT/releases/download/v0.1.19/asat_0.1.19-1_amd64.deb
-sudo apt install ./asat_0.1.19-1_amd64.deb
+curl -LO https://github.com/okt4v/ASAT/releases/download/v0.1.21/asat_0.1.21-1_amd64.deb
+sudo apt install ./asat_0.1.21-1_amd64.deb
 ```
 
 `apt install ./file.deb` resolves dependencies automatically and registers the package so `apt remove asat` works as expected.
