@@ -105,6 +105,138 @@ fn collect_refs_from_expr(expr: &parser::Expr, out: &mut Vec<(u32, u32)>) {
     }
 }
 
+/// Adjust cell references in a formula when pasting.
+/// `d_row` / `d_col` are the signed offsets from the source to the destination cell.
+/// Absolute references (`$A` or `$1`) are left unchanged; relative references are shifted.
+/// Returns the adjusted formula string (without leading `=`).
+pub fn adjust_formula_refs(formula: &str, d_row: i64, d_col: i64) -> String {
+    let tokens = match lexer::lex(formula) {
+        Ok(t) => t,
+        Err(_) => return formula.to_string(),
+    };
+    let mut out = String::new();
+    for tok in &tokens {
+        match tok {
+            Token::CellRef {
+                sheet,
+                col,
+                row,
+                abs_col,
+                abs_row,
+            } => {
+                if let Some(s) = sheet {
+                    out.push_str(s);
+                    out.push('!');
+                }
+                let new_col = if *abs_col {
+                    *col
+                } else {
+                    (*col as i64 + d_col).max(0) as u32
+                };
+                let new_row = if *abs_row {
+                    *row
+                } else {
+                    (*row as i64 + d_row).max(0) as u32
+                };
+                if *abs_col {
+                    out.push('$');
+                }
+                out.push_str(&asat_core::col_to_letter(new_col));
+                if *abs_row {
+                    out.push('$');
+                }
+                out.push_str(&(new_row + 1).to_string());
+            }
+            Token::RangeRef {
+                sheet,
+                col1,
+                row1,
+                abs_col1,
+                abs_row1,
+                col2,
+                row2,
+                abs_col2,
+                abs_row2,
+            } => {
+                if let Some(s) = sheet {
+                    out.push_str(s);
+                    out.push('!');
+                }
+                let nc1 = if *abs_col1 {
+                    *col1
+                } else {
+                    (*col1 as i64 + d_col).max(0) as u32
+                };
+                let nr1 = if *abs_row1 {
+                    *row1
+                } else {
+                    (*row1 as i64 + d_row).max(0) as u32
+                };
+                let nc2 = if *abs_col2 {
+                    *col2
+                } else {
+                    (*col2 as i64 + d_col).max(0) as u32
+                };
+                let nr2 = if *abs_row2 {
+                    *row2
+                } else {
+                    (*row2 as i64 + d_row).max(0) as u32
+                };
+                if *abs_col1 {
+                    out.push('$');
+                }
+                out.push_str(&asat_core::col_to_letter(nc1));
+                if *abs_row1 {
+                    out.push('$');
+                }
+                out.push_str(&(nr1 + 1).to_string());
+                out.push(':');
+                if *abs_col2 {
+                    out.push('$');
+                }
+                out.push_str(&asat_core::col_to_letter(nc2));
+                if *abs_row2 {
+                    out.push('$');
+                }
+                out.push_str(&(nr2 + 1).to_string());
+            }
+            Token::Number(n) => {
+                if n.fract() == 0.0 && n.abs() < 1e15 {
+                    out.push_str(&format!("{}", *n as i64));
+                } else {
+                    out.push_str(&format!("{}", n));
+                }
+            }
+            Token::Text(s) => {
+                out.push('"');
+                out.push_str(&s.replace('"', "\"\""));
+                out.push('"');
+            }
+            Token::Boolean(b) => out.push_str(if *b { "TRUE" } else { "FALSE" }),
+            Token::Ident(s) => out.push_str(s),
+            Token::Plus => out.push('+'),
+            Token::Minus => out.push('-'),
+            Token::Star => out.push('*'),
+            Token::Slash => out.push('/'),
+            Token::Caret => out.push('^'),
+            Token::Eq => out.push('='),
+            Token::Neq => out.push_str("<>"),
+            Token::Lt => out.push('<'),
+            Token::Lte => out.push_str("<="),
+            Token::Gt => out.push('>'),
+            Token::Gte => out.push_str(">="),
+            Token::Ampersand => out.push('&'),
+            Token::LParen => out.push('('),
+            Token::RParen => out.push(')'),
+            Token::Comma => out.push(','),
+            Token::Colon => out.push(':'),
+            Token::Semicolon => out.push(';'),
+            Token::Eof => {}
+        }
+    }
+    out
+}
+
 fn evaluate_inner(
     formula: &str,
     workbook: &Workbook,

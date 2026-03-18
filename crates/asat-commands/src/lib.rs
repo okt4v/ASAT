@@ -22,6 +22,10 @@ pub trait Command: Send + Sync {
     fn merge(&self, _other: &dyn Command) -> Option<Box<dyn Command>> {
         None
     }
+    /// Returns (sheet, row, col) of the primary cell affected by this command.
+    fn affected_cell(&self) -> Option<(usize, u32, u32)> {
+        None
+    }
 }
 
 // ── Undo Stack ───────────────────────────────────────────────────────────────
@@ -68,23 +72,31 @@ impl UndoStack {
         }
     }
 
-    pub fn undo(&mut self, workbook: &mut Workbook) -> Result<bool, CommandError> {
+    pub fn undo(
+        &mut self,
+        workbook: &mut Workbook,
+    ) -> Result<Option<(usize, u32, u32)>, CommandError> {
         if let Some(cmd) = self.past.pop() {
             cmd.undo(workbook)?;
+            let cell = cmd.affected_cell();
             self.future.push(cmd);
-            Ok(true)
+            Ok(cell)
         } else {
-            Ok(false)
+            Ok(None)
         }
     }
 
-    pub fn redo(&mut self, workbook: &mut Workbook) -> Result<bool, CommandError> {
+    pub fn redo(
+        &mut self,
+        workbook: &mut Workbook,
+    ) -> Result<Option<(usize, u32, u32)>, CommandError> {
         if let Some(cmd) = self.future.pop() {
             cmd.execute(workbook)?;
+            let cell = cmd.affected_cell();
             self.past.push(cmd);
-            Ok(true)
+            Ok(cell)
         } else {
-            Ok(false)
+            Ok(None)
         }
     }
 
@@ -172,6 +184,9 @@ impl Command for SetCell {
     fn description(&self) -> &str {
         "set cell"
     }
+    fn affected_cell(&self) -> Option<(usize, u32, u32)> {
+        Some((self.sheet, self.row, self.col))
+    }
 
     fn merge(&self, other: &dyn Command) -> Option<Box<dyn Command>> {
         // Downcast attempt: merge consecutive SetCell on same cell
@@ -194,13 +209,15 @@ impl Command for InsertRow {
         let sheet = workbook
             .sheet_mut(self.sheet)
             .ok_or(CommandError::SheetOutOfRange(self.sheet))?;
-        // Shift all cells at or below `row` down by 1
-        let affected: Vec<_> = sheet
+        // Shift all cells at or below `row` down by 1 — descending order to
+        // avoid overwriting cells that haven't been moved yet.
+        let mut affected: Vec<_> = sheet
             .cells
             .keys()
             .filter(|(r, _)| *r >= self.row)
             .cloned()
             .collect();
+        affected.sort_by(|a, b| b.cmp(a));
         for (r, c) in affected {
             if let Some(cell) = sheet.cells.remove(&(r, c)) {
                 sheet.cells.insert((r + 1, c), cell);
@@ -225,13 +242,14 @@ impl Command for InsertRow {
         for coord in row_cells {
             sheet.cells.remove(&coord);
         }
-        // Shift everything above back down
-        let affected: Vec<_> = sheet
+        // Shift everything above back down — ascending order to avoid overwrites.
+        let mut affected: Vec<_> = sheet
             .cells
             .keys()
             .filter(|(r, _)| *r > self.row)
             .cloned()
             .collect();
+        affected.sort();
         for (r, c) in affected {
             if let Some(cell) = sheet.cells.remove(&(r, c)) {
                 sheet.cells.insert((r - 1, c), cell);
@@ -243,6 +261,9 @@ impl Command for InsertRow {
 
     fn description(&self) -> &str {
         "insert row"
+    }
+    fn affected_cell(&self) -> Option<(usize, u32, u32)> {
+        Some((self.sheet, self.row, 0))
     }
 }
 
@@ -288,13 +309,15 @@ impl Command for DeleteRow {
         for coord in row_cells {
             sheet.cells.remove(&coord);
         }
-        // Shift rows above up
-        let affected: Vec<_> = sheet
+        // Shift rows above up — must process in ascending row order so that
+        // moving row N to N-1 doesn't overwrite row N-1 before it is moved.
+        let mut affected: Vec<_> = sheet
             .cells
             .keys()
             .filter(|(r, _)| *r > self.row)
             .cloned()
             .collect();
+        affected.sort();
         for (r, c) in affected {
             if let Some(cell) = sheet.cells.remove(&(r, c)) {
                 sheet.cells.insert((r - 1, c), cell);
@@ -308,13 +331,15 @@ impl Command for DeleteRow {
         let sheet = workbook
             .sheet_mut(self.sheet)
             .ok_or(CommandError::SheetOutOfRange(self.sheet))?;
-        // Shift rows back down
-        let affected: Vec<_> = sheet
+        // Shift rows back down — must process in descending row order so that
+        // moving row N to N+1 doesn't overwrite row N+1 before it is moved.
+        let mut affected: Vec<_> = sheet
             .cells
             .keys()
             .filter(|(r, _)| *r >= self.row)
             .cloned()
             .collect();
+        affected.sort_by(|a, b| b.cmp(a));
         for (r, c) in affected {
             if let Some(cell) = sheet.cells.remove(&(r, c)) {
                 sheet.cells.insert((r + 1, c), cell);
@@ -331,6 +356,9 @@ impl Command for DeleteRow {
     fn description(&self) -> &str {
         "delete row"
     }
+    fn affected_cell(&self) -> Option<(usize, u32, u32)> {
+        Some((self.sheet, self.row, 0))
+    }
 }
 
 // ── InsertCol / DeleteCol ────────────────────────────────────────────────────
@@ -346,12 +374,14 @@ impl Command for InsertCol {
         let sheet = workbook
             .sheet_mut(self.sheet)
             .ok_or(CommandError::SheetOutOfRange(self.sheet))?;
-        let affected: Vec<_> = sheet
+        // Shift right — descending col order to avoid overwrites
+        let mut affected: Vec<_> = sheet
             .cells
             .keys()
             .filter(|(_, c)| *c >= self.col)
             .cloned()
             .collect();
+        affected.sort_by(|a, b| b.1.cmp(&a.1).then(b.0.cmp(&a.0)));
         for (r, c) in affected {
             if let Some(cell) = sheet.cells.remove(&(r, c)) {
                 sheet.cells.insert((r, c + 1), cell);
@@ -374,12 +404,14 @@ impl Command for InsertCol {
         for coord in col_cells {
             sheet.cells.remove(&coord);
         }
-        let affected: Vec<_> = sheet
+        // Shift left — ascending col order to avoid overwrites
+        let mut affected: Vec<_> = sheet
             .cells
             .keys()
             .filter(|(_, c)| *c > self.col)
             .cloned()
             .collect();
+        affected.sort_by(|a, b| a.1.cmp(&b.1).then(a.0.cmp(&b.0)));
         for (r, c) in affected {
             if let Some(cell) = sheet.cells.remove(&(r, c)) {
                 sheet.cells.insert((r, c - 1), cell);
@@ -391,6 +423,9 @@ impl Command for InsertCol {
 
     fn description(&self) -> &str {
         "insert column"
+    }
+    fn affected_cell(&self) -> Option<(usize, u32, u32)> {
+        Some((self.sheet, 0, self.col))
     }
 }
 
@@ -435,12 +470,14 @@ impl Command for DeleteCol {
         for coord in col_cells {
             sheet.cells.remove(&coord);
         }
-        let affected: Vec<_> = sheet
+        // Shift left — ascending col order to avoid overwrites
+        let mut affected: Vec<_> = sheet
             .cells
             .keys()
             .filter(|(_, c)| *c > self.col)
             .cloned()
             .collect();
+        affected.sort_by(|a, b| a.1.cmp(&b.1).then(a.0.cmp(&b.0)));
         for (r, c) in affected {
             if let Some(cell) = sheet.cells.remove(&(r, c)) {
                 sheet.cells.insert((r, c - 1), cell);
@@ -454,12 +491,14 @@ impl Command for DeleteCol {
         let sheet = workbook
             .sheet_mut(self.sheet)
             .ok_or(CommandError::SheetOutOfRange(self.sheet))?;
-        let affected: Vec<_> = sheet
+        // Shift right — descending col order to avoid overwrites
+        let mut affected: Vec<_> = sheet
             .cells
             .keys()
             .filter(|(_, c)| *c >= self.col)
             .cloned()
             .collect();
+        affected.sort_by(|a, b| b.1.cmp(&a.1).then(b.0.cmp(&a.0)));
         for (r, c) in affected {
             if let Some(cell) = sheet.cells.remove(&(r, c)) {
                 sheet.cells.insert((r, c + 1), cell);
@@ -474,6 +513,9 @@ impl Command for DeleteCol {
 
     fn description(&self) -> &str {
         "delete column"
+    }
+    fn affected_cell(&self) -> Option<(usize, u32, u32)> {
+        Some((self.sheet, 0, self.col))
     }
 }
 
@@ -502,14 +544,20 @@ impl Command for GroupedCommand {
     fn description(&self) -> &str {
         &self.description
     }
+    fn affected_cell(&self) -> Option<(usize, u32, u32)> {
+        self.commands.first().and_then(|c| c.affected_cell())
+    }
 }
 
 // ── Clipboard / Registers ─────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Default)]
 pub struct Register {
-    pub cells: Vec<Vec<CellValue>>, // rows of cols
-    pub is_line: bool,              // true if yanked whole row(s)
+    pub cells: Vec<Vec<CellValue>>,          // rows of cols
+    pub styles: Vec<Vec<Option<CellStyle>>>, // matching styles grid
+    pub is_line: bool,                       // true if yanked whole row(s)
+    pub source_row: u32,                     // top-left row of yanked region
+    pub source_col: u32,                     // top-left col of yanked region
 }
 
 #[derive(Debug, Default)]
@@ -520,7 +568,28 @@ pub struct RegisterMap {
 
 impl RegisterMap {
     pub fn yank(&mut self, name: Option<char>, cells: Vec<Vec<CellValue>>, is_line: bool) {
-        let reg = Register { cells, is_line };
+        let rows = cells.len();
+        let cols = cells.first().map(|r| r.len()).unwrap_or(0);
+        let styles = vec![vec![None; cols]; rows];
+        self.yank_at(name, cells, styles, is_line, 0, 0);
+    }
+
+    pub fn yank_at(
+        &mut self,
+        name: Option<char>,
+        cells: Vec<Vec<CellValue>>,
+        styles: Vec<Vec<Option<CellStyle>>>,
+        is_line: bool,
+        source_row: u32,
+        source_col: u32,
+    ) {
+        let reg = Register {
+            cells,
+            styles,
+            is_line,
+            source_row,
+            source_col,
+        };
         self.unnamed = reg.clone();
         if let Some(ch) = name {
             self.named.insert(ch, reg);

@@ -237,6 +237,7 @@ impl<'a> Widget for GridWidget<'a> {
                             insert_color,
                             normal_color,
                             &self.state.ref_cells,
+                            input.visual_command_range,
                         );
                         if sheet.notes.contains_key(&(row_idx, col_idx)) {
                             if let Some(cell) =
@@ -289,6 +290,7 @@ impl<'a> Widget for GridWidget<'a> {
                         insert_color,
                         normal_color,
                         &self.state.ref_cells,
+                        input.visual_command_range,
                     );
                     if sheet.notes.contains_key(&(row_idx, col_idx)) {
                         if let Some(cell) =
@@ -457,6 +459,7 @@ impl<'a> Widget for GridWidget<'a> {
                             insert_color,
                             normal_color,
                             &self.state.ref_cells,
+                            input.visual_command_range,
                         );
                         if sheet.notes.contains_key(&(row_idx, *col_idx)) {
                             if let Some(cell) =
@@ -547,6 +550,7 @@ impl<'a> Widget for GridWidget<'a> {
                         insert_color,
                         normal_color,
                         &self.state.ref_cells,
+                        input.visual_command_range,
                     );
                     if sheet.notes.contains_key(&(row_idx, *col_idx)) {
                         if let Some(cell) =
@@ -676,6 +680,7 @@ fn render_data_cell(
     insert_color: Color,
     normal_color: Color,
     ref_cells: &std::collections::HashSet<(u32, u32)>,
+    visual_command_range: Option<(u32, u32, u32, u32)>,
 ) {
     let is_cursor = row_idx == cursor.row && col_idx == cursor.col;
 
@@ -695,7 +700,14 @@ fn render_data_cell(
         false
     };
 
-    let is_visual = is_in_visual_selection(row_idx, col_idx, visual_anchor, cursor, mode);
+    let is_visual = is_in_visual_selection(
+        row_idx,
+        col_idx,
+        visual_anchor,
+        cursor,
+        mode,
+        visual_command_range,
+    );
 
     // In FormulaSelect, show edit_buffer on the cell being edited (formula_origin),
     // not on the navigator cursor which has moved away.
@@ -866,7 +878,15 @@ fn is_in_visual_selection(
     anchor: Option<&VisualAnchor>,
     cursor: asat_input::Cursor,
     mode: &Mode,
+    visual_command_range: Option<(u32, u32, u32, u32)>,
 ) -> bool {
+    // In Command mode entered from Visual, use the saved range
+    if matches!(mode, Mode::Command) {
+        if let Some((r1, c1, r2, c2)) = visual_command_range {
+            return row >= r1 && row <= r2 && col >= c1 && col <= c2;
+        }
+        return false;
+    }
     let anchor = match anchor {
         Some(a) => a,
         None => return false,

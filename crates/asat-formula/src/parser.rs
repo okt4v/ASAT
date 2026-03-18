@@ -21,13 +21,19 @@ pub enum Expr {
         sheet: Option<String>,
         col: u32,
         row: u32,
+        abs_col: bool,
+        abs_row: bool,
     },
     RangeRef {
         sheet: Option<String>,
         col1: u32,
         row1: u32,
+        abs_col1: bool,
+        abs_row1: bool,
         col2: u32,
         row2: u32,
+        abs_col2: bool,
+        abs_row2: bool,
     },
 
     UnaryMinus(Box<Expr>),
@@ -205,26 +211,43 @@ impl<'a> Parser<'a> {
             }
 
             Token::CellRef {
-                sheet, col, row, ..
+                sheet,
+                col,
+                row,
+                abs_col,
+                abs_row,
             } => {
                 self.advance();
-                Ok(Expr::CellRef { sheet, col, row })
+                Ok(Expr::CellRef {
+                    sheet,
+                    col,
+                    row,
+                    abs_col,
+                    abs_row,
+                })
             }
             Token::RangeRef {
                 sheet,
                 col1,
                 row1,
+                abs_col1,
+                abs_row1,
                 col2,
                 row2,
-                ..
+                abs_col2,
+                abs_row2,
             } => {
                 self.advance();
                 Ok(Expr::RangeRef {
                     sheet,
                     col1,
                     row1,
+                    abs_col1,
+                    abs_row1,
                     col2,
                     row2,
+                    abs_col2,
+                    abs_row2,
                 })
             }
 

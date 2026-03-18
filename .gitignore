@@ -3,6 +3,7 @@
 # Cargo.lock is committed for binary crates (required for --locked builds)
 
 # ── Project-specific non-code directories ─────────────────────────────────────
+/marketing/
 /planning/
 /userinfo/
 /testdata/

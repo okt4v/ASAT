@@ -37,11 +37,24 @@ pub fn render(frame: &mut Frame, area: Rect, state: &RenderState<'_>) {
 
     let spans = match &state.input.mode {
         Mode::Insert { .. } => {
-            // Show the edit buffer live while typing
+            // Show the edit buffer live while typing, with a visible cursor
+            let cursor_style = Style::default().fg(header_bg).bg(Color::White);
+            let buf = &state.input.edit_buffer;
+            let pos = state.input.edit_cursor_pos.min(buf.len());
+            let before = &buf[..pos];
+            let (cursor_char, after) = if pos < buf.len() {
+                let rest = &buf[pos..];
+                let char_len = rest.chars().next().map_or(1, |c| c.len_utf8());
+                (&buf[pos..pos + char_len], &buf[pos + char_len..])
+            } else {
+                ("\u{2588}", "")
+            };
             let mut spans = vec![
                 Span::styled(format!(" {:>6} ", addr), addr_style),
                 Span::styled(" │ ", sep_style),
-                Span::styled(state.input.edit_buffer.clone(), content_style),
+                Span::styled(before.to_string(), content_style),
+                Span::styled(cursor_char.to_string(), cursor_style),
+                Span::styled(after.to_string(), content_style),
             ];
             if let Some(preview) = &state.formula_preview {
                 let preview_style = Style::default()

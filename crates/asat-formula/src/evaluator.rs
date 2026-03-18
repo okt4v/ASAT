@@ -23,7 +23,9 @@ impl Evaluator {
             Expr::Text(s) => CellValue::Text(s.clone()),
             Expr::Boolean(b) => CellValue::Boolean(*b),
 
-            Expr::CellRef { sheet, col, row } => {
+            Expr::CellRef {
+                sheet, col, row, ..
+            } => {
                 let sheet_idx = self.resolve_sheet(sheet, ctx);
                 if let Some(s) = ctx.workbook.sheet(sheet_idx) {
                     s.get_value(*row, *col).clone()
@@ -121,12 +123,15 @@ impl Evaluator {
                 row1,
                 col2,
                 row2,
+                ..
             } => {
                 let sheet_idx = self.resolve_sheet(sheet, ctx);
                 if let Some(s) = ctx.workbook.sheet(sheet_idx) {
                     let mut vals = Vec::new();
-                    for r in *row1..=*row2 {
-                        for c in *col1..=*col2 {
+                    let (r_min, r_max) = ((*row1).min(*row2), (*row1).max(*row2));
+                    let (c_min, c_max) = ((*col1).min(*col2), (*col1).max(*col2));
+                    for r in r_min..=r_max {
+                        for c in c_min..=c_max {
                             vals.push(s.get_value(r, c).clone());
                         }
                     }
@@ -136,7 +141,9 @@ impl Evaluator {
                 }
             }
             // Single cell ref in range context
-            Expr::CellRef { sheet, col, row } => {
+            Expr::CellRef {
+                sheet, col, row, ..
+            } => {
                 let sheet_idx = self.resolve_sheet(sheet, ctx);
                 if let Some(s) = ctx.workbook.sheet(sheet_idx) {
                     vec![s.get_value(*row, *col).clone()]

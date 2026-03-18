@@ -121,5 +121,7 @@ fn test_cell_ref() {
 fn test_abs_round() {
     let wb = wb_with_data();
     assert_eq!(eval("ABS(-5)", &wb), CellValue::Number(5.0));
-    assert_eq!(eval("ROUND(3.14159,2)", &wb), CellValue::Number(3.14));
+    #[allow(clippy::approx_constant)]
+    let expected = 3.14;
+    assert_eq!(eval("ROUND(3.14159,2)", &wb), CellValue::Number(expected));
 }

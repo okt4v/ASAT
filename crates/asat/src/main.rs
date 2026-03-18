@@ -765,6 +765,7 @@ fn process_action(
                     | Mode::ThemeManager
                     | Mode::FileFind
                     | Mode::RecentFiles
+                    | Mode::Welcome
             ) {
                 input.mode = Mode::Normal;
             }
@@ -798,13 +799,27 @@ fn process_action(
             let sheet_idx = workbook.active_sheet;
             let row = input.cursor.row;
             let col = input.cursor.col;
-            let cmd = Box::new(SetCell::new(
+            // Yank deleted content + style to register + clipboard (like Vim)
+            let val = workbook.active().get_raw_value(row, col).clone();
+            let sty = workbook
+                .active()
+                .get_cell(row, col)
+                .and_then(|c| c.style.clone());
+            if !matches!(val, CellValue::Empty) || sty.is_some() {
+                let text = val.display();
+                copy_to_clipboard(clipboard, &text);
+                input
+                    .registers
+                    .yank_at(None, vec![vec![val]], vec![vec![sty]], false, row, col);
+            }
+            let mut cmd = Box::new(SetCell::new(
                 workbook,
                 sheet_idx,
                 row,
                 col,
                 CellValue::Empty,
             ));
+            cmd.new_style = None;
             if let Err(e) = cmd.execute(workbook) {
                 set_status(status, format!("Error: {}", e));
             } else {
@@ -824,6 +839,27 @@ fn process_action(
                 let s = workbook.active();
                 (row_end.min(s.max_row()), col_end.min(s.max_col()))
             };
+            // Yank selection values + styles to register + clipboard before deleting
+            {
+                let sheet = workbook.active();
+                let mut cells: Vec<Vec<CellValue>> = Vec::new();
+                let mut styles: Vec<Vec<Option<CellStyle>>> = Vec::new();
+                for r in row_start..=row_end {
+                    let row_vals: Vec<CellValue> = (col_start..=col_end)
+                        .map(|c| sheet.get_raw_value(r, c).clone())
+                        .collect();
+                    let row_styles: Vec<Option<CellStyle>> = (col_start..=col_end)
+                        .map(|c| sheet.get_cell(r, c).and_then(|cell| cell.style.clone()))
+                        .collect();
+                    cells.push(row_vals);
+                    styles.push(row_styles);
+                }
+                let tsv = cells_to_tsv(&cells);
+                copy_to_clipboard(clipboard, &tsv);
+                input
+                    .registers
+                    .yank_at(None, cells, styles, false, row_start, col_start);
+            }
             // Only clear cells that actually have data (sparse-safe, avoids huge loops)
             let coords: Vec<(u32, u32)> = workbook
                 .active()
@@ -840,8 +876,10 @@ fn process_action(
             let cmds: Vec<Box<dyn asat_commands::Command>> = coords
                 .into_iter()
                 .map(|(r, c)| {
-                    Box::new(SetCell::new(workbook, sheet_idx, r, c, CellValue::Empty))
-                        as Box<dyn asat_commands::Command>
+                    let mut cmd =
+                        Box::new(SetCell::new(workbook, sheet_idx, r, c, CellValue::Empty));
+                    cmd.new_style = None;
+                    cmd as Box<dyn asat_commands::Command>
                 })
                 .collect();
             let grouped = Box::new(asat_commands::GroupedCommand {
@@ -872,6 +910,18 @@ fn process_action(
         AppAction::DeleteCurrentRow => {
             let sheet_idx = workbook.active_sheet;
             let row = input.cursor.row;
+            // Yank the row values + styles to register + clipboard before deleting
+            let sheet = workbook.active();
+            let max_col = sheet.max_col();
+            let cells: Vec<Vec<CellValue>> = vec![(0..=max_col)
+                .map(|c| sheet.get_raw_value(row, c).clone())
+                .collect()];
+            let styles: Vec<Vec<Option<CellStyle>>> = vec![(0..=max_col)
+                .map(|c| sheet.get_cell(row, c).and_then(|cell| cell.style.clone()))
+                .collect()];
+            let tsv = cells_to_tsv(&cells);
+            copy_to_clipboard(clipboard, &tsv);
+            input.registers.yank_at(None, cells, styles, true, row, 0);
             let cmd = Box::new(asat_commands::DeleteRow::new(workbook, sheet_idx, row));
             if let Err(e) = cmd.execute(workbook) {
                 set_status(status, format!("Error: {}", e));
@@ -897,13 +947,25 @@ fn process_action(
 
         // ── Undo/Redo ──
         AppAction::Undo => match undo.undo(workbook) {
-            Ok(true) => set_status(status, "Undo".to_string()),
-            Ok(false) => set_status(status, "Already at oldest change".to_string()),
+            Ok(Some((sheet, row, col))) => {
+                workbook.active_sheet = sheet;
+                input.cursor.row = row;
+                input.cursor.col = col;
+                input.scroll_to_cursor(visible_rows, visible_cols);
+                set_status(status, "Undo".to_string());
+            }
+            Ok(None) => set_status(status, "Already at oldest change".to_string()),
             Err(e) => set_status(status, format!("Undo error: {}", e)),
         },
         AppAction::Redo => match undo.redo(workbook) {
-            Ok(true) => set_status(status, "Redo".to_string()),
-            Ok(false) => set_status(status, "Already at newest change".to_string()),
+            Ok(Some((sheet, row, col))) => {
+                workbook.active_sheet = sheet;
+                input.cursor.row = row;
+                input.cursor.col = col;
+                input.scroll_to_cursor(visible_rows, visible_cols);
+                set_status(status, "Redo".to_string());
+            }
+            Ok(None) => set_status(status, "Already at newest change".to_string()),
             Err(e) => set_status(status, format!("Redo error: {}", e)),
         },
 
@@ -1282,21 +1344,26 @@ fn process_action(
             let row = input.cursor.row;
             let max_col = sheet.max_col();
             let cells: Vec<Vec<CellValue>> = vec![(0..=max_col)
-                .map(|c| sheet.get_value(row, c).clone())
+                .map(|c| sheet.get_raw_value(row, c).clone())
+                .collect()];
+            let styles: Vec<Vec<Option<CellStyle>>> = vec![(0..=max_col)
+                .map(|c| sheet.get_cell(row, c).and_then(|cell| cell.style.clone()))
                 .collect()];
             let tsv = cells_to_tsv(&cells);
             copy_to_clipboard(clipboard, &tsv);
-            input.registers.yank(None, cells, true);
+            input.registers.yank_at(None, cells, styles, true, row, 0);
             set_status(status, format!("Yanked row {} → clipboard", row + 1));
         }
         AppAction::YankCell => {
             let sheet = workbook.active();
             let (row, col) = (input.cursor.row, input.cursor.col);
-            let val = sheet.get_value(row, col).clone();
+            let val = sheet.get_raw_value(row, col).clone();
+            let sty = sheet.get_cell(row, col).and_then(|c| c.style.clone());
             let text = val.display();
             copy_to_clipboard(clipboard, &text);
-            let cells = vec![vec![val]];
-            input.registers.yank(None, cells, false);
+            input
+                .registers
+                .yank_at(None, vec![vec![val]], vec![vec![sty]], false, row, col);
             set_status(status, format!("Yanked cell → clipboard: {}", text));
         }
         AppAction::YankRowAt { row } => {
@@ -1307,11 +1374,14 @@ fn process_action(
             } else {
                 let max_col = sheet.max_col();
                 let cells: Vec<Vec<CellValue>> = vec![(0..=max_col)
-                    .map(|c| sheet.get_value(row, c).clone())
+                    .map(|c| sheet.get_raw_value(row, c).clone())
+                    .collect()];
+                let styles: Vec<Vec<Option<CellStyle>>> = vec![(0..=max_col)
+                    .map(|c| sheet.get_cell(row, c).and_then(|cell| cell.style.clone()))
                     .collect()];
                 let tsv = cells_to_tsv(&cells);
                 copy_to_clipboard(clipboard, &tsv);
-                input.registers.yank(None, cells, true);
+                input.registers.yank_at(None, cells, styles, true, row, 0);
                 set_status(status, format!("Yanked row {} → clipboard", row + 1));
             }
         }
@@ -1320,11 +1390,14 @@ fn process_action(
             let col = input.cursor.col;
             let max_row = sheet.max_row();
             let cells: Vec<Vec<CellValue>> = (0..=max_row)
-                .map(|r| vec![sheet.get_value(r, col).clone()])
+                .map(|r| vec![sheet.get_raw_value(r, col).clone()])
+                .collect();
+            let styles: Vec<Vec<Option<CellStyle>>> = (0..=max_row)
+                .map(|r| vec![sheet.get_cell(r, col).and_then(|c| c.style.clone())])
                 .collect();
             let tsv = cells_to_tsv(&cells);
             copy_to_clipboard(clipboard, &tsv);
-            input.registers.yank(None, cells, false);
+            input.registers.yank_at(None, cells, styles, false, 0, col);
             set_status(status, format!("Yanked column {} → clipboard", col + 1));
         }
         AppAction::YankCellRange {
@@ -1345,7 +1418,14 @@ fn process_action(
             let cells: Vec<Vec<CellValue>> = (row_start..=row_end)
                 .map(|r| {
                     (col_start..=col_end)
-                        .map(|c| sheet.get_value(r, c).clone())
+                        .map(|c| sheet.get_raw_value(r, c).clone())
+                        .collect()
+                })
+                .collect();
+            let styles: Vec<Vec<Option<CellStyle>>> = (row_start..=row_end)
+                .map(|r| {
+                    (col_start..=col_end)
+                        .map(|c| sheet.get_cell(r, c).and_then(|cell| cell.style.clone()))
                         .collect()
                 })
                 .collect();
@@ -1353,7 +1433,9 @@ fn process_action(
             let cols = cells.first().map(|r| r.len()).unwrap_or(0);
             let tsv = cells_to_tsv(&cells);
             copy_to_clipboard(clipboard, &tsv);
-            input.registers.yank(None, cells, is_line);
+            input
+                .registers
+                .yank_at(None, cells, styles, is_line, row_start, col_start);
             set_status(status, format!("Yanked {}x{} → clipboard", rows, cols));
         }
 
@@ -2414,18 +2496,26 @@ fn do_paste(
     } else {
         (input.cursor.row, input.cursor.col)
     };
+    // Compute row/col delta from yank source to paste destination for formula adjustment
+    let d_row = start_row as i64 - reg.source_row as i64;
+    let d_col = start_col as i64 - reg.source_col as i64;
     let mut cmds: Vec<Box<dyn asat_commands::Command>> = Vec::new();
     for (dr, row_vals) in reg.cells.iter().enumerate() {
         for (dc, val) in row_vals.iter().enumerate() {
             let r = start_row + dr as u32;
             let c = start_col + dc as u32;
-            cmds.push(Box::new(SetCell::new(
-                workbook,
-                sheet_idx,
-                r,
-                c,
-                val.clone(),
-            )));
+            // Adjust formula references for the paste offset
+            let adjusted = if let CellValue::Formula(f) = val {
+                CellValue::Formula(asat_formula::adjust_formula_refs(f, d_row, d_col))
+            } else {
+                val.clone()
+            };
+            let mut cmd = Box::new(SetCell::new(workbook, sheet_idx, r, c, adjusted));
+            // Apply yanked style if available
+            if let Some(sty) = reg.styles.get(dr).and_then(|row| row.get(dc)) {
+                cmd.new_style = sty.clone();
+            }
+            cmds.push(cmd);
         }
     }
     let grouped = Box::new(asat_commands::GroupedCommand {
@@ -3240,6 +3330,10 @@ fn handle_ex_command(
             input.help_scroll = 0;
             input.help_query.clear();
             input.mode = Mode::Help;
+        }
+
+        "home" => {
+            input.mode = Mode::Welcome;
         }
 
         // ── Plugin manager panel ──
@@ -4609,7 +4703,9 @@ fn find_first_cell_ref(formula: &str) -> Option<(Option<String>, u32, u32)> {
 fn find_first_ref_in_expr(expr: &asat_formula::parser::Expr) -> Option<(Option<String>, u32, u32)> {
     use asat_formula::parser::Expr;
     match expr {
-        Expr::CellRef { sheet, row, col } => Some((sheet.clone(), *row, *col)),
+        Expr::CellRef {
+            sheet, row, col, ..
+        } => Some((sheet.clone(), *row, *col)),
         Expr::RangeRef {
             sheet, row1, col1, ..
         } => Some((sheet.clone(), *row1, *col1)),

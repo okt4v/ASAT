@@ -52,6 +52,7 @@ pub const EX_COMMANDS: &[(&str, &str)] = &[
     ("plugin", "Plugin engine: :plugin reload | :plugin list"),
     ("plugins", "Open the plugin manager panel"),
     ("help", "Open the searchable help screen"),
+    ("home", "Return to the welcome / home screen"),
     ("goto <cell>", "Jump to cell address (e.g. :goto B15)"),
     (
         "name <n> <r>",
@@ -1212,7 +1213,7 @@ impl InputState {
             KeyCode::Enter | KeyCode::F(2) => {
                 let val = workbook
                     .active()
-                    .get_value(self.cursor.row, self.cursor.col);
+                    .get_raw_value(self.cursor.row, self.cursor.col);
                 self.edit_buffer = val.formula_bar_display();
                 self.edit_cursor_pos = self.edit_buffer.len();
                 self.recording_edit = true;
@@ -1222,7 +1223,7 @@ impl InputState {
             KeyCode::Char('i') => {
                 let val = workbook
                     .active()
-                    .get_value(self.cursor.row, self.cursor.col);
+                    .get_raw_value(self.cursor.row, self.cursor.col);
                 self.edit_buffer = val.formula_bar_display();
                 self.edit_cursor_pos = self.edit_buffer.len();
                 self.recording_edit = true;
@@ -1232,7 +1233,7 @@ impl InputState {
             KeyCode::Char('a') => {
                 let val = workbook
                     .active()
-                    .get_value(self.cursor.row, self.cursor.col);
+                    .get_raw_value(self.cursor.row, self.cursor.col);
                 self.edit_buffer = val.formula_bar_display();
                 self.edit_cursor_pos = self.edit_buffer.len();
                 self.recording_edit = true;
@@ -1399,6 +1400,7 @@ impl InputState {
             KeyCode::Char('r') | KeyCode::Char('R') => vec![AppAction::WelcomeEnterRecent],
             KeyCode::Char('t') | KeyCode::Char('T') => vec![AppAction::WelcomeOpenThemes],
             KeyCode::Char('c') | KeyCode::Char('C') => vec![AppAction::WelcomeOpenConfig],
+            KeyCode::Char('?') => vec![AppAction::OpenHelp],
             KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => vec![AppAction::Quit],
             _ => vec![AppAction::NoOp],
         }

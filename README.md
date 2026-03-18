@@ -17,8 +17,9 @@
 - **Named ranges** — `:name SALES A1:C10` defines a named range usable in formulas as `=SUM(SALES)`
 - **Multi-sheet workbooks** — tab bar, `:tabnew`, `:tabclose`, `gt` / `gT` to switch sheets
 - **File format support** — read and write CSV, TSV, XLSX, and ODS (OpenDocument Spreadsheet); native `.asat` format with bincode + zstd compression; ODS formula round-trip with cached computed values
-- **System clipboard** — yank (`yy`, `yc`, visual `y`) copies as TSV; `Ctrl+V` in Insert mode pastes from system clipboard
-- **Full undo stack** — 1000-deep undo/redo covering cell edits, row/column operations, pastes, and style changes
+- **System clipboard** — yank (`yy`, `yc`, visual `y`) copies values and styles as TSV; `Ctrl+V` in Insert mode pastes from system clipboard; delete (`dd`, `x`, visual `d`) also yanks to register + clipboard before clearing
+- **Formula-aware paste** — pasting a formula adjusts relative cell references (`A1` becomes `B2` when pasted one row down and one column right); absolute references (`$A$1`) stay fixed; mixed references (`$A1`, `A$1`) lock only the `$`-prefixed axis
+- **Full undo stack** — 1000-deep undo/redo covering cell edits, row/column operations, pastes, and style changes; undo/redo repositions the cursor to the affected cell
 - **Sort & find/replace** — `:sort [COL] [!]` sorts rows by any column (e.g. `:sort B!` = column B descending); `:s/pat/repl/g` does regex find & replace across cells; both undoable
 - **Filter rows** — `:filter <col> <op> <val>` hides non-matching rows (supports `=`, `!=`, `>`, `<`, `>=`, `<=`, `~`); `:filter off` restores all rows
 - **Freeze panes** — frozen rows and columns render as sticky headers with a visual separator; set via `:freeze rows N` / `:freeze cols N`
@@ -54,16 +55,16 @@
 
 ### Pre-built binaries (GitHub Releases)
 
-Download a binary for your platform from the [v0.1.21 release](https://github.com/okt4v/ASAT/releases/tag/v0.1.21):
+Download a binary for your platform from the [v0.1.22 release](https://github.com/okt4v/ASAT/releases/tag/v0.1.22):
 
 | Platform | Link |
 |----------|------|
-| Linux x86_64 (glibc) | [asat-x86_64-unknown-linux-gnu.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.21/asat-x86_64-unknown-linux-gnu.tar.gz) |
-| Linux x86_64 (musl)  | [asat-x86_64-unknown-linux-musl.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.21/asat-x86_64-unknown-linux-musl.tar.gz) |
-| Linux aarch64        | [asat-aarch64-unknown-linux-gnu.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.21/asat-aarch64-unknown-linux-gnu.tar.gz) |
-| macOS arm64          | [asat-aarch64-apple-darwin.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.21/asat-aarch64-apple-darwin.tar.gz) |
-| macOS x86_64         | [asat-x86_64-apple-darwin.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.21/asat-x86_64-apple-darwin.tar.gz) |
-| Windows x86_64       | [asat-x86_64-pc-windows-msvc.zip](https://github.com/okt4v/ASAT/releases/download/v0.1.21/asat-x86_64-pc-windows-msvc.zip) |
+| Linux x86_64 (glibc) | [asat-x86_64-unknown-linux-gnu.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.22/asat-x86_64-unknown-linux-gnu.tar.gz) |
+| Linux x86_64 (musl)  | [asat-x86_64-unknown-linux-musl.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.22/asat-x86_64-unknown-linux-musl.tar.gz) |
+| Linux aarch64        | [asat-aarch64-unknown-linux-gnu.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.22/asat-aarch64-unknown-linux-gnu.tar.gz) |
+| macOS arm64          | [asat-aarch64-apple-darwin.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.22/asat-aarch64-apple-darwin.tar.gz) |
+| macOS x86_64         | [asat-x86_64-apple-darwin.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.22/asat-x86_64-apple-darwin.tar.gz) |
+| Windows x86_64       | [asat-x86_64-pc-windows-msvc.zip](https://github.com/okt4v/ASAT/releases/download/v0.1.22/asat-x86_64-pc-windows-msvc.zip) |
 
 Extract the archive and place the `asat` binary somewhere on your `$PATH` (e.g. `~/.local/bin/`).
 
@@ -85,7 +86,7 @@ brew install asat
 ### Debian / Ubuntu (apt)
 
 ```bash
-curl -LO https://github.com/okt4v/ASAT/releases/download/v0.1.21/asat_0.1.21-1_amd64.deb
+curl -LO https://github.com/okt4v/ASAT/releases/download/v0.1.22/asat_0.1.21-1_amd64.deb
 sudo apt install ./asat_0.1.21-1_amd64.deb
 ```
 
@@ -308,6 +309,7 @@ Tab-completion works in command mode — press `Tab` to cycle through matching c
 | `:unmerge` | Unmerge the merged region under the cursor |
 | `:wrap` / `:ww` | Toggle line wrap on current cell or selection |
 | `:help` / `:h` | Open full-screen searchable help (Keybindings + Formulas tabs) |
+| `:home` | Return to the welcome / home screen |
 | `:plugins` | Open plugin manager TUI |
 
 ---
@@ -347,10 +349,11 @@ Start any cell with `=` to write a formula. Formulas re-evaluate automatically a
 
 | Syntax | Meaning |
 |--------|---------|
-| `A1` | Relative cell reference |
-| `$A$1` | Absolute cell reference |
+| `A1` | Relative cell reference (adjusts on paste) |
+| `$A$1` | Absolute cell reference (fixed on paste) |
+| `$A1` / `A$1` | Mixed reference (lock column or row only) |
 | `A1:B10` | Range |
-| `Sheet2.C4` | Cross-sheet reference |
+| `Sheet2!C4` | Cross-sheet reference |
 
 **Interactive reference picking:** While editing a formula, press `Ctrl+R` to enter F-REF mode. Navigate with `hjkl`/arrows. Press `v` (or `:`) to anchor a range start, then move to the end cell and press `Enter` to insert the range reference (e.g. `A1:C5`). Press `Enter` without anchoring to insert a single cell reference. Press `Esc` to cancel. The formula bar continues to show your in-progress formula throughout.
 
