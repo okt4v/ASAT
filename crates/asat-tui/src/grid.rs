@@ -171,71 +171,6 @@ impl<'a> Widget for GridWidget<'a> {
         all_col_groups.extend(scroll_cols.iter().copied());
 
         let note_marker_style = Style::default().fg(Color::Rgb(255, 200, 50));
-        let show_grid = self.state.config.show_grid_lines;
-        let grid_line_fg = darken(header_fg, 0.38);
-
-        // Draw a `│` separator to the right of every column boundary for a given y-row.
-        // Skips the freeze-separator column (u32::MAX) since it already renders a ┃.
-        let draw_grid_row = |buf: &mut Buffer, sy: u16| {
-            if !show_grid {
-                return;
-            }
-            let mut gx = area.x + ROW_GUTTER_WIDTH;
-            for &(cidx, cw) in &all_col_groups {
-                gx += cw;
-                if cidx == u32::MAX {
-                    continue; // freeze separator already drawn
-                }
-                // Paint the rightmost char of this column as a separator,
-                // preserving the existing background.
-                let sep_x = gx.saturating_sub(1);
-                if sep_x < area.x + area.width {
-                    if let Some(cell) = buf.cell_mut((sep_x, sy)) {
-                        let bg = cell.style().bg.unwrap_or(cell_bg);
-                        cell.set_char('│');
-                        cell.set_style(Style::default().fg(grid_line_fg).bg(bg));
-                    }
-                }
-            }
-        };
-
-        // Draw a `─` horizontal rule between rows, with `┼` at column boundaries.
-        let draw_hgrid_row = |buf: &mut Buffer, sy: u16| {
-            if !show_grid || sy >= area.y + area.height {
-                return;
-            }
-            // Gutter
-            let gutter_style = Style::default().fg(grid_line_fg).bg(header_bg);
-            for dx in 0..ROW_GUTTER_WIDTH {
-                if let Some(cell) = buf.cell_mut((area.x + dx, sy)) {
-                    cell.set_char('─');
-                    cell.set_style(gutter_style);
-                }
-            }
-            // Data columns
-            let mut gx = area.x + ROW_GUTTER_WIDTH;
-            for &(cidx, cw) in &all_col_groups {
-                for dx in 0..cw {
-                    let px = gx + dx;
-                    if px >= area.x + area.width {
-                        break;
-                    }
-                    if let Some(cell) = buf.cell_mut((px, sy)) {
-                        let bg = cell.style().bg.unwrap_or(cell_bg);
-                        let ch = if cidx == u32::MAX {
-                            '╂' // crosses the freeze-column ┃
-                        } else if dx == cw - 1 {
-                            '┼' // intersection with vertical │ separator
-                        } else {
-                            '─'
-                        };
-                        cell.set_char(ch);
-                        cell.set_style(Style::default().fg(grid_line_fg).bg(bg));
-                    }
-                }
-                gx += cw;
-            }
-        };
 
         // ── Frozen rows ───────────────────────────────────────────────────────
         for frozen_r in 0..freeze_rows {
@@ -368,7 +303,6 @@ impl<'a> Widget for GridWidget<'a> {
                 }
                 x += col_width;
             }
-            draw_grid_row(buf, screen_y);
         }
 
         // ── Frozen row separator ─────────────────────────────────────────────
@@ -629,7 +563,6 @@ impl<'a> Widget for GridWidget<'a> {
                 }
                 x += col_width;
             }
-            draw_grid_row(buf, screen_y);
 
             // ── Extra lines for tall rows (background fill) ───────────────────
             for extra in 1..row_h {
@@ -715,14 +648,9 @@ impl<'a> Widget for GridWidget<'a> {
                     }
                     ex += col_width;
                 }
-                draw_grid_row(buf, ey);
             }
 
             screen_y += row_h;
-            if show_grid && screen_y < data_y + data_height {
-                draw_hgrid_row(buf, screen_y);
-                screen_y += 1;
-            }
             row_idx += 1;
         }
     }
