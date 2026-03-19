@@ -4676,7 +4676,7 @@ enum CaseStyle {
 fn detect_case(s: &str) -> CaseStyle {
     if s.chars().all(|c| c.is_ascii_uppercase()) {
         CaseStyle::Upper
-    } else if s.chars().next().map_or(false, |c| c.is_ascii_uppercase())
+    } else if s.chars().next().is_some_and(|c| c.is_ascii_uppercase())
         && s.chars().skip(1).all(|c| c.is_ascii_lowercase())
     {
         CaseStyle::Title
