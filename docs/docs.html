@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ASAT Docs — A Spreadsheet And Terminal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#060a10;--surface:#0b1220;--surface2:#111c30;--surface3:#172440;
+      --border:#192640;--border2:#243650;--border3:#2e4468;
+      --amber:#f0a832;--amber-soft:#c88a28;--amber-dim:rgba(240,168,50,0.15);
+      --teal:#2dd4bf;--teal-dim:rgba(45,212,191,0.1);
+      --red:#f87171;--green:#4ade80;--purple:#a78bfa;
+      --text:#c8d8ec;--text-muted:#5a7090;--text-dim:#304060;
+      --mono:'JetBrains Mono','Fira Code',monospace;
+      --sans:'Syne',system-ui,sans-serif;
+      --radius:8px;--sidebar-w:280px;
+    }
+    html{scroll-behavior:smooth;scroll-padding-top:80px}
+    body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.7;overflow-x:hidden}
+    ::selection{background:var(--amber-dim);color:var(--amber)}
+    ::-webkit-scrollbar{width:6px}
+    ::-webkit-scrollbar-track{background:var(--bg)}
+    ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+    ::-webkit-scrollbar-thumb:hover{background:var(--amber-soft)}
+    a{color:var(--amber);text-decoration:none}
+    a:hover{color:#f5c060;text-decoration:underline}
+    h1,h2,h3,h4{font-family:var(--sans);line-height:1.2}
+    code,kbd,.mono{font-family:var(--mono)}
+
+    /* ── Top bar ──────────────────────────────────────────────── */
+    .topbar{
+      position:fixed;top:0;left:0;right:0;z-index:200;
+      display:flex;align-items:center;gap:1rem;
+      height:56px;padding:0 1.5rem;
+      background:rgba(6,10,16,0.92);backdrop-filter:blur(16px);
+      border-bottom:1px solid var(--border);
+    }
+    .topbar-logo{font-family:var(--mono);font-weight:700;font-size:1.1rem;color:var(--amber);text-decoration:none}
+    .topbar-logo span{color:var(--text-muted);font-weight:400;font-size:0.8rem;margin-left:.4rem}
+    .topbar-links{display:flex;align-items:center;gap:.25rem;margin-left:auto;list-style:none}
+    .topbar-links a{color:var(--text-muted);font-size:.85rem;font-weight:500;padding:.35rem .7rem;border-radius:6px;transition:color .2s,background .2s;text-decoration:none}
+    .topbar-links a:hover{color:var(--text);background:var(--surface)}
+    .topbar-links a.active{color:var(--amber)}
+    .topbar-gh{background:var(--surface2)!important;border:1px solid var(--border2);display:flex;align-items:center;gap:.4rem;font-size:.78rem!important;padding:.3rem .8rem!important}
+    .topbar-gh:hover{border-color:var(--amber-soft)!important;color:var(--amber)!important}
+
+    /* ── Search ───────────────────────────────────────────────── */
+    .search-wrap{position:relative;width:320px;margin:0 1.5rem}
+    .search-wrap input{
+      width:100%;padding:.45rem 1rem .45rem 2.2rem;
+      background:var(--surface);border:1px solid var(--border2);border-radius:6px;
+      color:var(--text);font-family:var(--mono);font-size:.82rem;outline:none;
+      transition:border-color .2s;
+    }
+    .search-wrap input:focus{border-color:var(--amber)}
+    .search-wrap input::placeholder{color:var(--text-dim)}
+    .search-wrap svg{position:absolute;left:.7rem;top:50%;transform:translateY(-50%);width:14px;height:14px;stroke:var(--text-dim)}
+    .search-wrap .search-hint{position:absolute;right:.6rem;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:.65rem;color:var(--text-dim);background:var(--surface2);padding:1px 6px;border-radius:3px;border:1px solid var(--border)}
+
+    /* ── Hamburger (mobile) ───────────────────────────────────── */
+    .hamburger{display:none;background:none;border:none;color:var(--text-muted);cursor:pointer;padding:.3rem}
+    .hamburger svg{width:22px;height:22px}
+
+    /* ── Sidebar ──────────────────────────────────────────────── */
+    .sidebar{
+      position:fixed;top:56px;left:0;bottom:0;width:var(--sidebar-w);
+      background:var(--surface);border-right:1px solid var(--border);
+      overflow-y:auto;padding:1.2rem 0;z-index:100;
+      transition:transform .3s;
+    }
+    .sidebar-section{margin-bottom:.3rem}
+    .sidebar-title{
+      display:flex;align-items:center;gap:.4rem;
+      padding:.45rem 1.2rem;font-size:.78rem;font-weight:700;
+      color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;
+      cursor:pointer;user-select:none;transition:color .2s;
+    }
+    .sidebar-title:hover{color:var(--text)}
+    .sidebar-title svg{width:12px;height:12px;transition:transform .2s;flex-shrink:0}
+    .sidebar-section.open .sidebar-title svg{transform:rotate(90deg)}
+    .sidebar-links{display:none;padding:0 0 .2rem}
+    .sidebar-section.open .sidebar-links{display:block}
+    .sidebar-links a{
+      display:block;padding:.3rem 1.2rem .3rem 2rem;font-size:.82rem;
+      color:var(--text-muted);text-decoration:none;transition:color .15s,background .15s;
+      border-left:2px solid transparent;
+    }
+    .sidebar-links a:hover{color:var(--text);background:var(--surface2)}
+    .sidebar-links a.active{color:var(--amber);border-left-color:var(--amber);background:var(--amber-dim)}
+
+    /* ── Main content ─────────────────────────────────────────── */
+    .main{margin-left:var(--sidebar-w);padding:56px 0 0}
+    .content{max-width:860px;margin:0 auto;padding:2.5rem 2.5rem 6rem}
+
+    .content h1{font-size:2.2rem;font-weight:800;color:var(--amber);margin:0 0 .5rem;letter-spacing:-.02em}
+    .content h1+p{color:var(--text-muted);font-size:1rem;margin-bottom:2.5rem}
+    .content h2{font-size:1.5rem;font-weight:700;color:var(--text);margin:3rem 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--border)}
+    .content h2 .anchor{color:var(--text-dim);margin-right:.4rem;font-size:1.1rem;text-decoration:none}
+    .content h2 .anchor:hover{color:var(--amber)}
+    .content h3{font-size:1.15rem;font-weight:600;color:var(--teal);margin:2rem 0 .6rem}
+    .content h4{font-size:.95rem;font-weight:600;color:var(--amber);margin:1.5rem 0 .5rem}
+    .content p{margin:0 0 1rem}
+    .content ul,.content ol{margin:0 0 1rem 1.5rem}
+    .content li{margin-bottom:.3rem}
+
+    /* ── kbd styling ──────────────────────────────────────────── */
+    kbd{
+      display:inline-block;padding:1px 7px;font-family:var(--mono);font-size:.8em;
+      background:var(--surface2);border:1px solid var(--border2);border-radius:4px;
+      color:var(--amber);white-space:nowrap;line-height:1.6;
+    }
+
+    /* ── Code blocks ──────────────────────────────────────────── */
+    .codeblock{
+      background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+      padding:1rem 1.2rem;margin:0 0 1.2rem;overflow-x:auto;
+      font-family:var(--mono);font-size:.82rem;line-height:1.7;color:var(--text);
+      position:relative;
+    }
+    .codeblock .prompt{color:var(--teal);user-select:none}
+    .codeblock .comment{color:var(--text-dim)}
+    .codeblock .string{color:var(--green)}
+    .codeblock .keyword{color:var(--amber)}
+
+    /* ── Keybinding tables ────────────────────────────────────── */
+    .kb-table{width:100%;border-collapse:collapse;margin:0 0 1.5rem;font-size:.88rem}
+    .kb-table th{text-align:left;padding:.5rem .8rem;font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);border-bottom:2px solid var(--border2);font-weight:600}
+    .kb-table td{padding:.45rem .8rem;border-bottom:1px solid var(--border);vertical-align:top}
+    .kb-table td:first-child{white-space:nowrap;width:180px}
+    .kb-table tr:hover td{background:var(--surface)}
+    .kb-table tr.section-header td{background:var(--surface2);font-weight:700;color:var(--teal);font-size:.82rem;padding:.4rem .8rem;border-bottom:1px solid var(--border2)}
+
+    /* ── Function reference cards ─────────────────────────────── */
+    .fn-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:.8rem;margin:0 0 1.5rem}
+    .fn-card{
+      background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+      padding:.8rem 1rem;transition:border-color .2s;
+    }
+    .fn-card:hover{border-color:var(--amber-soft)}
+    .fn-card .fn-name{font-family:var(--mono);font-weight:700;color:var(--amber);font-size:.88rem}
+    .fn-card .fn-sig{font-family:var(--mono);font-size:.72rem;color:var(--text-muted);margin:.2rem 0}
+    .fn-card .fn-desc{font-size:.8rem;color:var(--text);line-height:1.5}
+
+    /* ── Callout boxes ────────────────────────────────────────── */
+    .callout{
+      border-left:3px solid var(--teal);background:var(--teal-dim);
+      padding:.8rem 1.1rem;border-radius:0 var(--radius) var(--radius) 0;
+      margin:0 0 1.2rem;font-size:.9rem;
+    }
+    .callout.warn{border-left-color:var(--amber);background:var(--amber-dim)}
+    .callout strong{color:var(--teal)}
+    .callout.warn strong{color:var(--amber)}
+
+    /* ── Search highlight ─────────────────────────────────────── */
+    .search-hidden{display:none!important}
+    mark{background:var(--amber-dim);color:var(--amber);border-radius:2px;padding:0 2px}
+
+    /* ── Mobile ───────────────────────────────────────────────── */
+    @media(max-width:900px){
+      .sidebar{transform:translateX(-100%)}
+      .sidebar.open{transform:translateX(0);box-shadow:4px 0 20px rgba(0,0,0,.5)}
+      .main{margin-left:0}
+      .hamburger{display:block}
+      .search-wrap{width:180px}
+      .content{padding:2rem 1.2rem 4rem}
+    }
+    @media(max-width:600px){
+      .search-wrap{display:none}
+      .content h1{font-size:1.6rem}
+    }
+
+    /* ── Backdrop (mobile sidebar) ────────────────────────────── */
+    .sidebar-backdrop{display:none;position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.5)}
+    .sidebar-backdrop.open{display:block}
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════ TOP BAR ═══════════════ -->
+<div class="topbar">
+  <button class="hamburger" id="hamburger" aria-label="Menu">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  </button>
+  <a href="index.html" class="topbar-logo">ASAT<span>docs</span></a>
+  <div class="search-wrap">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" id="search" placeholder="Search docs..." autocomplete="off" />
+    <span class="search-hint">/</span>
+  </div>
+  <ul class="topbar-links">
+    <li><a href="index.html">Home</a></li>
+    <li><a href="docs.html" class="active">Docs</a></li>
+    <li><a href="https://github.com/okt4v/ASAT" class="topbar-gh">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+      GitHub
+    </a></li>
+  </ul>
+</div>
+
+<!-- ═══════════════ SIDEBAR ═══════════════ -->
+<div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-section open">
+    <div class="sidebar-title" data-section="getting-started">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      Getting Started
+    </div>
+    <div class="sidebar-links">
+      <a href="#installation">Installation</a>
+      <a href="#first-launch">First Launch</a>
+      <a href="#file-formats">File Formats</a>
+    </div>
+  </div>
+  <div class="sidebar-section open">
+    <div class="sidebar-title" data-section="modes">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      Modes
+    </div>
+    <div class="sidebar-links">
+      <a href="#normal-mode">Normal</a>
+      <a href="#insert-mode">Insert</a>
+      <a href="#visual-mode">Visual</a>
+      <a href="#command-mode">Command</a>
+      <a href="#search-mode">Search</a>
+    </div>
+  </div>
+  <div class="sidebar-section open">
+    <div class="sidebar-title" data-section="editing">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      Editing
+    </div>
+    <div class="sidebar-links">
+      <a href="#cell-editing">Cell Editing</a>
+      <a href="#yank-paste">Yank &amp; Paste</a>
+      <a href="#col-row">Columns &amp; Rows</a>
+      <a href="#formatting">Formatting &amp; Styles</a>
+    </div>
+  </div>
+  <div class="sidebar-section open">
+    <div class="sidebar-title" data-section="data">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      Data
+    </div>
+    <div class="sidebar-links">
+      <a href="#formulas">Formulas</a>
+      <a href="#formula-functions">Formula Functions</a>
+      <a href="#data-ops">Data Operations</a>
+      <a href="#auto-fill">Auto-Fill Series</a>
+    </div>
+  </div>
+  <div class="sidebar-section open">
+    <div class="sidebar-title" data-section="features">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      Features
+    </div>
+    <div class="sidebar-links">
+      <a href="#sheets">Multi-Sheet</a>
+      <a href="#macros">Macros</a>
+      <a href="#marks">Marks</a>
+      <a href="#search-replace">Search &amp; Replace</a>
+      <a href="#freeze">Freeze Panes</a>
+      <a href="#themes">Themes</a>
+      <a href="#plugins">Plugins</a>
+      <a href="#config">Configuration</a>
+    </div>
+  </div>
+  <div class="sidebar-section open">
+    <div class="sidebar-title" data-section="reference">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      Reference
+    </div>
+    <div class="sidebar-links">
+      <a href="#ex-commands">Ex-Commands</a>
+      <a href="#quick-ref">Keybinding Quick Ref</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ═══════════════ MAIN CONTENT ═══════════════ -->
+<div class="main">
+<div class="content">
+
+<h1>ASAT Documentation</h1>
+<p>Complete reference for A Spreadsheet And Terminal — the Vim-inspired terminal spreadsheet editor.</p>
+
+<!-- ───────── GETTING STARTED ───────── -->
+<section id="installation" data-searchable>
+<h2><a href="#installation" class="anchor">#</a> Installation</h2>
+
+<h4>Arch Linux (AUR)</h4>
+<div class="codeblock"><span class="prompt">$ </span>yay -S asat</div>
+
+<h4>Homebrew (macOS / Linux)</h4>
+<div class="codeblock"><span class="prompt">$ </span>brew tap okt4v/tap
+<span class="prompt">$ </span>brew install asat</div>
+
+<h4>Debian / Ubuntu (.deb)</h4>
+<div class="codeblock"><span class="comment"># Download the latest .deb from GitHub Releases, then:</span>
+<span class="prompt">$ </span>sudo dpkg -i asat_*.deb</div>
+
+<h4>Build from source</h4>
+<div class="codeblock"><span class="prompt">$ </span>git clone https://github.com/okt4v/ASAT.git
+<span class="prompt">$ </span>cd ASAT
+<span class="prompt">$ </span>cargo install --path crates/asat</div>
+
+<h4>Pre-built binaries</h4>
+<p>Download pre-compiled binaries for Linux (x86_64, aarch64), macOS (x86_64, aarch64), and Windows from the <a href="https://github.com/okt4v/ASAT/releases">GitHub Releases</a> page.</p>
+</section>
+
+<section id="first-launch" data-searchable>
+<h2><a href="#first-launch" class="anchor">#</a> First Launch</h2>
+<p>Run <code>asat</code> with no arguments to see the welcome screen, or open a file directly:</p>
+<div class="codeblock"><span class="prompt">$ </span>asat                    <span class="comment"># welcome screen</span>
+<span class="prompt">$ </span>asat budget.csv         <span class="comment"># open a CSV file</span>
+<span class="prompt">$ </span>asat report.xlsx        <span class="comment"># open an Excel file</span></div>
+
+<h3>Welcome Screen Keys</h3>
+<table class="kb-table">
+<thead><tr><th>Key</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>n</kbd></td><td>New empty spreadsheet</td></tr>
+<tr><td><kbd>f</kbd></td><td>Open file finder (fuzzy search)</td></tr>
+<tr><td><kbd>r</kbd></td><td>Recent files list</td></tr>
+<tr><td><kbd>t</kbd></td><td>Theme browser</td></tr>
+<tr><td><kbd>c</kbd></td><td>Open configuration file</td></tr>
+<tr><td><kbd>?</kbd></td><td>Open help screen</td></tr>
+<tr><td><kbd>q</kbd> / <kbd>Esc</kbd></td><td>Quit</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="file-formats" data-searchable>
+<h2><a href="#file-formats" class="anchor">#</a> File Formats</h2>
+<table class="kb-table">
+<thead><tr><th>Format</th><th>Read</th><th>Write</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td><code>.csv</code></td><td>Yes</td><td>Yes</td><td>Comma-separated values</td></tr>
+<tr><td><code>.xlsx</code></td><td>Yes</td><td>Yes</td><td>Excel (calamine / rust_xlsxwriter)</td></tr>
+<tr><td><code>.ods</code></td><td>Yes</td><td>Yes</td><td>OpenDocument Spreadsheet</td></tr>
+<tr><td><code>.asat</code></td><td>Yes</td><td>Yes</td><td>Native binary format (bincode + zstd)</td></tr>
+</tbody>
+</table>
+<p>Save with <kbd>:</kbd><code>w</code> to save to the current file, or <kbd>:</kbd><code>w filename.xlsx</code> to save as a different format. The format is determined by the file extension.</p>
+</section>
+
+<!-- ───────── MODES ───────── -->
+<section id="normal-mode" data-searchable>
+<h2><a href="#normal-mode" class="anchor">#</a> Normal Mode</h2>
+<p>The default mode. Navigate the grid, trigger actions, and enter other modes. Most keys accept a <strong>count prefix</strong> — type a number before the key to repeat it (e.g. <kbd>5</kbd><kbd>j</kbd> moves 5 rows down).</p>
+
+<h3>Navigation</h3>
+<table class="kb-table">
+<thead><tr><th>Key</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>h</kbd> <kbd>j</kbd> <kbd>k</kbd> <kbd>l</kbd></td><td>Move left / down / up / right (count prefix supported)</td></tr>
+<tr><td><kbd>w</kbd> / <kbd>b</kbd></td><td>Next / previous non-empty cell horizontally</td></tr>
+<tr><td><kbd>W</kbd> / <kbd>B</kbd></td><td>Next / previous non-empty cell vertically</td></tr>
+<tr><td><kbd>e</kbd></td><td>Next non-empty cell horizontally (alias for <kbd>w</kbd>)</td></tr>
+<tr><td><kbd>}</kbd> / <kbd>{</kbd></td><td>Next / previous paragraph (empty row boundary)</td></tr>
+<tr><td><kbd>g</kbd><kbd>g</kbd></td><td>Jump to first row</td></tr>
+<tr><td><kbd>G</kbd></td><td>Jump to last row</td></tr>
+<tr><td><kbd>0</kbd> / <kbd>Home</kbd></td><td>Jump to first column</td></tr>
+<tr><td><kbd>$</kbd> / <kbd>End</kbd></td><td>Jump to last column</td></tr>
+<tr><td><kbd>H</kbd> / <kbd>M</kbd> / <kbd>L</kbd></td><td>Top / middle / bottom of visible area</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>d</kbd> / <kbd>Ctrl</kbd>+<kbd>u</kbd></td><td>Page down / up</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>f</kbd> / <kbd>Ctrl</kbd>+<kbd>b</kbd></td><td>Page down / up (alias)</td></tr>
+<tr><td><kbd>PgDn</kbd> / <kbd>PgUp</kbd></td><td>Page down / up</td></tr>
+<tr><td><kbd>z</kbd><kbd>z</kbd> / <kbd>z</kbd><kbd>t</kbd> / <kbd>z</kbd><kbd>b</kbd></td><td>Scroll cursor row to center / top / bottom</td></tr>
+<tr><td><kbd>g</kbd><kbd>{A-Z}</kbd></td><td>Jump to column by letter (gA = col A, gZ = col Z)</td></tr>
+<tr><td><kbd>f</kbd><kbd>{char}</kbd></td><td>Jump to column by letter</td></tr>
+<tr><td><kbd>Tab</kbd> / <kbd>BackTab</kbd></td><td>Move right / left one cell</td></tr>
+</tbody>
+</table>
+
+<h3>Entering Edit</h3>
+<table class="kb-table">
+<thead><tr><th>Key</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>i</kbd> / <kbd>Enter</kbd> / <kbd>F2</kbd></td><td>Edit cell (cursor at end of content)</td></tr>
+<tr><td><kbd>a</kbd></td><td>Edit cell in append mode (cursor at end)</td></tr>
+<tr><td><kbd>s</kbd> / <kbd>c</kbd><kbd>c</kbd></td><td>Clear cell content and start editing</td></tr>
+<tr><td><kbd>c</kbd><kbd>i</kbd><kbd>"</kbd></td><td>Change inner: select text between <code>"</code> delimiters and edit. Also works with <kbd>(</kbd> <kbd>[</kbd> <kbd>{</kbd> <kbd>&lt;</kbd> <kbd>'</kbd></td></tr>
+<tr><td><kbd>r</kbd></td><td>Replace mode — edit cell, then return to Normal on confirm</td></tr>
+<tr><td><kbd>o</kbd></td><td>Insert row below and start editing</td></tr>
+<tr><td><kbd>O</kbd></td><td>Insert row above and start editing</td></tr>
+</tbody>
+</table>
+
+<h3>Cell Operations</h3>
+<table class="kb-table">
+<thead><tr><th>Key</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>x</kbd> / <kbd>D</kbd> / <kbd>Del</kbd></td><td>Clear cell content (yanks to register first)</td></tr>
+<tr><td><kbd>d</kbd><kbd>d</kbd></td><td>Delete entire row (count prefix: 3dd deletes 3 rows). Yanks first.</td></tr>
+<tr><td><kbd>d</kbd><kbd>c</kbd></td><td>Clear cell content (alias for <kbd>x</kbd>)</td></tr>
+<tr><td><kbd>d</kbd><kbd>C</kbd></td><td>Delete entire column</td></tr>
+<tr><td><kbd>d</kbd><kbd>j</kbd> / <kbd>d</kbd><kbd>k</kbd></td><td>Delete row below / above (count prefix supported)</td></tr>
+<tr><td><kbd>~</kbd></td><td>Toggle case of text cell content</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>a</kbd></td><td>Increment: add 1 to number, cycle date/weekday/month forward</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>x</kbd></td><td>Decrement: subtract 1 from number, cycle backward</td></tr>
+<tr><td><kbd>J</kbd></td><td>Join cell below into current cell (concatenate)</td></tr>
+<tr><td><kbd>U</kbd></td><td>Unmerge cell under cursor</td></tr>
+<tr><td><kbd>g</kbd><kbd>w</kbd></td><td>Toggle line-wrap on cell</td></tr>
+<tr><td><kbd>.</kbd></td><td>Repeat last change</td></tr>
+</tbody>
+</table>
+
+<h3>Undo / Redo</h3>
+<table class="kb-table">
+<thead><tr><th>Key</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>u</kbd></td><td>Undo last change</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>r</kbd></td><td>Redo</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="insert-mode" data-searchable>
+<h2><a href="#insert-mode" class="anchor">#</a> Insert Mode</h2>
+<p>Entered with <kbd>i</kbd>, <kbd>Enter</kbd>, <kbd>F2</kbd>, <kbd>a</kbd>, <kbd>s</kbd>, <kbd>c</kbd><kbd>c</kbd>, <kbd>o</kbd>, or <kbd>O</kbd>. The formula bar shows an edit cursor. Type to edit the cell value.</p>
+
+<table class="kb-table">
+<thead><tr><th>Key</th><th>Action</th></tr></thead>
+<tbody>
+<tr class="section-header"><td colspan="2">Confirm / Exit</td></tr>
+<tr><td><kbd>Enter</kbd></td><td>Confirm edit, move down one row</td></tr>
+<tr><td><kbd>Tab</kbd></td><td>Confirm edit, move right one cell</td></tr>
+<tr><td><kbd>Esc</kbd></td><td>Confirm edit, stay in place</td></tr>
+<tr class="section-header"><td colspan="2">Cursor Movement</td></tr>
+<tr><td><kbd>Left</kbd> / <kbd>Right</kbd></td><td>Move edit cursor within cell text</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>a</kbd></td><td>Jump to start of edit buffer</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>e</kbd></td><td>Jump to end of edit buffer</td></tr>
+<tr class="section-header"><td colspan="2">Editing</td></tr>
+<tr><td><kbd>Backspace</kbd></td><td>Delete character to the left</td></tr>
+<tr><td><kbd>Delete</kbd></td><td>Delete character to the right</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>w</kbd></td><td>Delete word backward</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>u</kbd></td><td>Delete from cursor to start of buffer</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>k</kbd></td><td>Delete from cursor to end of buffer</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>v</kbd></td><td>Paste from system clipboard into edit buffer</td></tr>
+<tr class="section-header"><td colspan="2">Formula Features (when editing <code>=...</code>)</td></tr>
+<tr><td><kbd>Tab</kbd> / <kbd>BackTab</kbd></td><td>Cycle through function name completions</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>r</kbd></td><td>Enter F-REF mode — navigate the grid to pick a cell or range reference interactively</td></tr>
+</tbody>
+</table>
+
+<div class="callout">
+<strong>F-REF Mode:</strong> While editing a formula, press <kbd>Ctrl</kbd>+<kbd>r</kbd> to enter reference picker mode. Navigate with <kbd>h</kbd><kbd>j</kbd><kbd>k</kbd><kbd>l</kbd>. Press <kbd>Enter</kbd> to insert a single cell reference. Press <kbd>v</kbd> to anchor a range start, then navigate to the end cell and press <kbd>Enter</kbd> to insert the range reference (e.g. <code>A1:C5</code>). Press <kbd>Esc</kbd> to cancel.
+</div>
+</section>
+
+<section id="visual-mode" data-searchable>
+<h2><a href="#visual-mode" class="anchor">#</a> Visual Mode</h2>
+<p>Select a range of cells to operate on. Three sub-modes:</p>
+<ul>
+<li><kbd>v</kbd> — cell selection (rectangular range)</li>
+<li><kbd>V</kbd> — V-ROW: full row selection</li>
+<li><kbd>Ctrl</kbd>+<kbd>v</kbd> — V-COL: full column selection</li>
+</ul>
+
+<table class="kb-table">
+<thead><tr><th>Key</th><th>Action</th></tr></thead>
+<tbody>
+<tr class="section-header"><td colspan="2">Extend Selection</td></tr>
+<tr><td><kbd>h</kbd><kbd>j</kbd><kbd>k</kbd><kbd>l</kbd>, arrows</td><td>Extend selection in direction</td></tr>
+<tr><td><kbd>w</kbd>/<kbd>b</kbd>/<kbd>W</kbd>/<kbd>B</kbd></td><td>Extend by non-empty cell</td></tr>
+<tr><td><kbd>}</kbd> / <kbd>{</kbd></td><td>Extend by paragraph</td></tr>
+<tr><td><kbd>0</kbd> / <kbd>$</kbd></td><td>Extend to first / last column</td></tr>
+<tr><td><kbd>g</kbd><kbd>g</kbd> / <kbd>G</kbd></td><td>Extend to first / last row</td></tr>
+<tr class="section-header"><td colspan="2">Actions</td></tr>
+<tr><td><kbd>d</kbd> / <kbd>x</kbd> / <kbd>Del</kbd></td><td>Delete selection (yanks to register first)</td></tr>
+<tr><td><kbd>c</kbd> / <kbd>s</kbd></td><td>Clear selection and enter insert mode</td></tr>
+<tr><td><kbd>y</kbd></td><td>Yank (copy) selection to register + clipboard</td></tr>
+<tr><td><kbd>M</kbd></td><td>Merge selection into one cell</td></tr>
+<tr><td><kbd>S</kbd></td><td>Insert <code>=SUM()</code> formula below/right of selection</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>d</kbd></td><td>Fill down — copy anchor row to all selected rows</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>r</kbd></td><td>Fill right — copy anchor column to all selected columns</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>f</kbd></td><td>Auto-fill series — smart direction detection from anchor to cursor</td></tr>
+<tr><td><kbd>&gt;</kbd> / <kbd>&lt;</kbd></td><td>Widen / narrow columns (count prefix supported)</td></tr>
+<tr><td><kbd>:</kbd></td><td>Enter command mode with selection range pre-filled</td></tr>
+<tr class="section-header"><td colspan="2">Mode</td></tr>
+<tr><td><kbd>v</kbd> / <kbd>V</kbd></td><td>Swap between visual sub-modes, or exit</td></tr>
+<tr><td><kbd>Esc</kbd></td><td>Exit visual mode</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="command-mode" data-searchable>
+<h2><a href="#command-mode" class="anchor">#</a> Command Mode</h2>
+<p>Entered with <kbd>:</kbd>. Type an ex-command and press <kbd>Enter</kbd> to execute. <kbd>Tab</kbd> cycles through completions. See the <a href="#ex-commands">Ex-Commands Reference</a> for all available commands.</p>
+</section>
+
+<section id="search-mode" data-searchable>
+<h2><a href="#search-mode" class="anchor">#</a> Search Mode</h2>
+<table class="kb-table">
+<thead><tr><th>Key</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>/</kbd></td><td>Search forward (from Normal mode)</td></tr>
+<tr><td><kbd>?</kbd></td><td>Search backward</td></tr>
+<tr><td><kbd>n</kbd> / <kbd>N</kbd></td><td>Next / previous match (count prefix supported)</td></tr>
+<tr><td><kbd>*</kbd></td><td>Search for the content of the cell under cursor</td></tr>
+<tr><td><kbd>Esc</kbd></td><td>Clear search highlights</td></tr>
+</tbody>
+</table>
+</section>
+
+<!-- ───────── EDITING ───────── -->
+<section id="cell-editing" data-searchable>
+<h2><a href="#cell-editing" class="anchor">#</a> Cell Editing</h2>
+<p>ASAT provides multiple ways to enter and modify cell content, mirroring Vim's editing philosophy.</p>
+
+<h3>Entering Edit Mode</h3>
+<ul>
+<li><kbd>i</kbd> / <kbd>Enter</kbd> / <kbd>F2</kbd> — Edit existing content (cursor at end)</li>
+<li><kbd>a</kbd> — Append mode (cursor at end)</li>
+<li><kbd>s</kbd> / <kbd>c</kbd><kbd>c</kbd> — Clear cell and start editing from scratch</li>
+<li><kbd>r</kbd> — Replace mode: edit cell, automatically return to Normal on confirm</li>
+<li><kbd>o</kbd> / <kbd>O</kbd> — Insert a new row below/above and start editing in it</li>
+<li><kbd>c</kbd><kbd>i</kbd><kbd>{delim}</kbd> — Change inner: select content between delimiters (<code>"</code> <code>'</code> <code>(</code> <code>[</code> <code>{</code> <code>&lt;</code>) and edit</li>
+</ul>
+
+<h3>Cell Arithmetic</h3>
+<p><kbd>Ctrl</kbd>+<kbd>a</kbd> increments the value under the cursor. For numbers, it adds 1. For dates, it advances by one day. For weekday names (Mon, Tuesday, etc.) and month names (Jan, February, etc.), it cycles to the next one. <kbd>Ctrl</kbd>+<kbd>x</kbd> does the reverse.</p>
+
+<h3>Repeat &amp; Dot Command</h3>
+<p>Press <kbd>.</kbd> to repeat the last editing operation. This works for cell edits, deletes, style changes, and more — just like Vim's dot command.</p>
+</section>
+
+<section id="yank-paste" data-searchable>
+<h2><a href="#yank-paste" class="anchor">#</a> Yank &amp; Paste</h2>
+
+<h3>Yank (Copy)</h3>
+<table class="kb-table">
+<thead><tr><th>Key</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>y</kbd><kbd>y</kbd> / <kbd>y</kbd><kbd>r</kbd></td><td>Yank entire row (count prefix: <kbd>3</kbd><kbd>y</kbd><kbd>y</kbd> yanks 3 rows)</td></tr>
+<tr><td><kbd>y</kbd><kbd>c</kbd></td><td>Yank cell</td></tr>
+<tr><td><kbd>y</kbd><kbd>C</kbd></td><td>Yank entire column</td></tr>
+<tr><td><kbd>y</kbd><kbd>j</kbd> / <kbd>y</kbd><kbd>k</kbd></td><td>Yank row below / above</td></tr>
+<tr><td><kbd>y</kbd><kbd>S</kbd></td><td>Copy cell style to style clipboard</td></tr>
+</tbody>
+</table>
+
+<h3>Paste</h3>
+<table class="kb-table">
+<thead><tr><th>Key</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>p</kbd></td><td>Paste after cursor position</td></tr>
+<tr><td><kbd>P</kbd></td><td>Paste before cursor position</td></tr>
+<tr><td><kbd>p</kbd><kbd>S</kbd></td><td>Paste style from style clipboard to current cell</td></tr>
+</tbody>
+</table>
+
+<div class="callout">
+<strong>Formula-Aware Paste:</strong> When you paste cells containing formulas, relative references (like <code>A1</code>) are adjusted based on the offset from the source to the destination. Absolute references (like <code>$A$1</code>, <code>$A1</code>, <code>A$1</code>) remain unchanged.
+</div>
+
+<div class="callout">
+<strong>Style-Aware:</strong> Yank operations copy both cell values AND cell styles (bold, italic, colors, etc.). Delete operations (<kbd>d</kbd><kbd>d</kbd>, <kbd>x</kbd>, visual <kbd>d</kbd>) yank to the register before clearing, so you can always paste what you just deleted.
+</div>
+
+<div class="callout">
+<strong>System Clipboard:</strong> Yanking also copies to the system clipboard as TSV (tab-separated values). In Insert mode, <kbd>Ctrl</kbd>+<kbd>v</kbd> pastes from the system clipboard.
+</div>
+</section>
+
+<section id="col-row" data-searchable>
+<h2><a href="#col-row" class="anchor">#</a> Columns &amp; Rows</h2>
+
+<h3>Sizing</h3>
+<table class="kb-table">
+<thead><tr><th>Key</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>&gt;</kbd><kbd>&gt;</kbd> / <kbd>&lt;</kbd><kbd>&lt;</kbd></td><td>Widen / narrow column by 1 char (count prefix supported)</td></tr>
+<tr><td><kbd>=</kbd></td><td>Auto-fit column width to content</td></tr>
+<tr><td><kbd>+</kbd> / <kbd>-</kbd></td><td>Increase / decrease row height (count prefix supported)</td></tr>
+<tr><td><kbd>_</kbd></td><td>Reset row height to auto-fit</td></tr>
+<tr><td><kbd>:</kbd><code>cw N</code></td><td>Set column width to exactly N characters</td></tr>
+<tr><td><kbd>:</kbd><code>rh N</code></td><td>Set row height to exactly N</td></tr>
+</tbody>
+</table>
+
+<h3>Insert / Delete</h3>
+<table class="kb-table">
+<thead><tr><th>Key / Command</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>:</kbd><code>ir</code></td><td>Insert row below cursor</td></tr>
+<tr><td><kbd>:</kbd><code>dr</code></td><td>Delete current row</td></tr>
+<tr><td><kbd>:</kbd><code>ic</code></td><td>Insert column to the left</td></tr>
+<tr><td><kbd>:</kbd><code>icr</code></td><td>Insert column to the right</td></tr>
+<tr><td><kbd>:</kbd><code>dc</code></td><td>Delete current column</td></tr>
+<tr><td><kbd>d</kbd><kbd>d</kbd></td><td>Delete row (Normal mode)</td></tr>
+<tr><td><kbd>d</kbd><kbd>C</kbd></td><td>Delete column (Normal mode)</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="formatting" data-searchable>
+<h2><a href="#formatting" class="anchor">#</a> Formatting &amp; Styles</h2>
+
+<table class="kb-table">
+<thead><tr><th>Command</th><th>Action</th></tr></thead>
+<tbody>
+<tr class="section-header"><td colspan="2">Text Style</td></tr>
+<tr><td><kbd>:</kbd><code>bold</code></td><td>Toggle bold on cell / selection</td></tr>
+<tr><td><kbd>:</kbd><code>italic</code></td><td>Toggle italic</td></tr>
+<tr><td><kbd>:</kbd><code>underline</code></td><td>Toggle underline</td></tr>
+<tr><td><kbd>:</kbd><code>strike</code></td><td>Toggle strikethrough</td></tr>
+<tr class="section-header"><td colspan="2">Colors</td></tr>
+<tr><td><kbd>:</kbd><code>fg &lt;color&gt;</code></td><td>Set foreground color (hex <code>#rrggbb</code> or name: <code>red</code>, <code>blue</code>, <code>green</code>...)</td></tr>
+<tr><td><kbd>:</kbd><code>bg &lt;color&gt;</code></td><td>Set background color</td></tr>
+<tr><td><kbd>:</kbd><code>hl &lt;color&gt;</code></td><td>Highlight: set background + auto-contrast foreground</td></tr>
+<tr><td><kbd>:</kbd><code>hl</code></td><td>Clear highlight (remove bg and fg colors)</td></tr>
+<tr class="section-header"><td colspan="2">Layout</td></tr>
+<tr><td><kbd>:</kbd><code>align l</code> / <code>c</code> / <code>r</code></td><td>Set text alignment: left, center, right</td></tr>
+<tr><td><kbd>:</kbd><code>wrap</code></td><td>Toggle line-wrap on cell/selection</td></tr>
+<tr class="section-header"><td colspan="2">Number Format</td></tr>
+<tr><td><kbd>:</kbd><code>fmt %</code></td><td>Percentage format (0.15 → 15%)</td></tr>
+<tr><td><kbd>:</kbd><code>fmt $</code></td><td>Currency format ($1,234.56)</td></tr>
+<tr><td><kbd>:</kbd><code>fmt 0.00</code></td><td>Fixed decimal places</td></tr>
+<tr><td><kbd>:</kbd><code>fmt int</code></td><td>Integer (no decimals)</td></tr>
+<tr><td><kbd>:</kbd><code>fmt date</code></td><td>Date format</td></tr>
+<tr><td><kbd>:</kbd><code>fmt datetime</code></td><td>Date + time format</td></tr>
+<tr><td><kbd>:</kbd><code>fmt none</code></td><td>Clear number format</td></tr>
+<tr class="section-header"><td colspan="2">Style Clipboard</td></tr>
+<tr><td><kbd>:</kbd><code>copystyle</code></td><td>Copy current cell style</td></tr>
+<tr><td><kbd>:</kbd><code>pastestyle</code></td><td>Paste style to cell / selection</td></tr>
+<tr><td><kbd>y</kbd><kbd>S</kbd></td><td>Copy cell style (Normal mode)</td></tr>
+<tr><td><kbd>p</kbd><kbd>S</kbd></td><td>Paste style (Normal mode)</td></tr>
+<tr><td><kbd>:</kbd><code>cs</code></td><td>Clear all styles from cell / selection</td></tr>
+</tbody>
+</table>
+</section>
+
+<!-- ───────── FORMULAS ───────── -->
+<section id="formulas" data-searchable>
+<h2><a href="#formulas" class="anchor">#</a> Formulas</h2>
+<p>Start a formula with <kbd>=</kbd> in any cell. Formulas are automatically recalculated every frame.</p>
+
+<h3>Cell References</h3>
+<table class="kb-table">
+<thead><tr><th>Syntax</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>A1</code></td><td>Relative reference — adjusts on paste</td></tr>
+<tr><td><code>$A$1</code></td><td>Absolute row and column — never adjusts</td></tr>
+<tr><td><code>$A1</code></td><td>Absolute column, relative row</td></tr>
+<tr><td><code>A$1</code></td><td>Relative column, absolute row</td></tr>
+<tr><td><code>A1:C10</code></td><td>Range reference</td></tr>
+<tr><td><code>Sheet1!A1</code></td><td>Cross-sheet reference</td></tr>
+<tr><td><code>'Sheet Name'!A1:B5</code></td><td>Quoted sheet name with spaces</td></tr>
+</tbody>
+</table>
+
+<h3>Operators</h3>
+<table class="kb-table">
+<thead><tr><th>Operator</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>+</code> <code>-</code> <code>*</code> <code>/</code></td><td>Arithmetic</td></tr>
+<tr><td><code>^</code></td><td>Exponentiation (power)</td></tr>
+<tr><td><code>&amp;</code></td><td>String concatenation</td></tr>
+<tr><td><code>=</code> <code>&lt;&gt;</code></td><td>Equal / not equal</td></tr>
+<tr><td><code>&lt;</code> <code>&lt;=</code> <code>&gt;</code> <code>&gt;=</code></td><td>Comparison</td></tr>
+</tbody>
+</table>
+
+<h3>Editing Features</h3>
+<ul>
+<li><strong>Tab completion:</strong> While typing a function name after <code>=</code>, press <kbd>Tab</kbd> to cycle through matching function names</li>
+<li><strong>Reference picker:</strong> Press <kbd>Ctrl</kbd>+<kbd>r</kbd> to enter F-REF mode and pick cells/ranges by navigating the grid</li>
+<li><strong>Auto-recalculation:</strong> All formulas update automatically every frame</li>
+</ul>
+</section>
+
+<section id="formula-functions" data-searchable>
+<h2><a href="#formula-functions" class="anchor">#</a> Formula Functions</h2>
+
+<h3>Math</h3>
+<div class="fn-grid">
+<div class="fn-card"><div class="fn-name">SUM</div><div class="fn-sig">SUM(number1, [number2, ...])</div><div class="fn-desc">Sum of all values in a range or list</div></div>
+<div class="fn-card"><div class="fn-name">AVERAGE</div><div class="fn-sig">AVERAGE(number1, [number2, ...])</div><div class="fn-desc">Arithmetic mean; empty cells ignored</div></div>
+<div class="fn-card"><div class="fn-name">MIN / MAX</div><div class="fn-sig">MIN(range) / MAX(range)</div><div class="fn-desc">Smallest / largest value</div></div>
+<div class="fn-card"><div class="fn-name">ABS</div><div class="fn-sig">ABS(number)</div><div class="fn-desc">Absolute (positive) value</div></div>
+<div class="fn-card"><div class="fn-name">ROUND</div><div class="fn-sig">ROUND(number, digits)</div><div class="fn-desc">Round to N decimal places</div></div>
+<div class="fn-card"><div class="fn-name">ROUNDUP / ROUNDDOWN</div><div class="fn-sig">ROUNDUP(n, digits)</div><div class="fn-desc">Round away from / toward zero</div></div>
+<div class="fn-card"><div class="fn-name">FLOOR / CEILING</div><div class="fn-sig">FLOOR(n, significance)</div><div class="fn-desc">Round down/up to nearest multiple</div></div>
+<div class="fn-card"><div class="fn-name">MOD</div><div class="fn-sig">MOD(number, divisor)</div><div class="fn-desc">Remainder after division</div></div>
+<div class="fn-card"><div class="fn-name">POWER</div><div class="fn-sig">POWER(base, exp)</div><div class="fn-desc">Raise to exponent (same as ^)</div></div>
+<div class="fn-card"><div class="fn-name">SQRT</div><div class="fn-sig">SQRT(number)</div><div class="fn-desc">Square root</div></div>
+<div class="fn-card"><div class="fn-name">LN / LOG / LOG10</div><div class="fn-sig">LOG(number, [base])</div><div class="fn-desc">Logarithm: natural, arbitrary base, base-10</div></div>
+<div class="fn-card"><div class="fn-name">EXP</div><div class="fn-sig">EXP(number)</div><div class="fn-desc">e raised to the power</div></div>
+<div class="fn-card"><div class="fn-name">INT / TRUNC</div><div class="fn-sig">INT(n) / TRUNC(n, [digits])</div><div class="fn-desc">Integer part: floor vs. truncate</div></div>
+<div class="fn-card"><div class="fn-name">SIGN</div><div class="fn-sig">SIGN(number)</div><div class="fn-desc">Returns -1, 0, or 1</div></div>
+<div class="fn-card"><div class="fn-name">PI</div><div class="fn-sig">PI()</div><div class="fn-desc">Returns 3.14159265...</div></div>
+</div>
+
+<h3>Statistics</h3>
+<div class="fn-grid">
+<div class="fn-card"><div class="fn-name">COUNT / COUNTA</div><div class="fn-sig">COUNT(range) / COUNTA(range)</div><div class="fn-desc">Count numeric / non-empty cells</div></div>
+<div class="fn-card"><div class="fn-name">SUMIF</div><div class="fn-sig">SUMIF(range, criteria, [sum_range])</div><div class="fn-desc">Conditional sum</div></div>
+<div class="fn-card"><div class="fn-name">COUNTIF</div><div class="fn-sig">COUNTIF(range, criteria)</div><div class="fn-desc">Count cells matching criteria</div></div>
+<div class="fn-card"><div class="fn-name">AVERAGEIF</div><div class="fn-sig">AVERAGEIF(range, criteria, [avg_range])</div><div class="fn-desc">Conditional average</div></div>
+<div class="fn-card"><div class="fn-name">SUMPRODUCT</div><div class="fn-sig">SUMPRODUCT(array1, [array2, ...])</div><div class="fn-desc">Sum of element-wise products</div></div>
+<div class="fn-card"><div class="fn-name">MEDIAN</div><div class="fn-sig">MEDIAN(number1, ...)</div><div class="fn-desc">Middle value (robust to outliers)</div></div>
+<div class="fn-card"><div class="fn-name">STDEV / VAR</div><div class="fn-sig">STDEV(range) / VAR(range)</div><div class="fn-desc">Sample standard deviation / variance</div></div>
+<div class="fn-card"><div class="fn-name">LARGE / SMALL</div><div class="fn-sig">LARGE(range, k)</div><div class="fn-desc">k-th largest / smallest value</div></div>
+<div class="fn-card"><div class="fn-name">RANK</div><div class="fn-sig">RANK(value, range, [order])</div><div class="fn-desc">Rank of value in range</div></div>
+<div class="fn-card"><div class="fn-name">PERCENTILE</div><div class="fn-sig">PERCENTILE(range, k)</div><div class="fn-desc">k-th percentile (k = 0..1)</div></div>
+<div class="fn-card"><div class="fn-name">QUARTILE</div><div class="fn-sig">QUARTILE(range, quart)</div><div class="fn-desc">Quartile (0=min, 2=median, 4=max)</div></div>
+<div class="fn-card"><div class="fn-name">MAXIFS / MINIFS</div><div class="fn-sig">MAXIFS(range, crit_range, criteria)</div><div class="fn-desc">Max/min with criteria</div></div>
+</div>
+
+<h3>Text</h3>
+<div class="fn-grid">
+<div class="fn-card"><div class="fn-name">LEN</div><div class="fn-sig">LEN(text)</div><div class="fn-desc">Character count</div></div>
+<div class="fn-card"><div class="fn-name">LEFT / RIGHT / MID</div><div class="fn-sig">LEFT(text, n) / MID(text, start, n)</div><div class="fn-desc">Extract substring from start / end / middle</div></div>
+<div class="fn-card"><div class="fn-name">TRIM</div><div class="fn-sig">TRIM(text)</div><div class="fn-desc">Remove extra whitespace</div></div>
+<div class="fn-card"><div class="fn-name">UPPER / LOWER / PROPER</div><div class="fn-sig">UPPER(text)</div><div class="fn-desc">Case conversion: upper / lower / title</div></div>
+<div class="fn-card"><div class="fn-name">CONCATENATE</div><div class="fn-sig">CONCATENATE(t1, t2, ...)</div><div class="fn-desc">Join text strings (or use &amp;)</div></div>
+<div class="fn-card"><div class="fn-name">TEXT</div><div class="fn-sig">TEXT(value, format)</div><div class="fn-desc">Format number as text string</div></div>
+<div class="fn-card"><div class="fn-name">VALUE</div><div class="fn-sig">VALUE(text)</div><div class="fn-desc">Parse text to number</div></div>
+<div class="fn-card"><div class="fn-name">FIND / SEARCH</div><div class="fn-sig">FIND(needle, haystack)</div><div class="fn-desc">Position of text (FIND=case-sensitive, SEARCH=insensitive)</div></div>
+<div class="fn-card"><div class="fn-name">SUBSTITUTE</div><div class="fn-sig">SUBSTITUTE(text, old, new, [nth])</div><div class="fn-desc">Replace text by content</div></div>
+<div class="fn-card"><div class="fn-name">REPLACE</div><div class="fn-sig">REPLACE(text, start, len, new)</div><div class="fn-desc">Replace text by position</div></div>
+<div class="fn-card"><div class="fn-name">REPT</div><div class="fn-sig">REPT(text, n)</div><div class="fn-desc">Repeat text n times</div></div>
+</div>
+
+<h3>Logic</h3>
+<div class="fn-grid">
+<div class="fn-card"><div class="fn-name">IF</div><div class="fn-sig">IF(cond, val_true, [val_false])</div><div class="fn-desc">Conditional: return different values based on test</div></div>
+<div class="fn-card"><div class="fn-name">AND / OR / NOT</div><div class="fn-sig">AND(c1, c2, ...) / OR(c1, c2, ...)</div><div class="fn-desc">Logical operators</div></div>
+<div class="fn-card"><div class="fn-name">IFERROR</div><div class="fn-sig">IFERROR(value, fallback)</div><div class="fn-desc">Return fallback if value is an error</div></div>
+<div class="fn-card"><div class="fn-name">ISNUMBER / ISTEXT / ISBLANK</div><div class="fn-sig">ISNUMBER(value)</div><div class="fn-desc">Type-checking functions</div></div>
+<div class="fn-card"><div class="fn-name">ISERROR / ISLOGICAL</div><div class="fn-sig">ISERROR(value)</div><div class="fn-desc">Error and boolean checks</div></div>
+<div class="fn-card"><div class="fn-name">TRUE / FALSE</div><div class="fn-sig">TRUE / FALSE</div><div class="fn-desc">Boolean constants</div></div>
+</div>
+
+<h3>Lookup</h3>
+<div class="fn-grid">
+<div class="fn-card"><div class="fn-name">XLOOKUP</div><div class="fn-sig">XLOOKUP(val, lookup, return, [missing])</div><div class="fn-desc">Modern flexible lookup — replaces VLOOKUP/HLOOKUP</div></div>
+<div class="fn-card"><div class="fn-name">VLOOKUP / HLOOKUP</div><div class="fn-sig">VLOOKUP(val, table, col, FALSE)</div><div class="fn-desc">Vertical / horizontal lookup</div></div>
+<div class="fn-card"><div class="fn-name">INDEX / MATCH</div><div class="fn-sig">INDEX(range, row, [col])</div><div class="fn-desc">Return value at position / find position</div></div>
+<div class="fn-card"><div class="fn-name">OFFSET</div><div class="fn-sig">OFFSET(ref, rows, cols, [h], [w])</div><div class="fn-desc">Shifted reference for dynamic ranges</div></div>
+<div class="fn-card"><div class="fn-name">CHOOSE</div><div class="fn-sig">CHOOSE(index, val1, val2, ...)</div><div class="fn-desc">Pick value by index number</div></div>
+</div>
+
+<h3>Finance</h3>
+<div class="fn-grid">
+<div class="fn-card"><div class="fn-name">PV / FV</div><div class="fn-sig">PV(rate, nper, pmt)</div><div class="fn-desc">Present value / future value</div></div>
+<div class="fn-card"><div class="fn-name">PMT</div><div class="fn-sig">PMT(rate, nper, pv)</div><div class="fn-desc">Periodic payment for a loan</div></div>
+<div class="fn-card"><div class="fn-name">NPER / RATE</div><div class="fn-sig">NPER(rate, pmt, pv)</div><div class="fn-desc">Number of periods / interest rate</div></div>
+<div class="fn-card"><div class="fn-name">NPV / IRR / MIRR</div><div class="fn-sig">NPV(rate, cashflows...)</div><div class="fn-desc">Net present value / internal rate of return</div></div>
+<div class="fn-card"><div class="fn-name">IPMT / PPMT</div><div class="fn-sig">IPMT(rate, per, nper, pv)</div><div class="fn-desc">Interest / principal portion of payment</div></div>
+<div class="fn-card"><div class="fn-name">CUMIPMT / CUMPRINC</div><div class="fn-sig">CUMIPMT(rate, nper, pv, s, e, type)</div><div class="fn-desc">Cumulative interest / principal</div></div>
+<div class="fn-card"><div class="fn-name">SLN / DDB</div><div class="fn-sig">SLN(cost, salvage, life)</div><div class="fn-desc">Straight-line / double-declining depreciation</div></div>
+<div class="fn-card"><div class="fn-name">EFFECT / NOMINAL</div><div class="fn-sig">EFFECT(nominal_rate, npery)</div><div class="fn-desc">Effective / nominal annual interest rate conversion</div></div>
+</div>
+
+<h3>Date &amp; Time</h3>
+<div class="fn-grid">
+<div class="fn-card"><div class="fn-name">NOW</div><div class="fn-sig">NOW()</div><div class="fn-desc">Current date + time (volatile, recalculates every frame)</div></div>
+<div class="fn-card"><div class="fn-name">TODAY</div><div class="fn-sig">TODAY()</div><div class="fn-desc">Today's date as serial number</div></div>
+<div class="fn-card"><div class="fn-name">DATE</div><div class="fn-sig">DATE(year, month, day)</div><div class="fn-desc">Construct date from components</div></div>
+<div class="fn-card"><div class="fn-name">YEAR / MONTH / DAY</div><div class="fn-sig">YEAR(date)</div><div class="fn-desc">Extract year / month / day from date</div></div>
+</div>
+
+<h3>Random (Volatile)</h3>
+<div class="fn-grid">
+<div class="fn-card"><div class="fn-name">RAND</div><div class="fn-sig">RAND()</div><div class="fn-desc">Random float in [0, 1) — changes every frame</div></div>
+<div class="fn-card"><div class="fn-name">RANDBETWEEN</div><div class="fn-sig">RANDBETWEEN(lo, hi)</div><div class="fn-desc">Random integer in [lo, hi]</div></div>
+</div>
+</section>
+
+<!-- ───────── DATA OPS ───────── -->
+<section id="data-ops" data-searchable>
+<h2><a href="#data-ops" class="anchor">#</a> Data Operations</h2>
+
+<table class="kb-table">
+<thead><tr><th>Command</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>:</kbd><code>sort asc</code> / <code>desc</code></td><td>Sort all rows by the cursor column (ascending or descending)</td></tr>
+<tr><td><kbd>:</kbd><code>filter A &gt;100</code></td><td>Filter: show only rows where column A value &gt; 100</td></tr>
+<tr><td><kbd>:</kbd><code>filter off</code></td><td>Clear active row filter</td></tr>
+<tr><td><kbd>:</kbd><code>transpose</code></td><td>Transpose visual selection (swap rows and columns)</td></tr>
+<tr><td><kbd>:</kbd><code>dedup</code></td><td>Remove duplicate rows (by cursor column)</td></tr>
+<tr><td><kbd>:</kbd><code>filldown</code></td><td>Fill selection down from the top row</td></tr>
+<tr><td><kbd>:</kbd><code>fillright</code></td><td>Fill selection right from the leftmost column</td></tr>
+<tr><td><kbd>:</kbd><code>merge</code> / <code>unmerge</code></td><td>Merge visual selection into one cell / unmerge</td></tr>
+<tr><td><kbd>:</kbd><code>name sales A1:C10</code></td><td>Define a named range</td></tr>
+<tr><td><kbd>:</kbd><code>colfmt &gt;100 red</code></td><td>Conditional formatting rule for column</td></tr>
+<tr><td><kbd>:</kbd><code>note Hello</code></td><td>Set cell note (<code>:note</code> to view, <code>:note!</code> to clear)</td></tr>
+<tr><td><kbd>:</kbd><code>s/pat/repl/g</code></td><td>Find and replace across all text cells</td></tr>
+<tr><td><kbd>:</kbd><code>J</code></td><td>Join cell below into current cell</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="auto-fill" data-searchable>
+<h2><a href="#auto-fill" class="anchor">#</a> Auto-Fill Series</h2>
+<p>Select a range in Visual mode with some seed values, then press <kbd>Ctrl</kbd>+<kbd>f</kbd> to extend the pattern. Direction is detected automatically from the anchor (where you started the selection) to the cursor.</p>
+
+<h3>Supported Patterns</h3>
+<ul>
+<li><strong>Numeric sequences:</strong> <code>1, 2</code> → <code>3, 4, 5, ...</code> or <code>10, 20</code> → <code>30, 40, 50, ...</code></li>
+<li><strong>Weekday names (short):</strong> <code>Mon, Tue</code> → <code>Wed, Thu, Fri, ...</code></li>
+<li><strong>Weekday names (full):</strong> <code>Monday, Tuesday</code> → <code>Wednesday, Thursday, ...</code></li>
+<li><strong>Month names (short):</strong> <code>Jan, Feb</code> → <code>Mar, Apr, May, ...</code></li>
+<li><strong>Month names (full):</strong> <code>January, February</code> → <code>March, April, ...</code></li>
+<li><strong>Cyclic repeat:</strong> Any other values repeat cyclically</li>
+</ul>
+
+<div class="callout">
+<strong>Case Preservation:</strong> The output preserves the case style of your seed. <code>mon</code> → <code>tue, wed</code>; <code>MON</code> → <code>TUE, WED</code>; <code>Mon</code> → <code>Tue, Wed</code>; <code>MONDAY</code> → <code>TUESDAY, WEDNESDAY</code>; etc.
+</div>
+
+<h3>Direction Detection</h3>
+<p>The fill direction depends on where you started the selection (anchor) vs. where the cursor is when you press <kbd>Ctrl</kbd>+<kbd>f</kbd>:</p>
+<ul>
+<li><strong>Anchor above cursor</strong> → fills down (seed from top)</li>
+<li><strong>Anchor below cursor</strong> → fills up (seed from bottom)</li>
+<li><strong>Anchor left of cursor</strong> → fills right (seed from left)</li>
+<li><strong>Anchor right of cursor</strong> → fills left (seed from right)</li>
+</ul>
+</section>
+
+<!-- ───────── FEATURES ───────── -->
+<section id="sheets" data-searchable>
+<h2><a href="#sheets" class="anchor">#</a> Multi-Sheet</h2>
+<table class="kb-table">
+<thead><tr><th>Key / Command</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>g</kbd><kbd>t</kbd></td><td>Switch to next sheet tab</td></tr>
+<tr><td><kbd>g</kbd><kbd>T</kbd></td><td>Switch to previous sheet tab</td></tr>
+<tr><td><kbd>:</kbd><code>tabnew</code> / <code>tabedit</code></td><td>Create a new sheet</td></tr>
+<tr><td><kbd>:</kbd><code>tabclose</code></td><td>Close current sheet</td></tr>
+</tbody>
+</table>
+<p>Sheet tabs appear at the bottom of the screen. Cross-sheet formula references use <code>Sheet1!A1</code> syntax.</p>
+</section>
+
+<section id="macros" data-searchable>
+<h2><a href="#macros" class="anchor">#</a> Macros</h2>
+<p>Record a sequence of keystrokes into a register and replay it.</p>
+<table class="kb-table">
+<thead><tr><th>Key</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>q</kbd><kbd>{a-z}</kbd></td><td>Start recording into register (e.g. <kbd>q</kbd><kbd>a</kbd>)</td></tr>
+<tr><td><kbd>q</kbd></td><td>Stop recording (while recording)</td></tr>
+<tr><td><kbd>@</kbd><kbd>{a-z}</kbd></td><td>Play macro from register (count prefix: <kbd>5</kbd><kbd>@</kbd><kbd>a</kbd> replays 5 times)</td></tr>
+<tr><td><kbd>@</kbd><kbd>@</kbd></td><td>Replay the last-used macro (count prefix supported)</td></tr>
+</tbody>
+</table>
+<div class="callout">
+<strong>Tip:</strong> Macros record all keystrokes including mode changes (Normal → Insert → Normal). They survive mode transitions and can be replayed with a count prefix for bulk operations.
+</div>
+</section>
+
+<section id="marks" data-searchable>
+<h2><a href="#marks" class="anchor">#</a> Marks</h2>
+<table class="kb-table">
+<thead><tr><th>Key</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>m</kbd><kbd>{a-z}</kbd></td><td>Set a mark at the current cursor position</td></tr>
+<tr><td><kbd>'</kbd><kbd>{a-z}</kbd></td><td>Jump to the cell where mark was set</td></tr>
+<tr><td><kbd>'</kbd><kbd>'</kbd></td><td>Jump to previous position (before last jump)</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="search-replace" data-searchable>
+<h2><a href="#search-replace" class="anchor">#</a> Search &amp; Replace</h2>
+<table class="kb-table">
+<thead><tr><th>Key / Command</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>/</kbd></td><td>Search forward</td></tr>
+<tr><td><kbd>?</kbd></td><td>Search backward</td></tr>
+<tr><td><kbd>n</kbd> / <kbd>N</kbd></td><td>Next / previous match (count prefix supported)</td></tr>
+<tr><td><kbd>*</kbd></td><td>Search for cell content under cursor</td></tr>
+<tr><td><kbd>Esc</kbd></td><td>Clear search highlights</td></tr>
+<tr><td><kbd>:</kbd><code>s/pattern/replacement/g</code></td><td>Find and replace across all text cells</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="freeze" data-searchable>
+<h2><a href="#freeze" class="anchor">#</a> Freeze Panes</h2>
+<table class="kb-table">
+<thead><tr><th>Command</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>:</kbd><code>freeze rows N</code></td><td>Freeze top N rows (they stay visible while scrolling)</td></tr>
+<tr><td><kbd>:</kbd><code>freeze cols N</code></td><td>Freeze left N columns</td></tr>
+<tr><td><kbd>:</kbd><code>freeze off</code></td><td>Clear all freeze panes</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="themes" data-searchable>
+<h2><a href="#themes" class="anchor">#</a> Themes</h2>
+<ul>
+<li><kbd>:</kbd><code>theme</code> — open the interactive theme picker</li>
+<li><kbd>:</kbd><code>theme &lt;name&gt;</code> — apply a theme by name directly</li>
+<li><kbd>t</kbd> from the welcome screen — browse and preview themes</li>
+<li>Custom themes can be defined in <code>~/.config/asat/config.toml</code></li>
+</ul>
+</section>
+
+<section id="plugins" data-searchable>
+<h2><a href="#plugins" class="anchor">#</a> Plugins</h2>
+<p>ASAT supports Python plugins via PyO3 (opt-in feature).</p>
+<table class="kb-table">
+<thead><tr><th>Command</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>:</kbd><code>plugins</code></td><td>Open the plugin manager panel</td></tr>
+<tr><td><kbd>:</kbd><code>plugin reload</code></td><td>Reload <code>init.py</code></td></tr>
+<tr><td><kbd>:</kbd><code>plugin list</code></td><td>List installed plugins</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="config" data-searchable>
+<h2><a href="#config" class="anchor">#</a> Configuration</h2>
+<p>Configuration file is at <code>~/.config/asat/config.toml</code>. Press <kbd>c</kbd> from the welcome screen to open it.</p>
+<ul>
+<li><kbd>:</kbd><code>set &lt;option&gt;</code> — set options at runtime</li>
+<li>Theme, keybindings, default column width, scroll padding, and more can be configured</li>
+</ul>
+</section>
+
+<!-- ───────── REFERENCE ───────── -->
+<section id="ex-commands" data-searchable>
+<h2><a href="#ex-commands" class="anchor">#</a> Ex-Commands Reference</h2>
+<p>All commands are entered with <kbd>:</kbd> from Normal mode. <kbd>Tab</kbd> auto-completes.</p>
+
+<table class="kb-table">
+<thead><tr><th>Command</th><th>Description</th></tr></thead>
+<tbody>
+<tr class="section-header"><td colspan="2">File</td></tr>
+<tr><td><code>:w</code></td><td>Save to current file</td></tr>
+<tr><td><code>:w &lt;file&gt;</code></td><td>Save to a new file (format by extension)</td></tr>
+<tr><td><code>:q</code></td><td>Quit (warns if unsaved changes)</td></tr>
+<tr><td><code>:q!</code></td><td>Force quit without saving</td></tr>
+<tr><td><code>:wq</code> / <code>:x</code></td><td>Save and quit</td></tr>
+<tr><td><code>:e &lt;file&gt;</code></td><td>Open a file</td></tr>
+<tr><td><code>:home</code></td><td>Return to welcome screen</td></tr>
+
+<tr class="section-header"><td colspan="2">Sheets</td></tr>
+<tr><td><code>:tabnew</code> / <code>:tabedit</code></td><td>Create new sheet</td></tr>
+<tr><td><code>:tabclose</code></td><td>Close current sheet</td></tr>
+
+<tr class="section-header"><td colspan="2">Rows &amp; Columns</td></tr>
+<tr><td><code>:ir</code></td><td>Insert row below cursor</td></tr>
+<tr><td><code>:dr</code></td><td>Delete current row</td></tr>
+<tr><td><code>:ic</code></td><td>Insert column to the left</td></tr>
+<tr><td><code>:icr</code></td><td>Insert column to the right</td></tr>
+<tr><td><code>:dc</code></td><td>Delete current column</td></tr>
+<tr><td><code>:cw &lt;N&gt;</code></td><td>Set column width to N characters</td></tr>
+<tr><td><code>:rh &lt;N&gt;</code></td><td>Set row height to N</td></tr>
+
+<tr class="section-header"><td colspan="2">Formatting</td></tr>
+<tr><td><code>:bold</code></td><td>Toggle bold on cell / selection</td></tr>
+<tr><td><code>:italic</code></td><td>Toggle italic</td></tr>
+<tr><td><code>:underline</code></td><td>Toggle underline</td></tr>
+<tr><td><code>:strike</code></td><td>Toggle strikethrough</td></tr>
+<tr><td><code>:fg &lt;color&gt;</code></td><td>Set foreground colour (hex or name)</td></tr>
+<tr><td><code>:bg &lt;color&gt;</code></td><td>Set background colour</td></tr>
+<tr><td><code>:hl &lt;color&gt;</code></td><td>Highlight: set bg + auto-contrast fg</td></tr>
+<tr><td><code>:hl</code></td><td>Clear highlight</td></tr>
+<tr><td><code>:align l/c/r</code></td><td>Set alignment</td></tr>
+<tr><td><code>:fmt &lt;spec&gt;</code></td><td>Number format: <code>%</code>, <code>$</code>, <code>0.00</code>, <code>int</code>, <code>date</code>, <code>datetime</code>, <code>none</code></td></tr>
+<tr><td><code>:copystyle</code></td><td>Copy current cell style</td></tr>
+<tr><td><code>:pastestyle</code></td><td>Paste style to cell / selection</td></tr>
+<tr><td><code>:cs</code></td><td>Clear all styles</td></tr>
+<tr><td><code>:wrap</code></td><td>Toggle line-wrap</td></tr>
+
+<tr class="section-header"><td colspan="2">Data</td></tr>
+<tr><td><code>:sort asc/desc</code></td><td>Sort rows by cursor column</td></tr>
+<tr><td><code>:s /pat/repl/g</code></td><td>Find &amp; replace in text cells</td></tr>
+<tr><td><code>:filter &lt;c&gt; &lt;op&gt; &lt;v&gt;</code></td><td>Filter rows (e.g. <code>:filter A &gt;100</code>)</td></tr>
+<tr><td><code>:filter off</code></td><td>Clear row filter</td></tr>
+<tr><td><code>:transpose</code></td><td>Transpose visual selection</td></tr>
+<tr><td><code>:dedup</code></td><td>Remove duplicate rows</td></tr>
+<tr><td><code>:filldown</code> / <code>:fillright</code></td><td>Fill selection from anchor</td></tr>
+<tr><td><code>:merge</code> / <code>:unmerge</code></td><td>Merge / unmerge cells</td></tr>
+<tr><td><code>:name &lt;n&gt; &lt;range&gt;</code></td><td>Define named range</td></tr>
+<tr><td><code>:colfmt &lt;op&gt; &lt;v&gt; &lt;color&gt;</code></td><td>Conditional format rule</td></tr>
+<tr><td><code>:note &lt;text&gt;</code></td><td>Set cell note (<code>:note</code> view, <code>:note!</code> clear)</td></tr>
+<tr><td><code>:J</code></td><td>Join cell below into current</td></tr>
+
+<tr class="section-header"><td colspan="2">Navigation &amp; UI</td></tr>
+<tr><td><code>:goto &lt;cell&gt;</code></td><td>Jump to cell (e.g. <code>:goto B15</code>)</td></tr>
+<tr><td><code>:help</code> / <code>:h</code></td><td>Open searchable help screen</td></tr>
+<tr><td><code>:home</code></td><td>Return to welcome screen</td></tr>
+<tr><td><code>:theme</code></td><td>Open theme picker</td></tr>
+<tr><td><code>:theme &lt;name&gt;</code></td><td>Apply theme directly</td></tr>
+<tr><td><code>:set &lt;option&gt;</code></td><td>Set an option</td></tr>
+<tr><td><code>:freeze rows &lt;N&gt;</code></td><td>Freeze top N rows</td></tr>
+<tr><td><code>:freeze cols &lt;N&gt;</code></td><td>Freeze left N columns</td></tr>
+<tr><td><code>:freeze off</code></td><td>Clear freeze panes</td></tr>
+<tr><td><code>:plugin reload</code></td><td>Reload init.py</td></tr>
+<tr><td><code>:plugins</code></td><td>Open plugin manager</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="quick-ref" data-searchable>
+<h2><a href="#quick-ref" class="anchor">#</a> Keybinding Quick Reference</h2>
+
+<h3>Normal Mode</h3>
+<table class="kb-table">
+<thead><tr><th>Key</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>h</kbd><kbd>j</kbd><kbd>k</kbd><kbd>l</kbd></td><td>Move cursor</td></tr>
+<tr><td><kbd>w</kbd>/<kbd>b</kbd>/<kbd>W</kbd>/<kbd>B</kbd>/<kbd>e</kbd></td><td>Jump non-empty cells</td></tr>
+<tr><td><kbd>}</kbd>/<kbd>{</kbd></td><td>Next/prev paragraph</td></tr>
+<tr><td><kbd>g</kbd><kbd>g</kbd>/<kbd>G</kbd></td><td>First/last row</td></tr>
+<tr><td><kbd>0</kbd>/<kbd>$</kbd></td><td>First/last column</td></tr>
+<tr><td><kbd>H</kbd>/<kbd>M</kbd>/<kbd>L</kbd></td><td>Screen top/mid/bottom</td></tr>
+<tr><td><kbd>^d</kbd>/<kbd>^u</kbd>/<kbd>^f</kbd>/<kbd>^b</kbd></td><td>Page scroll</td></tr>
+<tr><td><kbd>zz</kbd>/<kbd>zt</kbd>/<kbd>zb</kbd></td><td>Center/top/bottom</td></tr>
+<tr><td><kbd>g{A-Z}</kbd>/<kbd>f{c}</kbd></td><td>Jump to column</td></tr>
+<tr><td><kbd>i</kbd>/<kbd>Enter</kbd>/<kbd>a</kbd>/<kbd>s</kbd>/<kbd>cc</kbd></td><td>Edit cell</td></tr>
+<tr><td><kbd>r</kbd>/<kbd>o</kbd>/<kbd>O</kbd></td><td>Replace/open row</td></tr>
+<tr><td><kbd>ci{d}</kbd></td><td>Change inner delim</td></tr>
+<tr><td><kbd>x</kbd>/<kbd>D</kbd>/<kbd>dd</kbd>/<kbd>dc</kbd>/<kbd>dC</kbd></td><td>Delete cell/row/col</td></tr>
+<tr><td><kbd>dj</kbd>/<kbd>dk</kbd></td><td>Delete row below/above</td></tr>
+<tr><td><kbd>~</kbd>/<kbd>^a</kbd>/<kbd>^x</kbd></td><td>Toggle case / inc / dec</td></tr>
+<tr><td><kbd>J</kbd>/<kbd>U</kbd>/<kbd>gw</kbd></td><td>Join/unmerge/wrap</td></tr>
+<tr><td><kbd>yy</kbd>/<kbd>yc</kbd>/<kbd>yC</kbd>/<kbd>yj</kbd>/<kbd>yk</kbd>/<kbd>yS</kbd></td><td>Yank operations</td></tr>
+<tr><td><kbd>p</kbd>/<kbd>P</kbd>/<kbd>pS</kbd></td><td>Paste</td></tr>
+<tr><td><kbd>u</kbd>/<kbd>^r</kbd></td><td>Undo/redo</td></tr>
+<tr><td><kbd>.</kbd></td><td>Repeat last change</td></tr>
+<tr><td><kbd>v</kbd>/<kbd>V</kbd>/<kbd>^v</kbd></td><td>Visual modes</td></tr>
+<tr><td><kbd>:</kbd></td><td>Command mode</td></tr>
+<tr><td><kbd>/</kbd>/<kbd>?</kbd>/<kbd>n</kbd>/<kbd>N</kbd>/<kbd>*</kbd></td><td>Search</td></tr>
+<tr><td><kbd>gt</kbd>/<kbd>gT</kbd>/<kbd>gd</kbd></td><td>Sheets/goto def</td></tr>
+<tr><td><kbd>m{c}</kbd>/<kbd>'{c}</kbd>/<kbd>''</kbd></td><td>Marks</td></tr>
+<tr><td><kbd>q{c}</kbd>/<kbd>@{c}</kbd>/<kbd>@@</kbd></td><td>Macros</td></tr>
+<tr><td><kbd>&gt;&gt;</kbd>/<kbd>&lt;&lt;</kbd>/<kbd>=</kbd></td><td>Column sizing</td></tr>
+<tr><td><kbd>+</kbd>/<kbd>-</kbd>/<kbd>_</kbd></td><td>Row sizing</td></tr>
+</tbody>
+</table>
+
+<h3>Visual Mode</h3>
+<table class="kb-table">
+<thead><tr><th>Key</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>d</kbd>/<kbd>x</kbd></td><td>Delete</td></tr>
+<tr><td><kbd>c</kbd>/<kbd>s</kbd></td><td>Clear + edit</td></tr>
+<tr><td><kbd>y</kbd></td><td>Yank</td></tr>
+<tr><td><kbd>M</kbd>/<kbd>S</kbd></td><td>Merge / SUM</td></tr>
+<tr><td><kbd>^d</kbd>/<kbd>^r</kbd>/<kbd>^f</kbd></td><td>Fill down/right/auto</td></tr>
+<tr><td><kbd>&gt;</kbd>/<kbd>&lt;</kbd></td><td>Resize columns</td></tr>
+</tbody>
+</table>
+
+<h3>Insert Mode</h3>
+<table class="kb-table">
+<thead><tr><th>Key</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>Enter</kbd>/<kbd>Tab</kbd>/<kbd>Esc</kbd></td><td>Confirm (down/right/stay)</td></tr>
+<tr><td><kbd>^a</kbd>/<kbd>^e</kbd></td><td>Start/end of buffer</td></tr>
+<tr><td><kbd>^w</kbd>/<kbd>^u</kbd>/<kbd>^k</kbd></td><td>Delete word/to-start/to-end</td></tr>
+<tr><td><kbd>^v</kbd></td><td>Paste clipboard</td></tr>
+<tr><td><kbd>^r</kbd></td><td>Formula ref picker</td></tr>
+</tbody>
+</table>
+
+</section>
+
+</div><!-- /content -->
+</div><!-- /main -->
+
+<script>
+// ── Sidebar toggle ───────────────────────────────────────────
+document.querySelectorAll('.sidebar-title').forEach(t => {
+  t.addEventListener('click', () => t.parentElement.classList.toggle('open'));
+});
+
+// ── Mobile hamburger ─────────────────────────────────────────
+const sidebar = document.getElementById('sidebar');
+const backdrop = document.getElementById('sidebar-backdrop');
+document.getElementById('hamburger').addEventListener('click', () => {
+  sidebar.classList.toggle('open');
+  backdrop.classList.toggle('open');
+});
+backdrop.addEventListener('click', () => {
+  sidebar.classList.remove('open');
+  backdrop.classList.remove('open');
+});
+
+// ── Active sidebar link on scroll ────────────────────────────
+const sections = document.querySelectorAll('section[id]');
+const sidebarLinks = document.querySelectorAll('.sidebar-links a');
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      sidebarLinks.forEach(a => a.classList.remove('active'));
+      const link = document.querySelector(`.sidebar-links a[href="#${e.target.id}"]`);
+      if (link) link.classList.add('active');
+    }
+  });
+}, { rootMargin: '-80px 0px -60% 0px', threshold: 0 });
+sections.forEach(s => obs.observe(s));
+
+// ── Search ───────────────────────────────────────────────────
+const searchInput = document.getElementById('search');
+document.addEventListener('keydown', e => {
+  if (e.key === '/' && document.activeElement !== searchInput) {
+    e.preventDefault();
+    searchInput.focus();
+  }
+  if (e.key === 'Escape') searchInput.blur();
+});
+
+searchInput.addEventListener('input', () => {
+  const q = searchInput.value.toLowerCase().trim();
+  document.querySelectorAll('section[data-searchable]').forEach(sec => {
+    if (!q) {
+      sec.classList.remove('search-hidden');
+      return;
+    }
+    const text = sec.textContent.toLowerCase();
+    sec.classList.toggle('search-hidden', !text.includes(q));
+  });
+});
+</script>
+</body>
+</html>

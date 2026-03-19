@@ -31,9 +31,12 @@ const NORMAL_HINTS: &[Hint] = &[
     Hint::new("0 / $", "first / last column"),
     Hint::new("H / M / L", "top / mid / bottom of view"),
     Hint::new("^d / ^u", "page down / up"),
+    Hint::new("^f / ^b", "page down / up (alias)"),
     Hint::new("zz/zt/zb", "center / top / bottom row"),
+    Hint::new("g{A-Z}", "jump to column by letter"),
     // Editing
-    Hint::new("i / Enter", "edit cell"),
+    Hint::new("i / Enter / F2", "edit cell"),
+    Hint::new("a", "edit cell (append)"),
     Hint::new("s / cc", "clear cell + edit"),
     Hint::new("ci\"/({[", "change inner text object"),
     Hint::new(".", "repeat last change"),
@@ -45,6 +48,8 @@ const NORMAL_HINTS: &[Hint] = &[
     Hint::new("dC", "delete column"),
     Hint::new("dj / dk", "delete row below / above"),
     Hint::new("~", "toggle case"),
+    Hint::new("^a / ^x", "increment / decrement number"),
+    Hint::new("J", "join cell below into current"),
     // Column / row sizing
     Hint::new(">> / <<", "widen / narrow column"),
     Hint::new("=", "auto-fit column width"),
@@ -58,7 +63,9 @@ const NORMAL_HINTS: &[Hint] = &[
     Hint::new("yc", "yank cell"),
     Hint::new("yC", "yank column"),
     Hint::new("yj / yk", "yank row below / above"),
+    Hint::new("yS", "copy cell style"),
     Hint::new("p / P", "paste after / before"),
+    Hint::new("pS", "paste style"),
     // Macros
     Hint::new("q{a-z}", "start recording macro"),
     Hint::new("@{a-z}", "play macro"),
@@ -80,17 +87,11 @@ const NORMAL_HINTS: &[Hint] = &[
     Hint::new("*", "search cell under cursor"),
     // Sheets
     Hint::new("gt / gT", "next / prev sheet"),
-    // Conditional formatting
-    Hint::new(":cf <range> cond val", "conditional format rule"),
-    // Go-to definition
+    // Go-to
     Hint::new("gd", "jump to first cell ref in formula"),
-    // Join
-    Hint::new("J", "join cell below into current"),
-    // Help / plugins
+    // Help
     Hint::new(":help / :h", "open help screen"),
-    Hint::new(":plugins", "open plugin manager"),
-    // Freeze panes
-    Hint::new(":freeze rows/cols <N>", "freeze panes"),
+    Hint::new(":home", "return to welcome screen"),
 ];
 
 const VISUAL_HINTS: &[Hint] = &[
@@ -99,14 +100,16 @@ const VISUAL_HINTS: &[Hint] = &[
     Hint::new("} / {", "extend by paragraph"),
     Hint::new("0 / $", "first / last column"),
     Hint::new("gg / G", "first / last row"),
-    Hint::new("M", "merge selection into one cell"),
     Hint::new("d / x", "delete selection"),
+    Hint::new("c / s", "clear selection + edit"),
     Hint::new("y", "yank selection"),
-    Hint::new("S", "insert SUM below/right of selection"),
-    Hint::new("^d / ^r", "fill down / right"),
-    Hint::new("^f / ^e", "auto-fill series down / right"),
+    Hint::new("M", "merge selection into one cell"),
+    Hint::new("S", "insert SUM below/right"),
+    Hint::new("^d", "fill down (anchor row)"),
+    Hint::new("^r", "fill right (anchor col)"),
+    Hint::new("^f", "auto-fill series (smart direction)"),
     Hint::new("> / <", "widen / narrow columns"),
-    Hint::new(":", "enter command for selection range"),
+    Hint::new(":", "command for selection range"),
     Hint::new("v / V", "swap mode / exit"),
     Hint::new("Esc", "exit visual"),
 ];
@@ -116,9 +119,14 @@ const INSERT_HINTS: &[Hint] = &[
     Hint::new("Tab", "confirm, move right"),
     Hint::new("Esc", "confirm, stay"),
     Hint::new("←/→", "move cursor in cell"),
-    Hint::new("Home/End", "start / end of cell"),
+    Hint::new("^a / ^e", "start / end of buffer"),
     Hint::new("Backspace", "delete left"),
     Hint::new("Del", "delete right"),
+    Hint::new("^w", "delete word backward"),
+    Hint::new("^u / ^k", "delete to start / end"),
+    Hint::new("^v", "paste from clipboard"),
+    Hint::new("^r", "formula ref picker (in =...)"),
+    Hint::new("Tab/BTab", "cycle formula completions"),
 ];
 
 // ── Render ────────────────────────────────────────────────────────────────────

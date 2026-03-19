@@ -71,7 +71,7 @@ dependencies = [
 
 [[package]]
 name = "asat"
-version = "0.1.22"
+version = "0.1.23"
 dependencies = [
  "anyhow",
  "arboard",
@@ -94,7 +94,7 @@ dependencies = [
 
 [[package]]
 name = "asat-commands"
-version = "0.1.22"
+version = "0.1.23"
 dependencies = [
  "asat-core",
  "asat-formula",
@@ -103,7 +103,7 @@ dependencies = [
 
 [[package]]
 name = "asat-config"
-version = "0.1.22"
+version = "0.1.23"
 dependencies = [
  "asat-core",
  "dirs",
@@ -114,7 +114,7 @@ dependencies = [
 
 [[package]]
 name = "asat-core"
-version = "0.1.22"
+version = "0.1.23"
 dependencies = [
  "serde",
  "thiserror 2.0.18",
@@ -122,7 +122,7 @@ dependencies = [
 
 [[package]]
 name = "asat-formula"
-version = "0.1.22"
+version = "0.1.23"
 dependencies = [
  "asat-core",
  "regex",
@@ -131,7 +131,7 @@ dependencies = [
 
 [[package]]
 name = "asat-input"
-version = "0.1.22"
+version = "0.1.23"
 dependencies = [
  "asat-commands",
  "asat-core",
@@ -142,7 +142,7 @@ dependencies = [
 
 [[package]]
 name = "asat-io"
-version = "0.1.22"
+version = "0.1.23"
 dependencies = [
  "anyhow",
  "asat-core",
@@ -159,7 +159,7 @@ dependencies = [
 
 [[package]]
 name = "asat-plugins"
-version = "0.1.22"
+version = "0.1.23"
 dependencies = [
  "asat-commands",
  "asat-core",
@@ -171,7 +171,7 @@ dependencies = [
 
 [[package]]
 name = "asat-tui"
-version = "0.1.22"
+version = "0.1.23"
 dependencies = [
  "asat-commands",
  "asat-config",

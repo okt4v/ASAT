@@ -465,6 +465,7 @@ pub enum AppAction {
     RecentOpen,
     RecentMoveUp,
     RecentMoveDown,
+    RecentRemove,
     RecentCancel,
 
     // ── Theme manager ──
@@ -535,6 +536,13 @@ pub enum AppAction {
         row_end: u32,
         col_start: u32,
         col_end: u32,
+    },
+    /// Smart auto-fill: detects direction from anchor vs cursor position
+    AutoFill {
+        anchor_row: u32,
+        anchor_col: u32,
+        cursor_row: u32,
+        cursor_col: u32,
     },
 
     // ── Goto ──
@@ -1551,6 +1559,7 @@ impl InputState {
             KeyCode::Enter => vec![AppAction::RecentOpen],
             KeyCode::Up | KeyCode::Char('k') if !ctrl => vec![AppAction::RecentMoveUp],
             KeyCode::Down | KeyCode::Char('j') if !ctrl => vec![AppAction::RecentMoveDown],
+            KeyCode::Char('x') | KeyCode::Delete => vec![AppAction::RecentRemove],
             _ => vec![AppAction::NoOp],
         }
     }
@@ -1868,30 +1877,19 @@ impl InputState {
                         AppAction::ExitMode,
                     ];
                 }
-                // Auto-fill series down — Ctrl+F
+                // Auto-fill series — Ctrl+F: direction from anchor→cursor
                 KeyCode::Char('f') => {
-                    let (row_start, col_start, row_end, col_end) = self.visual_selection_bounds();
+                    let (ar, ac) = self
+                        .visual_anchor
+                        .map(|a| (a.row, a.col))
+                        .unwrap_or((self.cursor.row, self.cursor.col));
                     self.visual_anchor = None;
                     return vec![
-                        AppAction::AutoFillDown {
-                            row_start,
-                            row_end,
-                            col_start,
-                            col_end,
-                        },
-                        AppAction::ExitMode,
-                    ];
-                }
-                // Auto-fill series right — Ctrl+E
-                KeyCode::Char('e') => {
-                    let (row_start, col_start, row_end, col_end) = self.visual_selection_bounds();
-                    self.visual_anchor = None;
-                    return vec![
-                        AppAction::AutoFillRight {
-                            row_start,
-                            row_end,
-                            col_start,
-                            col_end,
+                        AppAction::AutoFill {
+                            anchor_row: ar,
+                            anchor_col: ac,
+                            cursor_row: self.cursor.row,
+                            cursor_col: self.cursor.col,
                         },
                         AppAction::ExitMode,
                     ];

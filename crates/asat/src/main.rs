@@ -1813,6 +1813,19 @@ fn process_action(
                 }
             }
         }
+        AppAction::RecentRemove => {
+            if !input.recent_files.is_empty() {
+                input.recent_files.remove(input.recent_selected);
+                save_recent_files(&input.recent_files);
+                if input.recent_selected >= input.recent_files.len() && input.recent_selected > 0 {
+                    input.recent_selected -= 1;
+                }
+                // If list is now empty, go back to welcome
+                if input.recent_files.is_empty() {
+                    input.mode = Mode::Welcome;
+                }
+            }
+        }
         AppAction::RecentCancel => {
             input.recent_selected = 0;
             input.mode = Mode::Welcome;
@@ -2260,6 +2273,179 @@ fn process_action(
                     Ok(_) => {
                         undo.push(grouped);
                         set_status(status, "Auto-fill series right".to_string());
+                    }
+                    Err(e) => set_status(status, format!("Error: {}", e)),
+                }
+            }
+        }
+
+        // ── Smart Auto-Fill (direction from anchor→cursor) ──
+        AppAction::AutoFill {
+            anchor_row,
+            anchor_col,
+            cursor_row,
+            cursor_col,
+        } => {
+            let sheet_idx = workbook.active_sheet;
+            let row_min = anchor_row.min(cursor_row);
+            let row_max = anchor_row.max(cursor_row);
+            let col_min = anchor_col.min(cursor_col);
+            let col_max = anchor_col.max(cursor_col);
+            let row_span = row_max - row_min;
+            let col_span = col_max - col_min;
+
+            let mut cmds: Vec<Box<dyn asat_commands::Command>> = Vec::new();
+
+            if row_span >= col_span {
+                // Primary axis: vertical
+                let fill_down = anchor_row <= cursor_row;
+                for c in col_min..=col_max {
+                    let seed: Vec<CellValue> = if fill_down {
+                        // Seed from top rows
+                        let seed_end = (row_min + 1).min(row_max);
+                        (row_min..=seed_end)
+                            .map(|r| workbook.active().get_raw_value(r, c).clone())
+                            .collect()
+                    } else {
+                        // Seed from bottom rows (reversed so series goes upward)
+                        let seed_start = row_max.saturating_sub(1).max(row_min);
+                        (seed_start..=row_max)
+                            .rev()
+                            .map(|r| workbook.active().get_raw_value(r, c).clone())
+                            .collect()
+                    };
+                    let seed_len = seed.len() as u32;
+                    if row_span < seed_len {
+                        continue;
+                    }
+                    let filler = auto_fill_series(&seed);
+                    if fill_down {
+                        for r in (row_min + seed_len)..=row_max {
+                            let idx = (r - row_min - seed_len) as usize;
+                            let new_value = filler(idx);
+                            let old_cell = workbook.active().get_cell(r, c);
+                            let old_val = old_cell
+                                .map(|x| x.value.clone())
+                                .unwrap_or(CellValue::Empty);
+                            let old_style = old_cell.and_then(|x| x.style.clone());
+                            cmds.push(Box::new(SetCell {
+                                sheet: sheet_idx,
+                                row: r,
+                                col: c,
+                                old_value: old_val,
+                                new_value,
+                                old_style,
+                                new_style: None,
+                            }));
+                        }
+                    } else {
+                        for (i, r) in (row_min..row_max.saturating_sub(seed_len) + 1)
+                            .rev()
+                            .enumerate()
+                        {
+                            let new_value = filler(i);
+                            let old_cell = workbook.active().get_cell(r, c);
+                            let old_val = old_cell
+                                .map(|x| x.value.clone())
+                                .unwrap_or(CellValue::Empty);
+                            let old_style = old_cell.and_then(|x| x.style.clone());
+                            cmds.push(Box::new(SetCell {
+                                sheet: sheet_idx,
+                                row: r,
+                                col: c,
+                                old_value: old_val,
+                                new_value,
+                                old_style,
+                                new_style: None,
+                            }));
+                        }
+                    }
+                }
+            } else {
+                // Primary axis: horizontal
+                let fill_right = anchor_col <= cursor_col;
+                for r in row_min..=row_max {
+                    let seed: Vec<CellValue> = if fill_right {
+                        let seed_end = (col_min + 1).min(col_max);
+                        (col_min..=seed_end)
+                            .map(|c| workbook.active().get_raw_value(r, c).clone())
+                            .collect()
+                    } else {
+                        let seed_start = col_max.saturating_sub(1).max(col_min);
+                        (seed_start..=col_max)
+                            .rev()
+                            .map(|c| workbook.active().get_raw_value(r, c).clone())
+                            .collect()
+                    };
+                    let seed_len = seed.len() as u32;
+                    if col_span < seed_len {
+                        continue;
+                    }
+                    let filler = auto_fill_series(&seed);
+                    if fill_right {
+                        for c in (col_min + seed_len)..=col_max {
+                            let idx = (c - col_min - seed_len) as usize;
+                            let new_value = filler(idx);
+                            let old_cell = workbook.active().get_cell(r, c);
+                            let old_val = old_cell
+                                .map(|x| x.value.clone())
+                                .unwrap_or(CellValue::Empty);
+                            let old_style = old_cell.and_then(|x| x.style.clone());
+                            cmds.push(Box::new(SetCell {
+                                sheet: sheet_idx,
+                                row: r,
+                                col: c,
+                                old_value: old_val,
+                                new_value,
+                                old_style,
+                                new_style: None,
+                            }));
+                        }
+                    } else {
+                        for (i, c) in (col_min..col_max.saturating_sub(seed_len) + 1)
+                            .rev()
+                            .enumerate()
+                        {
+                            let new_value = filler(i);
+                            let old_cell = workbook.active().get_cell(r, c);
+                            let old_val = old_cell
+                                .map(|x| x.value.clone())
+                                .unwrap_or(CellValue::Empty);
+                            let old_style = old_cell.and_then(|x| x.style.clone());
+                            cmds.push(Box::new(SetCell {
+                                sheet: sheet_idx,
+                                row: r,
+                                col: c,
+                                old_value: old_val,
+                                new_value,
+                                old_style,
+                                new_style: None,
+                            }));
+                        }
+                    }
+                }
+            }
+
+            if !cmds.is_empty() {
+                let dir = if row_span >= col_span {
+                    if anchor_row <= cursor_row {
+                        "down"
+                    } else {
+                        "up"
+                    }
+                } else if anchor_col <= cursor_col {
+                    "right"
+                } else {
+                    "left"
+                };
+                let grouped = Box::new(asat_commands::GroupedCommand {
+                    description: format!("auto-fill series {}", dir),
+                    commands: cmds,
+                });
+                match grouped.execute(workbook) {
+                    Ok(_) => {
+                        undo.push(grouped);
+                        set_status(status, format!("Auto-fill series {}", dir));
                     }
                     Err(e) => set_status(status, format!("Error: {}", e)),
                 }
@@ -4451,21 +4637,80 @@ fn parse_range_address_cf(
 
 // ── Auto-fill series detection ────────────────────────────────────────────────
 
-const WEEKDAYS: &[&str] = &["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const MONTHS: &[&str] = &[
+const WEEKDAYS_SHORT: &[&str] = &["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const WEEKDAYS_FULL: &[&str] = &[
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
+];
+const MONTHS_SHORT: &[&str] = &[
     "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
+const MONTHS_FULL: &[&str] = &[
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+];
 
-fn weekday_index(s: &str) -> Option<usize> {
-    let lower = s.to_ascii_lowercase();
-    WEEKDAYS
-        .iter()
-        .position(|w| w.to_ascii_lowercase() == lower)
+/// Casing style detected from the seed, used to format output consistently.
+#[derive(Clone, Copy)]
+enum CaseStyle {
+    Lower, // monday
+    Upper, // MONDAY
+    Title, // Monday
 }
 
-fn month_index(s: &str) -> Option<usize> {
+fn detect_case(s: &str) -> CaseStyle {
+    if s.chars().all(|c| c.is_ascii_uppercase()) {
+        CaseStyle::Upper
+    } else if s.chars().next().map_or(false, |c| c.is_ascii_uppercase())
+        && s.chars().skip(1).all(|c| c.is_ascii_lowercase())
+    {
+        CaseStyle::Title
+    } else {
+        CaseStyle::Lower
+    }
+}
+
+fn apply_case(s: &str, style: CaseStyle) -> String {
+    match style {
+        CaseStyle::Lower => s.to_ascii_lowercase(),
+        CaseStyle::Upper => s.to_ascii_uppercase(),
+        CaseStyle::Title => {
+            let mut c = s.chars();
+            match c.next() {
+                None => String::new(),
+                Some(first) => first.to_uppercase().to_string() + &c.as_str().to_ascii_lowercase(),
+            }
+        }
+    }
+}
+
+/// Try to match a string against a list of names (case-insensitive).
+/// Returns (index, which_list) if found.
+fn match_name_list(s: &str, short: &[&str], full: &[&str]) -> Option<(usize, bool)> {
     let lower = s.to_ascii_lowercase();
-    MONTHS.iter().position(|m| m.to_ascii_lowercase() == lower)
+    // Try full names first (longer match preferred)
+    if let Some(idx) = full.iter().position(|n| n.to_ascii_lowercase() == lower) {
+        return Some((idx, true));
+    }
+    if let Some(idx) = short.iter().position(|n| n.to_ascii_lowercase() == lower) {
+        return Some((idx, false));
+    }
+    None
 }
 
 /// Given a seed slice of CellValues, return a closure that produces
@@ -4493,12 +4738,12 @@ fn auto_fill_series(seed: &[CellValue]) -> Box<dyn Fn(usize) -> CellValue> {
         return Box::new(move |i| CellValue::Number(start + (seed_len + i as f64) * step));
     }
 
-    // Try weekday cycle
-    let wdays: Option<Vec<usize>> = seed
+    // Try weekday cycle (short or full, any case)
+    let wdays: Option<Vec<(usize, bool)>> = seed
         .iter()
         .map(|v| {
             if let CellValue::Text(s) = v {
-                weekday_index(s)
+                match_name_list(s, WEEKDAYS_SHORT, WEEKDAYS_FULL)
             } else {
                 None
             }
@@ -4506,19 +4751,32 @@ fn auto_fill_series(seed: &[CellValue]) -> Box<dyn Fn(usize) -> CellValue> {
         .collect();
     if let Some(wd) = wdays {
         let seed_len = wd.len();
-        let first = wd[0];
+        let first = wd[0].0;
+        let is_full = wd[0].1;
+        // Detect case from first seed value
+        let case_style = if let CellValue::Text(s) = &seed[0] {
+            detect_case(s)
+        } else {
+            CaseStyle::Title
+        };
+        let list: &'static [&'static str] = if is_full {
+            WEEKDAYS_FULL
+        } else {
+            WEEKDAYS_SHORT
+        };
+        let cycle_len = list.len();
         return Box::new(move |i| {
-            let idx = (first + seed_len + i) % WEEKDAYS.len();
-            CellValue::Text(WEEKDAYS[idx].to_string())
+            let idx = (first + seed_len + i) % cycle_len;
+            CellValue::Text(apply_case(list[idx], case_style))
         });
     }
 
-    // Try month cycle
-    let mths: Option<Vec<usize>> = seed
+    // Try month cycle (short or full, any case)
+    let mths: Option<Vec<(usize, bool)>> = seed
         .iter()
         .map(|v| {
             if let CellValue::Text(s) = v {
-                month_index(s)
+                match_name_list(s, MONTHS_SHORT, MONTHS_FULL)
             } else {
                 None
             }
@@ -4526,10 +4784,18 @@ fn auto_fill_series(seed: &[CellValue]) -> Box<dyn Fn(usize) -> CellValue> {
         .collect();
     if let Some(ms) = mths {
         let seed_len = ms.len();
-        let first = ms[0];
+        let first = ms[0].0;
+        let is_full = ms[0].1;
+        let case_style = if let CellValue::Text(s) = &seed[0] {
+            detect_case(s)
+        } else {
+            CaseStyle::Title
+        };
+        let list: &'static [&'static str] = if is_full { MONTHS_FULL } else { MONTHS_SHORT };
+        let cycle_len = list.len();
         return Box::new(move |i| {
-            let idx = (first + seed_len + i) % MONTHS.len();
-            CellValue::Text(MONTHS[idx].to_string())
+            let idx = (first + seed_len + i) % cycle_len;
+            CellValue::Text(apply_case(list[idx], case_style))
         });
     }
 
@@ -4591,7 +4857,21 @@ fn load_recent_files(limit: usize) -> Vec<String> {
         .unwrap_or_default()
         .lines()
         .filter(|l| !l.trim().is_empty())
-        .map(|l| l.to_string())
+        .map(|l| {
+            // Upgrade any legacy relative paths to absolute
+            let p = PathBuf::from(l);
+            if p.is_absolute() {
+                l.to_string()
+            } else {
+                std::fs::canonicalize(&p)
+                    .map(|c| c.to_string_lossy().into_owned())
+                    .unwrap_or_else(|_| {
+                        std::env::current_dir()
+                            .map(|cwd| cwd.join(l).to_string_lossy().into_owned())
+                            .unwrap_or_else(|_| l.to_string())
+                    })
+            }
+        })
         .take(limit.max(1))
         .collect()
 }
@@ -4606,9 +4886,23 @@ fn save_recent_files(files: &[String]) {
 }
 
 /// Prepend `path` to the recent list (dedup + cap at 20).
+/// Always stores the absolute (canonical) path so entries are consistent.
 fn push_recent(path: &str, recents: &mut Vec<String>) {
-    recents.retain(|r| r != path);
-    recents.insert(0, path.to_string());
+    let abs = std::fs::canonicalize(path)
+        .map(|p| p.to_string_lossy().into_owned())
+        .unwrap_or_else(|_| {
+            // canonicalize fails if file doesn't exist yet; fall back to absolute via cwd
+            let p = PathBuf::from(path);
+            if p.is_absolute() {
+                path.to_string()
+            } else {
+                std::env::current_dir()
+                    .map(|cwd| cwd.join(path).to_string_lossy().into_owned())
+                    .unwrap_or_else(|_| path.to_string())
+            }
+        });
+    recents.retain(|r| r != &abs);
+    recents.insert(0, abs);
     recents.truncate(20);
 }
 
