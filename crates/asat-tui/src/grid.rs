@@ -199,6 +199,44 @@ impl<'a> Widget for GridWidget<'a> {
             }
         };
 
+        // Draw a `─` horizontal rule between rows, with `┼` at column boundaries.
+        let draw_hgrid_row = |buf: &mut Buffer, sy: u16| {
+            if !show_grid || sy >= area.y + area.height {
+                return;
+            }
+            // Gutter
+            let gutter_style = Style::default().fg(grid_line_fg).bg(header_bg);
+            for dx in 0..ROW_GUTTER_WIDTH {
+                if let Some(cell) = buf.cell_mut((area.x + dx, sy)) {
+                    cell.set_char('─');
+                    cell.set_style(gutter_style);
+                }
+            }
+            // Data columns
+            let mut gx = area.x + ROW_GUTTER_WIDTH;
+            for &(cidx, cw) in &all_col_groups {
+                for dx in 0..cw {
+                    let px = gx + dx;
+                    if px >= area.x + area.width {
+                        break;
+                    }
+                    if let Some(cell) = buf.cell_mut((px, sy)) {
+                        let bg = cell.style().bg.unwrap_or(cell_bg);
+                        let ch = if cidx == u32::MAX {
+                            '╂' // crosses the freeze-column ┃
+                        } else if dx == cw - 1 {
+                            '┼' // intersection with vertical │ separator
+                        } else {
+                            '─'
+                        };
+                        cell.set_char(ch);
+                        cell.set_style(Style::default().fg(grid_line_fg).bg(bg));
+                    }
+                }
+                gx += cw;
+            }
+        };
+
         // ── Frozen rows ───────────────────────────────────────────────────────
         for frozen_r in 0..freeze_rows {
             let row_idx = frozen_r as u32;
@@ -681,6 +719,10 @@ impl<'a> Widget for GridWidget<'a> {
             }
 
             screen_y += row_h;
+            if show_grid && screen_y < data_y + data_height {
+                draw_hgrid_row(buf, screen_y);
+                screen_y += 1;
+            }
             row_idx += 1;
         }
     }
