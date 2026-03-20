@@ -345,7 +345,7 @@
 <tr><td><code>.asat</code></td><td>Yes</td><td>Yes</td><td>Native binary format (bincode + zstd)</td></tr>
 </tbody>
 </table>
-<p>Save with <kbd>:</kbd><code>w</code> to save to the current file, or <kbd>:</kbd><code>w filename.xlsx</code> to save as a different format. The format is determined by the file extension.</p>
+<p>Save with <code>:w</code> to save to the current file, or <code>:w filename.xlsx</code> to save as a different format. The format is determined by the file extension.</p>
 </section>
 
 <!-- ───────── MODES ───────── -->
@@ -579,8 +579,8 @@
 <tr><td><kbd>=</kbd></td><td>Auto-fit column width to content</td></tr>
 <tr><td><kbd>+</kbd> / <kbd>-</kbd></td><td>Increase / decrease row height (count prefix supported)</td></tr>
 <tr><td><kbd>_</kbd></td><td>Reset row height to auto-fit</td></tr>
-<tr><td><kbd>:</kbd><code>cw N</code></td><td>Set column width to exactly N characters</td></tr>
-<tr><td><kbd>:</kbd><code>rh N</code></td><td>Set row height to exactly N</td></tr>
+<tr><td><code>:cw N</code></td><td>Set column width to exactly N characters</td></tr>
+<tr><td><code>:rh N</code></td><td>Set row height to exactly N</td></tr>
 </tbody>
 </table>
 
@@ -588,11 +588,11 @@
 <table class="kb-table">
 <thead><tr><th>Key / Command</th><th>Action</th></tr></thead>
 <tbody>
-<tr><td><kbd>:</kbd><code>ir</code></td><td>Insert row below cursor</td></tr>
-<tr><td><kbd>:</kbd><code>dr</code></td><td>Delete current row</td></tr>
-<tr><td><kbd>:</kbd><code>ic</code></td><td>Insert column to the left</td></tr>
-<tr><td><kbd>:</kbd><code>icr</code></td><td>Insert column to the right</td></tr>
-<tr><td><kbd>:</kbd><code>dc</code></td><td>Delete current column</td></tr>
+<tr><td><code>:ir</code></td><td>Insert row below cursor</td></tr>
+<tr><td><code>:dr</code></td><td>Delete current row</td></tr>
+<tr><td><code>:ic</code></td><td>Insert column to the left</td></tr>
+<tr><td><code>:icr</code></td><td>Insert column to the right</td></tr>
+<tr><td><code>:dc</code></td><td>Delete current column</td></tr>
 <tr><td><kbd>d</kbd><kbd>d</kbd></td><td>Delete row (Normal mode)</td></tr>
 <tr><td><kbd>d</kbd><kbd>C</kbd></td><td>Delete column (Normal mode)</td></tr>
 </tbody>
@@ -606,32 +606,32 @@
 <thead><tr><th>Command</th><th>Action</th></tr></thead>
 <tbody>
 <tr class="section-header"><td colspan="2">Text Style</td></tr>
-<tr><td><kbd>:</kbd><code>bold</code></td><td>Toggle bold on cell / selection</td></tr>
-<tr><td><kbd>:</kbd><code>italic</code></td><td>Toggle italic</td></tr>
-<tr><td><kbd>:</kbd><code>underline</code></td><td>Toggle underline</td></tr>
-<tr><td><kbd>:</kbd><code>strike</code></td><td>Toggle strikethrough</td></tr>
+<tr><td><code>:bold</code></td><td>Toggle bold on cell / selection</td></tr>
+<tr><td><code>:italic</code></td><td>Toggle italic</td></tr>
+<tr><td><code>:underline</code></td><td>Toggle underline</td></tr>
+<tr><td><code>:strike</code></td><td>Toggle strikethrough</td></tr>
 <tr class="section-header"><td colspan="2">Colors</td></tr>
-<tr><td><kbd>:</kbd><code>fg &lt;color&gt;</code></td><td>Set foreground color (hex <code>#rrggbb</code> or name: <code>red</code>, <code>blue</code>, <code>green</code>...)</td></tr>
-<tr><td><kbd>:</kbd><code>bg &lt;color&gt;</code></td><td>Set background color</td></tr>
-<tr><td><kbd>:</kbd><code>hl &lt;color&gt;</code></td><td>Highlight: set background + auto-contrast foreground</td></tr>
-<tr><td><kbd>:</kbd><code>hl</code></td><td>Clear highlight (remove bg and fg colors)</td></tr>
+<tr><td><code>:fg &lt;color&gt;</code></td><td>Set foreground color (hex <code>#rrggbb</code> or name: <code>red</code>, <code>blue</code>, <code>green</code>...)</td></tr>
+<tr><td><code>:bg &lt;color&gt;</code></td><td>Set background color</td></tr>
+<tr><td><code>:hl &lt;color&gt;</code></td><td>Highlight: set background + auto-contrast foreground</td></tr>
+<tr><td><code>:hl</code></td><td>Clear highlight (remove bg and fg colors)</td></tr>
 <tr class="section-header"><td colspan="2">Layout</td></tr>
-<tr><td><kbd>:</kbd><code>align l</code> / <code>c</code> / <code>r</code></td><td>Set text alignment: left, center, right</td></tr>
-<tr><td><kbd>:</kbd><code>wrap</code></td><td>Toggle line-wrap on cell/selection</td></tr>
+<tr><td><code>:align l/c/r</code></td><td>Set text alignment: left, center, right</td></tr>
+<tr><td><code>:wrap</code></td><td>Toggle line-wrap on cell/selection</td></tr>
 <tr class="section-header"><td colspan="2">Number Format</td></tr>
-<tr><td><kbd>:</kbd><code>fmt %</code></td><td>Percentage format (0.15 → 15%)</td></tr>
-<tr><td><kbd>:</kbd><code>fmt $</code></td><td>Currency format ($1,234.56)</td></tr>
-<tr><td><kbd>:</kbd><code>fmt 0.00</code></td><td>Fixed decimal places</td></tr>
-<tr><td><kbd>:</kbd><code>fmt int</code></td><td>Integer (no decimals)</td></tr>
-<tr><td><kbd>:</kbd><code>fmt date</code></td><td>Date format</td></tr>
-<tr><td><kbd>:</kbd><code>fmt datetime</code></td><td>Date + time format</td></tr>
-<tr><td><kbd>:</kbd><code>fmt none</code></td><td>Clear number format</td></tr>
+<tr><td><code>:fmt %</code></td><td>Percentage format (0.15 → 15%)</td></tr>
+<tr><td><code>:fmt $</code></td><td>Currency format ($1,234.56)</td></tr>
+<tr><td><code>:fmt 0.00</code></td><td>Fixed decimal places</td></tr>
+<tr><td><code>:fmt int</code></td><td>Integer (no decimals)</td></tr>
+<tr><td><code>:fmt date</code></td><td>Date format</td></tr>
+<tr><td><code>:fmt datetime</code></td><td>Date + time format</td></tr>
+<tr><td><code>:fmt none</code></td><td>Clear number format</td></tr>
 <tr class="section-header"><td colspan="2">Style Clipboard</td></tr>
-<tr><td><kbd>:</kbd><code>copystyle</code></td><td>Copy current cell style</td></tr>
-<tr><td><kbd>:</kbd><code>pastestyle</code></td><td>Paste style to cell / selection</td></tr>
+<tr><td><code>:copystyle</code></td><td>Copy current cell style</td></tr>
+<tr><td><code>:pastestyle</code></td><td>Paste style to cell / selection</td></tr>
 <tr><td><kbd>y</kbd><kbd>S</kbd></td><td>Copy cell style (Normal mode)</td></tr>
 <tr><td><kbd>p</kbd><kbd>S</kbd></td><td>Paste style (Normal mode)</td></tr>
-<tr><td><kbd>:</kbd><code>cs</code></td><td>Clear all styles from cell / selection</td></tr>
+<tr><td><code>:cs</code></td><td>Clear all styles from cell / selection</td></tr>
 </tbody>
 </table>
 </section>
@@ -781,19 +781,19 @@
 <table class="kb-table">
 <thead><tr><th>Command</th><th>Action</th></tr></thead>
 <tbody>
-<tr><td><kbd>:</kbd><code>sort asc</code> / <code>desc</code></td><td>Sort all rows by the cursor column (ascending or descending)</td></tr>
-<tr><td><kbd>:</kbd><code>filter A &gt;100</code></td><td>Filter: show only rows where column A value &gt; 100</td></tr>
-<tr><td><kbd>:</kbd><code>filter off</code></td><td>Clear active row filter</td></tr>
-<tr><td><kbd>:</kbd><code>transpose</code></td><td>Transpose visual selection (swap rows and columns)</td></tr>
-<tr><td><kbd>:</kbd><code>dedup</code></td><td>Remove duplicate rows (by cursor column)</td></tr>
-<tr><td><kbd>:</kbd><code>filldown</code></td><td>Fill selection down from the top row</td></tr>
-<tr><td><kbd>:</kbd><code>fillright</code></td><td>Fill selection right from the leftmost column</td></tr>
-<tr><td><kbd>:</kbd><code>merge</code> / <code>unmerge</code></td><td>Merge visual selection into one cell / unmerge</td></tr>
-<tr><td><kbd>:</kbd><code>name sales A1:C10</code></td><td>Define a named range</td></tr>
-<tr><td><kbd>:</kbd><code>colfmt &gt;100 red</code></td><td>Conditional formatting rule for column</td></tr>
-<tr><td><kbd>:</kbd><code>note Hello</code></td><td>Set cell note (<code>:note</code> to view, <code>:note!</code> to clear)</td></tr>
-<tr><td><kbd>:</kbd><code>s/pat/repl/g</code></td><td>Find and replace across all text cells</td></tr>
-<tr><td><kbd>:</kbd><code>J</code></td><td>Join cell below into current cell</td></tr>
+<tr><td><code>:sort asc/desc</code></td><td>Sort all rows by the cursor column (ascending or descending)</td></tr>
+<tr><td><code>:filter A &gt;100</code></td><td>Filter: show only rows where column A value &gt; 100</td></tr>
+<tr><td><code>:filter off</code></td><td>Clear active row filter</td></tr>
+<tr><td><code>:transpose</code></td><td>Transpose visual selection (swap rows and columns)</td></tr>
+<tr><td><code>:dedup</code></td><td>Remove duplicate rows (by cursor column)</td></tr>
+<tr><td><code>:filldown</code></td><td>Fill selection down from the top row</td></tr>
+<tr><td><code>:fillright</code></td><td>Fill selection right from the leftmost column</td></tr>
+<tr><td><code>:merge</code> / <code>:unmerge</code></td><td>Merge visual selection into one cell / unmerge</td></tr>
+<tr><td><code>:name sales A1:C10</code></td><td>Define a named range</td></tr>
+<tr><td><code>:colfmt &gt;100 red</code></td><td>Conditional formatting rule for column</td></tr>
+<tr><td><code>:note Hello</code></td><td>Set cell note (<code>:note</code> to view, <code>:note!</code> to clear)</td></tr>
+<tr><td><code>:s/pat/repl/g</code></td><td>Find and replace across all text cells</td></tr>
+<tr><td><code>:J</code></td><td>Join cell below into current cell</td></tr>
 </tbody>
 </table>
 </section>
@@ -834,8 +834,8 @@
 <tbody>
 <tr><td><kbd>g</kbd><kbd>t</kbd></td><td>Switch to next sheet tab</td></tr>
 <tr><td><kbd>g</kbd><kbd>T</kbd></td><td>Switch to previous sheet tab</td></tr>
-<tr><td><kbd>:</kbd><code>tabnew</code> / <code>tabedit</code></td><td>Create a new sheet</td></tr>
-<tr><td><kbd>:</kbd><code>tabclose</code></td><td>Close current sheet</td></tr>
+<tr><td><code>:tabnew</code> / <code>:tabedit</code></td><td>Create a new sheet</td></tr>
+<tr><td><code>:tabclose</code></td><td>Close current sheet</td></tr>
 </tbody>
 </table>
 <p>Sheet tabs appear at the bottom of the screen. Cross-sheet formula references use <code>Sheet1!A1</code> syntax.</p>
@@ -880,7 +880,7 @@
 <tr><td><kbd>n</kbd> / <kbd>N</kbd></td><td>Next / previous match (count prefix supported)</td></tr>
 <tr><td><kbd>*</kbd></td><td>Search for cell content under cursor</td></tr>
 <tr><td><kbd>Esc</kbd></td><td>Clear search highlights</td></tr>
-<tr><td><kbd>:</kbd><code>s/pattern/replacement/g</code></td><td>Find and replace across all text cells</td></tr>
+<tr><td><code>:s/pattern/replacement/g</code></td><td>Find and replace across all text cells</td></tr>
 </tbody>
 </table>
 </section>
@@ -890,9 +890,9 @@
 <table class="kb-table">
 <thead><tr><th>Command</th><th>Action</th></tr></thead>
 <tbody>
-<tr><td><kbd>:</kbd><code>freeze rows N</code></td><td>Freeze top N rows (they stay visible while scrolling)</td></tr>
-<tr><td><kbd>:</kbd><code>freeze cols N</code></td><td>Freeze left N columns</td></tr>
-<tr><td><kbd>:</kbd><code>freeze off</code></td><td>Clear all freeze panes</td></tr>
+<tr><td><code>:freeze rows N</code></td><td>Freeze top N rows (they stay visible while scrolling)</td></tr>
+<tr><td><code>:freeze cols N</code></td><td>Freeze left N columns</td></tr>
+<tr><td><code>:freeze off</code></td><td>Clear all freeze panes</td></tr>
 </tbody>
 </table>
 </section>
@@ -900,8 +900,8 @@
 <section id="themes" data-searchable>
 <h2><a href="#themes" class="anchor">#</a> Themes</h2>
 <ul>
-<li><kbd>:</kbd><code>theme</code> — open the interactive theme picker</li>
-<li><kbd>:</kbd><code>theme &lt;name&gt;</code> — apply a theme by name directly</li>
+<li><code>:theme</code> — open the interactive theme picker</li>
+<li><code>:theme &lt;name&gt;</code> — apply a theme by name directly</li>
 <li><kbd>t</kbd> from the welcome screen — browse and preview themes</li>
 <li>Custom themes can be defined in <code>~/.config/asat/config.toml</code></li>
 </ul>
@@ -913,9 +913,9 @@
 <table class="kb-table">
 <thead><tr><th>Command</th><th>Action</th></tr></thead>
 <tbody>
-<tr><td><kbd>:</kbd><code>plugins</code></td><td>Open the plugin manager panel</td></tr>
-<tr><td><kbd>:</kbd><code>plugin reload</code></td><td>Reload <code>init.py</code></td></tr>
-<tr><td><kbd>:</kbd><code>plugin list</code></td><td>List installed plugins</td></tr>
+<tr><td><code>:plugins</code></td><td>Open the plugin manager panel</td></tr>
+<tr><td><code>:plugin reload</code></td><td>Reload <code>init.py</code></td></tr>
+<tr><td><code>:plugin list</code></td><td>List installed plugins</td></tr>
 </tbody>
 </table>
 </section>
@@ -924,7 +924,7 @@
 <h2><a href="#config" class="anchor">#</a> Configuration</h2>
 <p>Configuration file is at <code>~/.config/asat/config.toml</code>. Press <kbd>c</kbd> from the welcome screen to open it.</p>
 <ul>
-<li><kbd>:</kbd><code>set &lt;option&gt;</code> — set options at runtime</li>
+<li><code>:set &lt;option&gt;</code> — set options at runtime</li>
 <li>Theme, keybindings, default column width, scroll padding, and more can be configured</li>
 </ul>
 </section>
