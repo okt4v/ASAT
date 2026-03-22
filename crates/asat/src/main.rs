@@ -363,6 +363,9 @@ fn run_app(
 
         let ev = event::read()?;
         if let Event::Key(key) = ev {
+            if key.kind != crossterm::event::KeyEventKind::Press {
+                continue;
+            }
             let mode_before = input_state.mode.name().to_string();
             let actions = input_state.handle_key(key, &workbook);
             let mut should_quit = false;
