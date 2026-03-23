@@ -223,7 +223,10 @@ pub fn render_welcome(frame: &mut Frame, area: Rect, state: &RenderState<'_>) {
     // ── Version footer ────────────────────────────────────────────────────
     frame.render_widget(
         Paragraph::new(Line::from(vec![
-            Span::styled("v0.1.0", Style::default().fg(dim)),
+            Span::styled(
+                format!("v{}", env!("CARGO_PKG_VERSION")),
+                Style::default().fg(dim),
+            ),
             Span::styled(
                 "  ·  press ? for help",
                 Style::default().fg(darken(header_fg, 0.4)),

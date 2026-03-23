@@ -43,7 +43,7 @@
 - **Marks** — set named positions (`ma`), jump back (`'a`), and swap with `''`
 - **Cell merging** — merge a visual selection into one spanning cell with `M` in Visual mode or `:merge`; unmerge with `U` or `:unmerge`; line wrap flows text into covered rows below the anchor
 - **Line wrap** — toggle per-cell line wrap with `gw` (Normal mode) or `:wrap`; text reflows into merged rows below for vertical merges, and row height auto-expands for single cells
-- **Cell styling** — bold, italic, underline, strikethrough, foreground/background colour, alignment, and number formats
+- **Cell styling** — bold, italic, underline (text-only by default; `:underline full` extends the underline across the full cell width), strikethrough, foreground/background colour, alignment, and number formats
 - **Themes** — built-in theme picker (`:theme`) with multiple colour presets, saved to config
 - **Formula reference picker** — press `Ctrl+R` inside a formula to navigate the grid and insert cell/range references interactively
 - **Searchable help screen** — `:help` / `:h` opens a full-screen overlay with Keybindings and Formulas tabs; type to filter, `Tab` to switch tabs, `j`/`k` to scroll, `q` to close
@@ -55,16 +55,16 @@
 
 ### Pre-built binaries (GitHub Releases)
 
-Download a binary for your platform from the [v0.1.24 release](https://github.com/okt4v/ASAT/releases/tag/v0.1.24):
+Download a binary for your platform from the [v0.1.25 release](https://github.com/okt4v/ASAT/releases/tag/v0.1.25):
 
 | Platform | Link |
 |----------|------|
-| Linux x86_64 (glibc) | [asat-x86_64-unknown-linux-gnu.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.24/asat-x86_64-unknown-linux-gnu.tar.gz) |
-| Linux x86_64 (musl)  | [asat-x86_64-unknown-linux-musl.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.24/asat-x86_64-unknown-linux-musl.tar.gz) |
-| Linux aarch64        | [asat-aarch64-unknown-linux-gnu.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.24/asat-aarch64-unknown-linux-gnu.tar.gz) |
-| macOS arm64          | [asat-aarch64-apple-darwin.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.24/asat-aarch64-apple-darwin.tar.gz) |
-| macOS x86_64         | [asat-x86_64-apple-darwin.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.24/asat-x86_64-apple-darwin.tar.gz) |
-| Windows x86_64       | [asat-x86_64-pc-windows-msvc.zip](https://github.com/okt4v/ASAT/releases/download/v0.1.24/asat-x86_64-pc-windows-msvc.zip) |
+| Linux x86_64 (glibc) | [asat-x86_64-unknown-linux-gnu.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.25/asat-x86_64-unknown-linux-gnu.tar.gz) |
+| Linux x86_64 (musl)  | [asat-x86_64-unknown-linux-musl.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.25/asat-x86_64-unknown-linux-musl.tar.gz) |
+| Linux aarch64        | [asat-aarch64-unknown-linux-gnu.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.25/asat-aarch64-unknown-linux-gnu.tar.gz) |
+| macOS arm64          | [asat-aarch64-apple-darwin.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.25/asat-aarch64-apple-darwin.tar.gz) |
+| macOS x86_64         | [asat-x86_64-apple-darwin.tar.gz](https://github.com/okt4v/ASAT/releases/download/v0.1.25/asat-x86_64-apple-darwin.tar.gz) |
+| Windows x86_64       | [asat-x86_64-pc-windows-msvc.zip](https://github.com/okt4v/ASAT/releases/download/v0.1.25/asat-x86_64-pc-windows-msvc.zip) |
 
 Extract the archive and place the `asat` binary somewhere on your `$PATH` (e.g. `~/.local/bin/`).
 
@@ -86,8 +86,8 @@ brew install asat
 ### Debian / Ubuntu (apt)
 
 ```bash
-curl -LO https://github.com/okt4v/ASAT/releases/download/v0.1.24/asat_0.1.21-1_amd64.deb
-sudo apt install ./asat_0.1.21-1_amd64.deb
+curl -LO https://github.com/okt4v/ASAT/releases/download/v0.1.25/asat_0.1.25-1_amd64.deb
+sudo apt install ./asat_0.1.25-1_amd64.deb
 ```
 
 `apt install ./file.deb` resolves dependencies automatically and registers the package so `apt remove asat` works as expected.
@@ -280,7 +280,7 @@ Tab-completion works in command mode — press `Tab` to cycle through matching c
 | `:dr [N]` | Delete row at cursor or line N |
 | `:cw <N>` | Set column width to N characters |
 | `:rh <N>` | Set row height to N lines |
-| `:bold` / `:italic` / `:underline` / `:strike` | Toggle text style |
+| `:bold` / `:italic` / `:underline` / `:underline full` / `:strike` | Toggle text style; `:underline` underlines text characters only; `:underline full` extends the underline across the full cell width |
 | `:fg <color>` / `:bg <color>` | Set foreground / background colour (hex or named) |
 | `:hl <color>` / `:hl` | Highlight cell / clear highlight |
 | `:align <l/c/r>` | Set alignment: left, center, or right |

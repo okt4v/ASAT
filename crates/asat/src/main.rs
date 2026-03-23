@@ -3154,20 +3154,37 @@ fn handle_ex_command(
             );
         }
         "underline" | "ul" => {
-            let cur = workbook
-                .active()
-                .get_cell(input.cursor.row, input.cursor.col)
-                .and_then(|c| c.style.as_ref())
-                .map(|s| s.underline)
-                .unwrap_or(false);
-            apply_style_sel(
-                workbook,
-                input,
-                undo,
-                status,
-                &move |s| s.underline = !cur,
-                if cur { "Underline off" } else { "Underline on" },
-            );
+            if arg == "full" {
+                let cur = workbook
+                    .active()
+                    .get_cell(input.cursor.row, input.cursor.col)
+                    .and_then(|c| c.style.as_ref())
+                    .map(|s| s.underline_full)
+                    .unwrap_or(false);
+                apply_style_sel(
+                    workbook,
+                    input,
+                    undo,
+                    status,
+                    &move |s| s.underline_full = !cur,
+                    if cur { "Underline full off" } else { "Underline full on" },
+                );
+            } else {
+                let cur = workbook
+                    .active()
+                    .get_cell(input.cursor.row, input.cursor.col)
+                    .and_then(|c| c.style.as_ref())
+                    .map(|s| s.underline)
+                    .unwrap_or(false);
+                apply_style_sel(
+                    workbook,
+                    input,
+                    undo,
+                    status,
+                    &move |s| s.underline = !cur,
+                    if cur { "Underline off" } else { "Underline on" },
+                );
+            }
         }
         "strike" | "strikethrough" | "st" => {
             let cur = workbook

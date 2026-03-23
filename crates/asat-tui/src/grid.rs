@@ -120,6 +120,7 @@ impl<'a> Widget for GridWidget<'a> {
             ROW_GUTTER_WIDTH,
             "     ",
             corner_style,
+            false,
         );
 
         let mut x = area.x + ROW_GUTTER_WIDTH;
@@ -138,13 +139,13 @@ impl<'a> Widget for GridWidget<'a> {
                     .bg(darken(header_bg, 0.7))
                     .add_modifier(Modifier::BOLD)
             };
-            render_cell_centered(buf, x, header_y, *col_width, &label, hdr_style);
+            render_cell_centered(buf, x, header_y, *col_width, &label, hdr_style, false);
             x += col_width;
         }
         // Separator column header
         if freeze_col_sep > 0 {
             let sep_style = Style::default().fg(header_fg).bg(darken(header_bg, 0.5));
-            render_cell_str(buf, x, header_y, 1, "┃", sep_style);
+            render_cell_str(buf, x, header_y, 1, "┃", sep_style, false);
             x += 1;
         }
         // Scrollable col headers
@@ -159,7 +160,7 @@ impl<'a> Widget for GridWidget<'a> {
             } else {
                 corner_style
             };
-            render_cell_centered(buf, x, header_y, *col_width, &label, hdr_style);
+            render_cell_centered(buf, x, header_y, *col_width, &label, hdr_style, false);
             x += col_width;
         }
 
@@ -193,6 +194,7 @@ impl<'a> Widget for GridWidget<'a> {
                 ROW_GUTTER_WIDTH,
                 &gutter_text,
                 gutter_style,
+                false,
             );
 
             let mut x = area.x + ROW_GUTTER_WIDTH;
@@ -201,7 +203,7 @@ impl<'a> Widget for GridWidget<'a> {
                     let sep_style = Style::default()
                         .fg(darken(header_fg, 0.6))
                         .bg(darken(header_bg, 0.5));
-                    render_cell_str(buf, x, screen_y, col_width, "┃", sep_style);
+                    render_cell_str(buf, x, screen_y, col_width, "┃", sep_style, false);
                     x += col_width;
                     continue;
                 }
@@ -261,7 +263,7 @@ impl<'a> Widget for GridWidget<'a> {
                                 .map(|c| Color::Rgb(c.r, c.g, c.b))
                                 .unwrap_or(cell_bg)
                         };
-                        render_cell_str(buf, x, screen_y, col_width, "", Style::default().bg(bg));
+                        render_cell_str(buf, x, screen_y, col_width, "", Style::default().bg(bg), false);
                     }
                     // row_idx == m.row_start but col != m.col_start: same-row covered cell,
                     // anchor's wide render already painted this area — just advance x.
@@ -413,6 +415,7 @@ impl<'a> Widget for GridWidget<'a> {
                 ROW_GUTTER_WIDTH,
                 &gutter_text,
                 gutter_style,
+                false,
             );
 
             let mut x = area.x + ROW_GUTTER_WIDTH;
@@ -422,7 +425,7 @@ impl<'a> Widget for GridWidget<'a> {
                     let sep_style = Style::default()
                         .fg(darken(header_fg, 0.6))
                         .bg(darken(header_bg, 0.5));
-                    render_cell_str(buf, x, screen_y, *col_width, "┃", sep_style);
+                    render_cell_str(buf, x, screen_y, *col_width, "┃", sep_style, false);
                     x += col_width;
                     continue;
                 }
@@ -511,7 +514,7 @@ impl<'a> Widget for GridWidget<'a> {
                                     Color::White
                                 })
                                 .bg(bg);
-                            render_cell_str(buf, x, screen_y, actual_width, &chunk, style);
+                            render_cell_str(buf, x, screen_y, actual_width, &chunk, style, false);
                         } else {
                             render_cell_str(
                                 buf,
@@ -520,6 +523,7 @@ impl<'a> Widget for GridWidget<'a> {
                                 actual_width,
                                 "",
                                 Style::default().bg(bg),
+                                false,
                             );
                         }
                     }
@@ -577,7 +581,7 @@ impl<'a> Widget for GridWidget<'a> {
                 } else {
                     Style::default().fg(darken(header_fg, 0.6)).bg(header_bg)
                 };
-                render_cell_str(buf, area.x, ey, ROW_GUTTER_WIDTH, "    │", cont_style);
+                render_cell_str(buf, area.x, ey, ROW_GUTTER_WIDTH, "    │", cont_style, false);
 
                 // Fill cells with background; render wrapped text for wrap-enabled cells
                 let mut ex = area.x + ROW_GUTTER_WIDTH;
@@ -586,7 +590,7 @@ impl<'a> Widget for GridWidget<'a> {
                         let sep_style = Style::default()
                             .fg(darken(header_fg, 0.6))
                             .bg(darken(header_bg, 0.5));
-                        render_cell_str(buf, ex, ey, *col_width, "", sep_style);
+                        render_cell_str(buf, ex, ey, *col_width, "", sep_style, false);
                         ex += col_width;
                         continue;
                     }
@@ -637,14 +641,14 @@ impl<'a> Widget for GridWidget<'a> {
                                 .unwrap_or(cell_bg);
                             Style::default().fg(Color::White).bg(user_bg)
                         };
-                        render_cell_str(buf, ex, ey, render_width, &chunk, style);
+                        render_cell_str(buf, ex, ey, render_width, &chunk, style, false);
                     } else {
                         let bg_style = if is_cursor_row {
                             Style::default().fg(Color::Black).bg(cell_bg)
                         } else {
                             Style::default().fg(Color::White).bg(cell_bg)
                         };
-                        render_cell_str(buf, ex, ey, *col_width, "", bg_style);
+                        render_cell_str(buf, ex, ey, *col_width, "", bg_style, false);
                     }
                     ex += col_width;
                 }
@@ -843,7 +847,7 @@ fn render_data_cell(
             if us.italic {
                 s = s.add_modifier(Modifier::ITALIC);
             }
-            if us.underline {
+            if us.underline || us.underline_full {
                 s = s.add_modifier(Modifier::UNDERLINED);
             }
             if us.strikethrough {
@@ -852,6 +856,11 @@ fn render_data_cell(
         }
         s
     };
+    let underline_full = sheet
+        .get_cell(row_idx, col_idx)
+        .and_then(|c| c.style.as_ref())
+        .map(|s| s.underline_full)
+        .unwrap_or(false);
 
     use asat_core::Alignment;
     let user_align = sheet
@@ -859,14 +868,14 @@ fn render_data_cell(
         .and_then(|c| c.style.as_ref())
         .map(|s| s.align);
     match user_align {
-        Some(Alignment::Right) => render_cell_right(buf, x, y, col_width, &display, cell_style),
-        Some(Alignment::Center) => render_cell_centered(buf, x, y, col_width, &display, cell_style),
-        Some(Alignment::Left) => render_cell_str(buf, x, y, col_width, &display, cell_style),
+        Some(Alignment::Right) => render_cell_right(buf, x, y, col_width, &display, cell_style, underline_full),
+        Some(Alignment::Center) => render_cell_centered(buf, x, y, col_width, &display, cell_style, underline_full),
+        Some(Alignment::Left) => render_cell_str(buf, x, y, col_width, &display, cell_style, underline_full),
         _ => {
             if matches!(raw_value, CellValue::Number(_) | CellValue::Boolean(_)) {
-                render_cell_right(buf, x, y, col_width, &display, cell_style);
+                render_cell_right(buf, x, y, col_width, &display, cell_style, underline_full);
             } else {
-                render_cell_str(buf, x, y, col_width, &display, cell_style);
+                render_cell_str(buf, x, y, col_width, &display, cell_style, underline_full);
             }
         }
     }
@@ -911,15 +920,16 @@ fn is_in_visual_selection(
 }
 
 /// Render a fixed-width cell left-aligned. Appends "…" (single char) if content is wider.
-fn render_cell_str(buf: &mut Buffer, x: u16, y: u16, width: u16, content: &str, style: Style) {
+fn render_cell_str(buf: &mut Buffer, x: u16, y: u16, width: u16, content: &str, style: Style, underline_full: bool) {
     if width == 0 {
         return;
     }
-    // Fill background
+    // Strip underline from padding unless underline_full is set
+    let bg_style = if underline_full { style } else { style.remove_modifier(Modifier::UNDERLINED) };
     for dx in 0..width {
         if let Some(cell) = buf.cell_mut((x + dx, y)) {
             cell.set_char(' ');
-            cell.set_style(style);
+            cell.set_style(bg_style);
         }
     }
     let content_w = UnicodeWidthStr::width(content) as u16;
@@ -957,14 +967,15 @@ fn render_cell_str(buf: &mut Buffer, x: u16, y: u16, width: u16, content: &str, 
 }
 
 /// Right-aligned cell render. Shows "####" when a number won't fit (Excel convention).
-fn render_cell_right(buf: &mut Buffer, x: u16, y: u16, width: u16, content: &str, style: Style) {
+fn render_cell_right(buf: &mut Buffer, x: u16, y: u16, width: u16, content: &str, style: Style, underline_full: bool) {
     if width == 0 {
         return;
     }
+    let bg_style = if underline_full { style } else { style.remove_modifier(Modifier::UNDERLINED) };
     for dx in 0..width {
         if let Some(cell) = buf.cell_mut((x + dx, y)) {
             cell.set_char(' ');
-            cell.set_style(style);
+            cell.set_style(bg_style);
         }
     }
     let display_width = UnicodeWidthStr::width(content) as u16;
@@ -1000,14 +1011,15 @@ fn render_cell_right(buf: &mut Buffer, x: u16, y: u16, width: u16, content: &str
 }
 
 /// Center-aligned cell render (for column headers)
-fn render_cell_centered(buf: &mut Buffer, x: u16, y: u16, width: u16, content: &str, style: Style) {
+fn render_cell_centered(buf: &mut Buffer, x: u16, y: u16, width: u16, content: &str, style: Style, underline_full: bool) {
     if width == 0 {
         return;
     }
+    let bg_style = if underline_full { style } else { style.remove_modifier(Modifier::UNDERLINED) };
     for dx in 0..width {
         if let Some(cell) = buf.cell_mut((x + dx, y)) {
             cell.set_char(' ');
-            cell.set_style(style);
+            cell.set_style(bg_style);
         }
     }
     let display_width = UnicodeWidthStr::width(content) as u16;
