@@ -71,7 +71,7 @@ dependencies = [
 
 [[package]]
 name = "asat"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "arboard",
@@ -94,7 +94,7 @@ dependencies = [
 
 [[package]]
 name = "asat-commands"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "asat-core",
  "asat-formula",
@@ -103,7 +103,7 @@ dependencies = [
 
 [[package]]
 name = "asat-config"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "asat-core",
  "dirs",
@@ -114,7 +114,7 @@ dependencies = [
 
 [[package]]
 name = "asat-core"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "serde",
  "thiserror 2.0.18",
@@ -122,7 +122,7 @@ dependencies = [
 
 [[package]]
 name = "asat-formula"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "asat-core",
  "regex",
@@ -131,7 +131,7 @@ dependencies = [
 
 [[package]]
 name = "asat-input"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "asat-commands",
  "asat-core",
@@ -142,7 +142,7 @@ dependencies = [
 
 [[package]]
 name = "asat-io"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "asat-core",
@@ -159,7 +159,7 @@ dependencies = [
 
 [[package]]
 name = "asat-plugins"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "asat-commands",
  "asat-core",
@@ -171,7 +171,7 @@ dependencies = [
 
 [[package]]
 name = "asat-tui"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "asat-commands",
  "asat-config",
@@ -502,9 +502,9 @@ dependencies = [
 
 [[package]]
 name = "deflate64"
-version = "0.1.11"
+version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "807800ff3288b621186fe0a8f3392c4652068257302709c24efd918c3dffcdc2"
+checksum = "ac6b926516df9c60bfa16e107b21086399f8285a44ca9711344b9e553c5146e2"
 
 [[package]]
 name = "deranged"
