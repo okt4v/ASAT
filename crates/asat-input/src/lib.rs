@@ -651,6 +651,10 @@ pub struct InputState {
     /// Cell being edited when FormulaSelect was entered (restored on cancel)
     pub formula_origin: Option<(u32, u32)>,
 
+    // ── Note popup ──
+    /// When Some, a floating popup shows the full note text; any key dismisses it.
+    pub note_popup: Option<String>,
+
     // ── Sub-command completion (e.g. :theme <name>) ──
     /// Possible completions for the current command's argument (populated by main.rs)
     pub subcmd_completions: Vec<String>,
@@ -716,6 +720,7 @@ impl InputState {
             plugin_show_output: false,
             style_clipboard: None,
             formula_origin: None,
+            note_popup: None,
             subcmd_completions: Vec::new(),
             subcmd_completion_idx: None,
             fn_completion_prefix: String::new(),
@@ -873,6 +878,12 @@ impl InputState {
     }
 
     pub fn handle_key(&mut self, key: KeyEvent, workbook: &Workbook) -> Vec<AppAction> {
+        // If the note popup is open, any key dismisses it and is consumed.
+        if self.note_popup.is_some() {
+            self.note_popup = None;
+            return vec![];
+        }
+
         // Capture key while recording (before dispatch, so the stop-key handler
         // can pop it back off if it decides not to record it).
         if self.macro_recording.is_some() {

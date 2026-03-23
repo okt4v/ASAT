@@ -216,11 +216,17 @@ impl<'a> Widget for GridWidget<'a> {
                             .map(|(_, w)| *w)
                             .sum::<u16>()
                             .max(col_width);
+                        let has_note = sheet.notes.contains_key(&(row_idx, col_idx));
+                        let render_width = if has_note && actual_width > 1 {
+                            actual_width - 1
+                        } else {
+                            actual_width
+                        };
                         render_data_cell(
                             buf,
                             x,
                             screen_y,
-                            actual_width,
+                            render_width,
                             row_idx,
                             col_idx,
                             cursor,
@@ -241,10 +247,8 @@ impl<'a> Widget for GridWidget<'a> {
                             &self.state.ref_cells,
                             input.visual_command_range,
                         );
-                        if sheet.notes.contains_key(&(row_idx, col_idx)) {
-                            if let Some(cell) =
-                                buf.cell_mut((x + col_width.saturating_sub(1), screen_y))
-                            {
+                        if has_note && actual_width > 1 {
+                            if let Some(cell) = buf.cell_mut((x + actual_width - 1, screen_y)) {
                                 cell.set_char('▸');
                                 cell.set_style(note_marker_style);
                             }
@@ -277,11 +281,17 @@ impl<'a> Widget for GridWidget<'a> {
                     // anchor's wide render already painted this area — just advance x.
                 } else {
                     // Normal (non-merged) cell
+                    let has_note = sheet.notes.contains_key(&(row_idx, col_idx));
+                    let render_width = if has_note && col_width > 1 {
+                        col_width - 1
+                    } else {
+                        col_width
+                    };
                     render_data_cell(
                         buf,
                         x,
                         screen_y,
-                        col_width,
+                        render_width,
                         row_idx,
                         col_idx,
                         cursor,
@@ -302,10 +312,8 @@ impl<'a> Widget for GridWidget<'a> {
                         &self.state.ref_cells,
                         input.visual_command_range,
                     );
-                    if sheet.notes.contains_key(&(row_idx, col_idx)) {
-                        if let Some(cell) =
-                            buf.cell_mut((x + col_width.saturating_sub(1), screen_y))
-                        {
+                    if has_note && col_width > 1 {
+                        if let Some(cell) = buf.cell_mut((x + col_width - 1, screen_y)) {
                             cell.set_char('▸');
                             cell.set_style(note_marker_style);
                         }
@@ -447,11 +455,17 @@ impl<'a> Widget for GridWidget<'a> {
                             .map(|(_, w)| *w)
                             .sum::<u16>()
                             .max(*col_width);
+                        let has_note = sheet.notes.contains_key(&(row_idx, *col_idx));
+                        let render_width = if has_note && actual_width > 1 {
+                            actual_width - 1
+                        } else {
+                            actual_width
+                        };
                         render_data_cell(
                             buf,
                             x,
                             screen_y,
-                            actual_width,
+                            render_width,
                             row_idx,
                             *col_idx,
                             cursor,
@@ -472,10 +486,8 @@ impl<'a> Widget for GridWidget<'a> {
                             &self.state.ref_cells,
                             input.visual_command_range,
                         );
-                        if sheet.notes.contains_key(&(row_idx, *col_idx)) {
-                            if let Some(cell) =
-                                buf.cell_mut((x + col_width.saturating_sub(1), screen_y))
-                            {
+                        if has_note && actual_width > 1 {
+                            if let Some(cell) = buf.cell_mut((x + actual_width - 1, screen_y)) {
                                 cell.set_char('▸');
                                 cell.set_style(note_marker_style);
                             }
@@ -539,11 +551,17 @@ impl<'a> Widget for GridWidget<'a> {
                     // row > m.row_start, col != m.col_start: leftmost covered-row col painted it.
                 } else {
                     // Normal (non-merged) cell
+                    let has_note = sheet.notes.contains_key(&(row_idx, *col_idx));
+                    let render_width = if has_note && *col_width > 1 {
+                        col_width - 1
+                    } else {
+                        *col_width
+                    };
                     render_data_cell(
                         buf,
                         x,
                         screen_y,
-                        *col_width,
+                        render_width,
                         row_idx,
                         *col_idx,
                         cursor,
@@ -564,10 +582,8 @@ impl<'a> Widget for GridWidget<'a> {
                         &self.state.ref_cells,
                         input.visual_command_range,
                     );
-                    if sheet.notes.contains_key(&(row_idx, *col_idx)) {
-                        if let Some(cell) =
-                            buf.cell_mut((x + col_width.saturating_sub(1), screen_y))
-                        {
+                    if has_note && *col_width > 1 {
+                        if let Some(cell) = buf.cell_mut((x + col_width - 1, screen_y)) {
                             cell.set_char('▸');
                             cell.set_style(note_marker_style);
                         }

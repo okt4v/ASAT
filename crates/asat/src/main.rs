@@ -3999,9 +3999,9 @@ fn handle_ex_command(
                 workbook.dirty = true;
                 set_status(status, "Note cleared".to_string());
             } else if arg.is_empty() {
-                // :note — show existing note in status bar
+                // :note — open popup with full note text
                 if let Some(note) = sheet.notes.get(&(row, col)) {
-                    set_status(status, format!("Note: {}", note));
+                    input.note_popup = Some(note.clone());
                 } else {
                     set_status(
                         status,

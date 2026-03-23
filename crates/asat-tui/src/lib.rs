@@ -4,6 +4,7 @@ pub mod formula_bar;
 pub mod formula_hint;
 pub mod grid;
 pub mod help;
+pub mod note_popup;
 pub mod notification;
 pub mod plugin_manager;
 pub mod status_bar;
@@ -110,6 +111,7 @@ pub fn render(frame: &mut Frame, state: &RenderState<'_>) {
         }
 
         status_bar::render(frame, rows[1], state);
+        note_popup::render(frame, area, state);
         notification::render(frame, area, state);
         return;
     }
@@ -152,6 +154,9 @@ pub fn render(frame: &mut Frame, state: &RenderState<'_>) {
 
     // Which-key overlay — rendered last so it floats above everything.
     whichkey::render(frame, rows[1], state);
+
+    // Note popup — floats above everything when :note is invoked on a cell with a note.
+    note_popup::render(frame, area, state);
 
     // Notification bubble — always on top, regardless of mode.
     notification::render(frame, area, state);
