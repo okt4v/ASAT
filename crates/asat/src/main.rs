@@ -3167,7 +3167,11 @@ fn handle_ex_command(
                     undo,
                     status,
                     &move |s| s.underline_full = !cur,
-                    if cur { "Underline full off" } else { "Underline full on" },
+                    if cur {
+                        "Underline full off"
+                    } else {
+                        "Underline full on"
+                    },
                 );
             } else {
                 let cur = workbook

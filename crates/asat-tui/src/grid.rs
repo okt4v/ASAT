@@ -263,7 +263,15 @@ impl<'a> Widget for GridWidget<'a> {
                                 .map(|c| Color::Rgb(c.r, c.g, c.b))
                                 .unwrap_or(cell_bg)
                         };
-                        render_cell_str(buf, x, screen_y, col_width, "", Style::default().bg(bg), false);
+                        render_cell_str(
+                            buf,
+                            x,
+                            screen_y,
+                            col_width,
+                            "",
+                            Style::default().bg(bg),
+                            false,
+                        );
                     }
                     // row_idx == m.row_start but col != m.col_start: same-row covered cell,
                     // anchor's wide render already painted this area — just advance x.
@@ -581,7 +589,15 @@ impl<'a> Widget for GridWidget<'a> {
                 } else {
                     Style::default().fg(darken(header_fg, 0.6)).bg(header_bg)
                 };
-                render_cell_str(buf, area.x, ey, ROW_GUTTER_WIDTH, "    │", cont_style, false);
+                render_cell_str(
+                    buf,
+                    area.x,
+                    ey,
+                    ROW_GUTTER_WIDTH,
+                    "    │",
+                    cont_style,
+                    false,
+                );
 
                 // Fill cells with background; render wrapped text for wrap-enabled cells
                 let mut ex = area.x + ROW_GUTTER_WIDTH;
@@ -868,9 +884,15 @@ fn render_data_cell(
         .and_then(|c| c.style.as_ref())
         .map(|s| s.align);
     match user_align {
-        Some(Alignment::Right) => render_cell_right(buf, x, y, col_width, &display, cell_style, underline_full),
-        Some(Alignment::Center) => render_cell_centered(buf, x, y, col_width, &display, cell_style, underline_full),
-        Some(Alignment::Left) => render_cell_str(buf, x, y, col_width, &display, cell_style, underline_full),
+        Some(Alignment::Right) => {
+            render_cell_right(buf, x, y, col_width, &display, cell_style, underline_full)
+        }
+        Some(Alignment::Center) => {
+            render_cell_centered(buf, x, y, col_width, &display, cell_style, underline_full)
+        }
+        Some(Alignment::Left) => {
+            render_cell_str(buf, x, y, col_width, &display, cell_style, underline_full)
+        }
         _ => {
             if matches!(raw_value, CellValue::Number(_) | CellValue::Boolean(_)) {
                 render_cell_right(buf, x, y, col_width, &display, cell_style, underline_full);
@@ -920,12 +942,24 @@ fn is_in_visual_selection(
 }
 
 /// Render a fixed-width cell left-aligned. Appends "…" (single char) if content is wider.
-fn render_cell_str(buf: &mut Buffer, x: u16, y: u16, width: u16, content: &str, style: Style, underline_full: bool) {
+fn render_cell_str(
+    buf: &mut Buffer,
+    x: u16,
+    y: u16,
+    width: u16,
+    content: &str,
+    style: Style,
+    underline_full: bool,
+) {
     if width == 0 {
         return;
     }
     // Strip underline from padding unless underline_full is set
-    let bg_style = if underline_full { style } else { style.remove_modifier(Modifier::UNDERLINED) };
+    let bg_style = if underline_full {
+        style
+    } else {
+        style.remove_modifier(Modifier::UNDERLINED)
+    };
     for dx in 0..width {
         if let Some(cell) = buf.cell_mut((x + dx, y)) {
             cell.set_char(' ');
@@ -967,11 +1001,23 @@ fn render_cell_str(buf: &mut Buffer, x: u16, y: u16, width: u16, content: &str, 
 }
 
 /// Right-aligned cell render. Shows "####" when a number won't fit (Excel convention).
-fn render_cell_right(buf: &mut Buffer, x: u16, y: u16, width: u16, content: &str, style: Style, underline_full: bool) {
+fn render_cell_right(
+    buf: &mut Buffer,
+    x: u16,
+    y: u16,
+    width: u16,
+    content: &str,
+    style: Style,
+    underline_full: bool,
+) {
     if width == 0 {
         return;
     }
-    let bg_style = if underline_full { style } else { style.remove_modifier(Modifier::UNDERLINED) };
+    let bg_style = if underline_full {
+        style
+    } else {
+        style.remove_modifier(Modifier::UNDERLINED)
+    };
     for dx in 0..width {
         if let Some(cell) = buf.cell_mut((x + dx, y)) {
             cell.set_char(' ');
@@ -1011,11 +1057,23 @@ fn render_cell_right(buf: &mut Buffer, x: u16, y: u16, width: u16, content: &str
 }
 
 /// Center-aligned cell render (for column headers)
-fn render_cell_centered(buf: &mut Buffer, x: u16, y: u16, width: u16, content: &str, style: Style, underline_full: bool) {
+fn render_cell_centered(
+    buf: &mut Buffer,
+    x: u16,
+    y: u16,
+    width: u16,
+    content: &str,
+    style: Style,
+    underline_full: bool,
+) {
     if width == 0 {
         return;
     }
-    let bg_style = if underline_full { style } else { style.remove_modifier(Modifier::UNDERLINED) };
+    let bg_style = if underline_full {
+        style
+    } else {
+        style.remove_modifier(Modifier::UNDERLINED)
+    };
     for dx in 0..width {
         if let Some(cell) = buf.cell_mut((x + dx, y)) {
             cell.set_char(' ');
