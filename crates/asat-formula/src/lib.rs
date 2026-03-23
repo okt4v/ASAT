@@ -39,6 +39,8 @@ pub fn evaluate(
 
 /// Collect all cell coordinates referenced by a formula string (without leading '=').
 /// Expands ranges to individual cells. Returns a Vec of (row, col) pairs.
+/// Includes cross-sheet references (sheet qualifier is ignored — only coords returned).
+/// Use `collect_same_sheet_refs` for dependency/cycle analysis.
 pub fn collect_cell_refs(formula: &str) -> Vec<(u32, u32)> {
     let tokens = match lexer::lex(formula) {
         Ok(t) => t,
@@ -49,22 +51,47 @@ pub fn collect_cell_refs(formula: &str) -> Vec<(u32, u32)> {
         Err(_) => return Vec::new(),
     };
     let mut refs = Vec::new();
-    collect_refs_from_expr(&expr, &mut refs);
+    collect_refs_from_expr(&expr, &mut refs, false);
     refs
 }
 
-fn collect_refs_from_expr(expr: &parser::Expr, out: &mut Vec<(u32, u32)>) {
+/// Collect cell coordinates referenced by a formula, skipping cross-sheet references.
+/// Used for same-sheet dependency/circular-reference analysis — cross-sheet refs
+/// cannot create cycles on the current sheet and must be excluded.
+pub fn collect_same_sheet_refs(formula: &str) -> Vec<(u32, u32)> {
+    let tokens = match lexer::lex(formula) {
+        Ok(t) => t,
+        Err(_) => return Vec::new(),
+    };
+    let expr = match parser::parse(&tokens) {
+        Ok(e) => e,
+        Err(_) => return Vec::new(),
+    };
+    let mut refs = Vec::new();
+    collect_refs_from_expr(&expr, &mut refs, true);
+    refs
+}
+
+fn collect_refs_from_expr(expr: &parser::Expr, out: &mut Vec<(u32, u32)>, same_sheet_only: bool) {
     match expr {
-        parser::Expr::CellRef { row, col, .. } => {
-            out.push((*row, *col));
+        parser::Expr::CellRef {
+            row, col, sheet, ..
+        } => {
+            if !same_sheet_only || sheet.is_none() {
+                out.push((*row, *col));
+            }
         }
         parser::Expr::RangeRef {
             row1,
             col1,
             row2,
             col2,
+            sheet,
             ..
         } => {
+            if same_sheet_only && sheet.is_some() {
+                return;
+            }
             let r_min = (*row1).min(*row2);
             let r_max = (*row1).max(*row2);
             let c_min = (*col1).min(*col2);
@@ -79,7 +106,7 @@ fn collect_refs_from_expr(expr: &parser::Expr, out: &mut Vec<(u32, u32)>) {
             }
         }
         parser::Expr::UnaryMinus(e) | parser::Expr::UnaryPlus(e) => {
-            collect_refs_from_expr(e, out);
+            collect_refs_from_expr(e, out, same_sheet_only);
         }
         parser::Expr::Add(a, b)
         | parser::Expr::Sub(a, b)
@@ -93,12 +120,12 @@ fn collect_refs_from_expr(expr: &parser::Expr, out: &mut Vec<(u32, u32)>) {
         | parser::Expr::Lte(a, b)
         | parser::Expr::Gt(a, b)
         | parser::Expr::Gte(a, b) => {
-            collect_refs_from_expr(a, out);
-            collect_refs_from_expr(b, out);
+            collect_refs_from_expr(a, out, same_sheet_only);
+            collect_refs_from_expr(b, out, same_sheet_only);
         }
         parser::Expr::Call { args, .. } => {
             for arg in args {
-                collect_refs_from_expr(arg, out);
+                collect_refs_from_expr(arg, out, same_sheet_only);
             }
         }
         _ => {}

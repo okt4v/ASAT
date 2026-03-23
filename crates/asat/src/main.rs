@@ -471,7 +471,7 @@ fn recalculate_sheet(workbook: &mut Workbook, sheet_idx: usize) {
     let deps: std::collections::HashMap<(u32, u32), Vec<(u32, u32)>> = formula_cells
         .iter()
         .map(|(r, c, f)| {
-            let refs: Vec<(u32, u32)> = asat_formula::collect_cell_refs(f)
+            let refs: Vec<(u32, u32)> = asat_formula::collect_same_sheet_refs(f)
                 .into_iter()
                 .filter(|rc| formula_set.contains(rc))
                 .collect();
