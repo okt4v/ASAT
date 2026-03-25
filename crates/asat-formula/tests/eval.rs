@@ -20,8 +20,10 @@ fn wb_with_data() -> Workbook {
 /// Sheet2: A1=100, A2=200
 fn wb_two_sheets() -> Workbook {
     let mut wb = Workbook::new();
-    wb.active_mut().set_cell(0, 0, Cell::new(CellValue::Number(10.0)));
-    wb.active_mut().set_cell(1, 0, Cell::new(CellValue::Number(20.0)));
+    wb.active_mut()
+        .set_cell(0, 0, Cell::new(CellValue::Number(10.0)));
+    wb.active_mut()
+        .set_cell(1, 0, Cell::new(CellValue::Number(20.0)));
     wb.add_sheet("Sheet2");
     wb.sheets[1].set_cell(0, 0, Cell::new(CellValue::Number(100.0)));
     wb.sheets[1].set_cell(1, 0, Cell::new(CellValue::Number(200.0)));

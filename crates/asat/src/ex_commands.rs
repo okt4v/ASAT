@@ -9,9 +9,8 @@ use asat_input::{InputState, Mode};
 use asat_plugins::PluginManager;
 
 use crate::app::{
-    apply_style_sel, compare_cell_values, filter_row_matches, parse_cell_address,
-    parse_range_address, parse_range_address_cf, parse_color_arg, set_status, style_range,
-    ActionResult,
+    apply_style_sel, compare_cell_values, filter_row_matches, parse_cell_address, parse_color_arg,
+    parse_range_address, parse_range_address_cf, set_status, style_range, ActionResult,
 };
 
 pub(crate) fn handle_ex_command(

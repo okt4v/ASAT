@@ -747,7 +747,7 @@ impl InputState {
         let is_current = self
             .search_matches
             .get(self.search_match_idx)
-            .map_or(false, |&(r, c)| r == row && c == col);
+            .is_some_and(|&(r, c)| r == row && c == col);
         Some(is_current)
     }
 

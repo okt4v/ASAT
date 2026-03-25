@@ -34,7 +34,13 @@ fn insert_row_shifts_cells_down() {
 #[test]
 fn insert_row_shifts_row_meta() {
     let mut wb = wb();
-    wb.active_mut().row_meta.insert(0, RowMeta { height: Some(5), ..Default::default() });
+    wb.active_mut().row_meta.insert(
+        0,
+        RowMeta {
+            height: Some(5),
+            ..Default::default()
+        },
+    );
 
     let cmd = InsertRow { sheet: 0, row: 0 };
     cmd.execute(&mut wb).unwrap();
@@ -48,7 +54,13 @@ fn insert_row_shifts_row_meta() {
 fn insert_row_undo_restores_state() {
     let mut wb = wb();
     wb.active_mut().set_cell(0, 0, num(42.0));
-    wb.active_mut().row_meta.insert(0, RowMeta { height: Some(3), ..Default::default() });
+    wb.active_mut().row_meta.insert(
+        0,
+        RowMeta {
+            height: Some(3),
+            ..Default::default()
+        },
+    );
 
     let cmd = InsertRow { sheet: 0, row: 0 };
     cmd.execute(&mut wb).unwrap();
@@ -79,7 +91,13 @@ fn delete_row_shifts_cells_up() {
 #[test]
 fn delete_row_shifts_row_meta() {
     let mut wb = wb();
-    wb.active_mut().row_meta.insert(1, RowMeta { height: Some(7), ..Default::default() });
+    wb.active_mut().row_meta.insert(
+        1,
+        RowMeta {
+            height: Some(7),
+            ..Default::default()
+        },
+    );
 
     let cmd = DeleteRow::new(&wb, 0, 0);
     cmd.execute(&mut wb).unwrap();
@@ -93,7 +111,13 @@ fn delete_row_undo_restores_cells_and_meta() {
     let mut wb = wb();
     wb.active_mut().set_cell(0, 0, num(99.0));
     wb.active_mut().set_cell(1, 0, num(100.0));
-    wb.active_mut().row_meta.insert(0, RowMeta { height: Some(4), ..Default::default() });
+    wb.active_mut().row_meta.insert(
+        0,
+        RowMeta {
+            height: Some(4),
+            ..Default::default()
+        },
+    );
 
     let cmd = DeleteRow::new(&wb, 0, 0);
     cmd.execute(&mut wb).unwrap();
@@ -126,7 +150,13 @@ fn insert_col_shifts_cells_right() {
 #[test]
 fn insert_col_shifts_col_meta() {
     let mut wb = wb();
-    wb.active_mut().col_meta.insert(0, ColMeta { width: Some(20), ..Default::default() });
+    wb.active_mut().col_meta.insert(
+        0,
+        ColMeta {
+            width: Some(20),
+            ..Default::default()
+        },
+    );
 
     let cmd = InsertCol { sheet: 0, col: 0 };
     cmd.execute(&mut wb).unwrap();
@@ -138,7 +168,13 @@ fn insert_col_shifts_col_meta() {
 #[test]
 fn insert_col_undo_restores_col_meta() {
     let mut wb = wb();
-    wb.active_mut().col_meta.insert(0, ColMeta { width: Some(15), ..Default::default() });
+    wb.active_mut().col_meta.insert(
+        0,
+        ColMeta {
+            width: Some(15),
+            ..Default::default()
+        },
+    );
 
     let cmd = InsertCol { sheet: 0, col: 0 };
     cmd.execute(&mut wb).unwrap();
@@ -152,18 +188,30 @@ fn insert_col_undo_restores_col_meta() {
 fn delete_col_undo_restores_col_meta() {
     let mut wb = wb();
     wb.active_mut().set_cell(0, 0, txt("x"));
-    wb.active_mut().col_meta.insert(0, ColMeta { width: Some(12), ..Default::default() });
+    wb.active_mut().col_meta.insert(
+        0,
+        ColMeta {
+            width: Some(12),
+            ..Default::default()
+        },
+    );
     wb.active_mut().set_cell(0, 1, txt("y"));
 
     let cmd = DeleteCol::new(&wb, 0, 0);
     cmd.execute(&mut wb).unwrap();
 
-    assert_eq!(wb.active().get_raw_value(0, 0), &CellValue::Text("y".into()));
+    assert_eq!(
+        wb.active().get_raw_value(0, 0),
+        &CellValue::Text("y".into())
+    );
     assert!(wb.active().col_meta.get(&0).is_none());
 
     cmd.undo(&mut wb).unwrap();
 
-    assert_eq!(wb.active().get_raw_value(0, 0), &CellValue::Text("x".into()));
+    assert_eq!(
+        wb.active().get_raw_value(0, 0),
+        &CellValue::Text("x".into())
+    );
     assert_eq!(wb.active().col_meta.get(&0).unwrap().width, Some(12));
 }
 
@@ -178,7 +226,10 @@ fn setcell_merge_same_cell_coalesces() {
     let cmd2 = SetCell::new(&wb, 0, 0, 0, CellValue::Text("ab".into()));
 
     let merged = cmd1.merge(cmd2.as_any().downcast_ref::<SetCell>().unwrap());
-    assert!(merged.is_some(), "consecutive edits to same cell should merge");
+    assert!(
+        merged.is_some(),
+        "consecutive edits to same cell should merge"
+    );
 
     let m = merged.unwrap();
     // The merged cmd's new_value should be cmd2's new_value

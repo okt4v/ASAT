@@ -6,19 +6,16 @@ use arboard::Clipboard;
 use crossterm::event::KeyEvent;
 use regex::Regex;
 
-use asat_commands::{
-    Command, DeleteCol, InsertCol, MergeCells, SetCell, UndoStack, UnmergeCells,
-};
+use asat_commands::{Command, DeleteCol, InsertCol, MergeCells, SetCell, UndoStack, UnmergeCells};
 use asat_config::Config;
 use asat_core::{cell_address, CellStyle, CellValue, Workbook};
 use asat_input::{AppAction, InputState, Mode};
 use asat_plugins::{PluginEvent, PluginManager};
 
 use crate::app::{
-    apply_style_sel, auto_fill_series, cells_to_tsv, copy_to_clipboard,
-    cycle_date, cycle_text_sequence, find_first_cell_ref, open_config_in_editor,
-    parse_cell_address, push_recent, save_recent_files, scan_files, set_status,
-    ActionResult,
+    apply_style_sel, auto_fill_series, cells_to_tsv, copy_to_clipboard, cycle_date,
+    cycle_text_sequence, find_first_cell_ref, open_config_in_editor, parse_cell_address,
+    push_recent, save_recent_files, scan_files, set_status, ActionResult,
 };
 use crate::ex_commands::handle_ex_command;
 

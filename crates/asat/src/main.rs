@@ -22,14 +22,11 @@ use asat_input::{InputState, Mode};
 use asat_plugins::{PluginEvent, PluginManager, PluginOutput};
 use asat_tui::{render, RenderState};
 
-use app::{
-    set_status, swap_path, write_swap, delete_swap,
-    recalculate_all,
-    visible_rows_in_height, visible_cols_in_width,
-    load_recent_files,
-    update_subcmd_completions,
-};
 use app::ActionResult;
+use app::{
+    delete_swap, load_recent_files, recalculate_all, set_status, swap_path,
+    update_subcmd_completions, visible_cols_in_width, visible_rows_in_height, write_swap,
+};
 use ex_commands::handle_ex_command;
 use process_action::process_action;
 

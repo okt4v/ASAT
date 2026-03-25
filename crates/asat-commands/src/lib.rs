@@ -319,8 +319,8 @@ impl Command for InsertRow {
 pub struct DeleteRow {
     pub sheet: usize,
     pub row: u32,
-    pub saved_cells: Vec<(u32, Cell)>,    // (col, cell) for undo
-    pub saved_row_meta: Option<RowMeta>,  // row_meta entry for undo
+    pub saved_cells: Vec<(u32, Cell)>,   // (col, cell) for undo
+    pub saved_row_meta: Option<RowMeta>, // row_meta entry for undo
 }
 
 impl DeleteRow {
@@ -546,8 +546,8 @@ impl Command for InsertCol {
 pub struct DeleteCol {
     pub sheet: usize,
     pub col: u32,
-    pub saved_cells: Vec<(u32, Cell)>,    // (row, cell) for undo
-    pub saved_col_meta: Option<ColMeta>,  // col_meta entry for undo
+    pub saved_cells: Vec<(u32, Cell)>,   // (row, cell) for undo
+    pub saved_col_meta: Option<ColMeta>, // col_meta entry for undo
 }
 
 impl DeleteCol {
@@ -944,9 +944,7 @@ impl Command for RemoveSheet {
     }
 
     fn undo(&self, workbook: &mut Workbook) -> Result<(), CommandError> {
-        workbook
-            .sheets
-            .insert(self.index, self.saved_sheet.clone());
+        workbook.sheets.insert(self.index, self.saved_sheet.clone());
         workbook.active_sheet = self.saved_active;
         workbook.dirty = true;
         Ok(())

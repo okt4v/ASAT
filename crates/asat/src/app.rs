@@ -22,10 +22,7 @@ pub(crate) fn set_status(status: &mut Option<(String, std::time::Instant)>, msg:
 }
 
 pub(crate) fn swap_path(file_path: &std::path::Path) -> PathBuf {
-    let name = file_path
-        .file_name()
-        .unwrap_or_default()
-        .to_string_lossy();
+    let name = file_path.file_name().unwrap_or_default().to_string_lossy();
     file_path
         .parent()
         .unwrap_or_else(|| std::path::Path::new("."))
@@ -268,9 +265,7 @@ pub(crate) fn compare_cell_values(a: &CellValue, b: &CellValue) -> std::cmp::Ord
         (CellValue::Empty, CellValue::Empty) => Ordering::Equal,
         (CellValue::Empty, _) => Ordering::Greater,
         (_, CellValue::Empty) => Ordering::Less,
-        (CellValue::Number(x), CellValue::Number(y)) => {
-            x.partial_cmp(y).unwrap_or(Ordering::Equal)
-        }
+        (CellValue::Number(x), CellValue::Number(y)) => x.partial_cmp(y).unwrap_or(Ordering::Equal),
         (CellValue::Boolean(x), CellValue::Boolean(y)) => x.cmp(y),
         (CellValue::Text(x), CellValue::Text(y)) => x.to_lowercase().cmp(&y.to_lowercase()),
         (CellValue::Number(_), _) => Ordering::Less,
@@ -517,12 +512,7 @@ pub(crate) fn scan_files(root: &PathBuf) -> Vec<String> {
     results
 }
 
-pub(crate) fn scan_dir(
-    root: &PathBuf,
-    dir: &PathBuf,
-    depth: usize,
-    results: &mut Vec<String>,
-) {
+pub(crate) fn scan_dir(root: &PathBuf, dir: &PathBuf, depth: usize, results: &mut Vec<String>) {
     if depth == 0 {
         return;
     }
@@ -834,10 +824,7 @@ pub(crate) fn cycle_date(text: &str, delta: i32) -> Option<String> {
     if parts.len() != 3 {
         return None;
     }
-    if parts
-        .iter()
-        .any(|p| !p.chars().all(|c| c.is_ascii_digit()))
-    {
+    if parts.iter().any(|p| !p.chars().all(|c| c.is_ascii_digit())) {
         return None;
     }
 
@@ -962,10 +949,7 @@ pub(crate) enum CaseStyle {
 pub(crate) fn detect_case(s: &str) -> CaseStyle {
     if s.chars().all(|c| c.is_ascii_uppercase()) {
         CaseStyle::Upper
-    } else if s
-        .chars()
-        .next()
-        .is_some_and(|c| c.is_ascii_uppercase())
+    } else if s.chars().next().is_some_and(|c| c.is_ascii_uppercase())
         && s.chars().skip(1).all(|c| c.is_ascii_lowercase())
     {
         CaseStyle::Title
@@ -982,9 +966,7 @@ pub(crate) fn apply_case_style(s: &str, style: CaseStyle) -> String {
             let mut c = s.chars();
             match c.next() {
                 None => String::new(),
-                Some(first) => {
-                    first.to_uppercase().to_string() + &c.as_str().to_ascii_lowercase()
-                }
+                Some(first) => first.to_uppercase().to_string() + &c.as_str().to_ascii_lowercase(),
             }
         }
     }
@@ -992,16 +974,10 @@ pub(crate) fn apply_case_style(s: &str, style: CaseStyle) -> String {
 
 pub(crate) fn match_name_list(s: &str, short: &[&str], full: &[&str]) -> Option<(usize, bool)> {
     let lower = s.to_ascii_lowercase();
-    if let Some(idx) = full
-        .iter()
-        .position(|n| n.to_ascii_lowercase() == lower)
-    {
+    if let Some(idx) = full.iter().position(|n| n.to_ascii_lowercase() == lower) {
         return Some((idx, true));
     }
-    if let Some(idx) = short
-        .iter()
-        .position(|n| n.to_ascii_lowercase() == lower)
-    {
+    if let Some(idx) = short.iter().position(|n| n.to_ascii_lowercase() == lower) {
         return Some((idx, false));
     }
     None

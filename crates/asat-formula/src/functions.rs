@@ -138,7 +138,6 @@ fn first_two_nums(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> Optio
     Some((a, b))
 }
 
-
 // ── Math Functions ────────────────────────────────────────────────────────────
 
 fn fn_sum(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> CellValue {
