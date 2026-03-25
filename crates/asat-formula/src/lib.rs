@@ -37,6 +37,41 @@ pub fn evaluate(
     }
 }
 
+/// Parse a formula string into an AST without evaluating it.
+/// Returns `None` on lex/parse errors. Used with [`evaluate_expr`] to avoid
+/// re-parsing the same formula on every frame.
+pub fn parse_formula(formula: &str) -> Option<Expr> {
+    let tokens = lexer::lex(formula).ok()?;
+    parser::parse(&tokens).ok()
+}
+
+/// Evaluate a pre-parsed AST in the context of a workbook/cell.
+/// Use together with [`parse_formula`] and a per-formula cache to skip
+/// repeated lex+parse on every recalculation frame.
+pub fn evaluate_expr(
+    expr: &Expr,
+    workbook: &Workbook,
+    sheet_idx: usize,
+    row: u32,
+    col: u32,
+) -> CellValue {
+    let ctx = EvalContext {
+        workbook,
+        sheet_idx,
+        row,
+        col,
+    };
+    Evaluator::new().eval(expr, &ctx)
+}
+
+/// Collect same-sheet cell references from a pre-parsed AST.
+/// Avoids re-parsing the formula when the AST is already cached.
+pub fn collect_same_sheet_refs_expr(expr: &Expr) -> Vec<(u32, u32)> {
+    let mut refs = Vec::new();
+    collect_refs_from_expr(expr, &mut refs, true);
+    refs
+}
+
 /// Collect all cell coordinates referenced by a formula string (without leading '=').
 /// Expands ranges to individual cells. Returns a Vec of (row, col) pairs.
 /// Includes cross-sheet references (sheet qualifier is ignored — only coords returned).

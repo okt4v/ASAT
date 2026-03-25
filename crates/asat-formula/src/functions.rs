@@ -138,14 +138,6 @@ fn first_two_nums(args: &[Expr], ctx: &EvalContext<'_>, ev: &Evaluator) -> Optio
     Some((a, b))
 }
 
-#[allow(dead_code)]
-fn require_args(args: &[Expr], n: usize) -> Result<(), CellValue> {
-    if args.len() < n {
-        Err(CellValue::Error(CellError::Value))
-    } else {
-        Ok(())
-    }
-}
 
 // ── Math Functions ────────────────────────────────────────────────────────────
 

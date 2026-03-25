@@ -1,5 +1,8 @@
-use asat_core::{Cell, CellStyle, CellValue, MergeRegion, Workbook};
+use asat_core::{Cell, CellStyle, CellValue, ColMeta, MergeRegion, RowMeta, Sheet, Workbook};
 use thiserror::Error;
+
+#[cfg(test)]
+mod tests;
 
 // ── Error ────────────────────────────────────────────────────────────────────
 
@@ -26,6 +29,8 @@ pub trait Command: Send + Sync {
     fn affected_cell(&self) -> Option<(usize, u32, u32)> {
         None
     }
+    /// Downcast helper — needed to merge typed commands from trait objects.
+    fn as_any(&self) -> &dyn std::any::Any;
 }
 
 // ── Undo Stack ───────────────────────────────────────────────────────────────
@@ -187,12 +192,26 @@ impl Command for SetCell {
     fn affected_cell(&self) -> Option<(usize, u32, u32)> {
         Some((self.sheet, self.row, self.col))
     }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 
     fn merge(&self, other: &dyn Command) -> Option<Box<dyn Command>> {
-        // Downcast attempt: merge consecutive SetCell on same cell
-        // We use a simple trick: check description and coords via Any
-        let _ = other; // No std::any::Any bound — skip merge for now
-        None
+        // Coalesce consecutive edits to the same cell into a single undo entry.
+        let other = other.as_any().downcast_ref::<SetCell>()?;
+        if other.sheet == self.sheet && other.row == self.row && other.col == self.col {
+            Some(Box::new(SetCell {
+                sheet: self.sheet,
+                row: self.row,
+                col: self.col,
+                old_value: self.old_value.clone(),
+                new_value: other.new_value.clone(),
+                old_style: self.old_style.clone(),
+                new_style: other.new_style.clone(),
+            }))
+        } else {
+            None
+        }
     }
 }
 
@@ -223,6 +242,19 @@ impl Command for InsertRow {
                 sheet.cells.insert((r + 1, c), cell);
             }
         }
+        // Shift row_meta entries down the same way.
+        let mut meta_keys: Vec<_> = sheet
+            .row_meta
+            .keys()
+            .filter(|&&r| r >= self.row)
+            .cloned()
+            .collect();
+        meta_keys.sort_by(|a, b| b.cmp(a));
+        for r in meta_keys {
+            if let Some(meta) = sheet.row_meta.remove(&r) {
+                sheet.row_meta.insert(r + 1, meta);
+            }
+        }
         workbook.dirty = true;
         Ok(())
     }
@@ -232,7 +264,6 @@ impl Command for InsertRow {
             .sheet_mut(self.sheet)
             .ok_or(CommandError::SheetOutOfRange(self.sheet))?;
         // Remove row `row`, shift everything above it back up
-        // First remove the inserted row's cells
         let row_cells: Vec<_> = sheet
             .cells
             .keys()
@@ -242,7 +273,7 @@ impl Command for InsertRow {
         for coord in row_cells {
             sheet.cells.remove(&coord);
         }
-        // Shift everything above back down — ascending order to avoid overwrites.
+        // Shift everything above back up — ascending order to avoid overwrites.
         let mut affected: Vec<_> = sheet
             .cells
             .keys()
@@ -255,6 +286,20 @@ impl Command for InsertRow {
                 sheet.cells.insert((r - 1, c), cell);
             }
         }
+        // Shift row_meta back up; drop meta for the inserted row.
+        sheet.row_meta.remove(&self.row);
+        let mut meta_keys: Vec<_> = sheet
+            .row_meta
+            .keys()
+            .filter(|&&r| r > self.row)
+            .cloned()
+            .collect();
+        meta_keys.sort();
+        for r in meta_keys {
+            if let Some(meta) = sheet.row_meta.remove(&r) {
+                sheet.row_meta.insert(r - 1, meta);
+            }
+        }
         workbook.dirty = true;
         Ok(())
     }
@@ -265,19 +310,23 @@ impl Command for InsertRow {
     fn affected_cell(&self) -> Option<(usize, u32, u32)> {
         Some((self.sheet, self.row, 0))
     }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct DeleteRow {
     pub sheet: usize,
     pub row: u32,
-    pub saved_cells: Vec<(u32, Cell)>, // (col, cell) for undo
+    pub saved_cells: Vec<(u32, Cell)>,    // (col, cell) for undo
+    pub saved_row_meta: Option<RowMeta>,  // row_meta entry for undo
 }
 
 impl DeleteRow {
     pub fn new(workbook: &Workbook, sheet: usize, row: u32) -> Self {
-        let saved_cells = workbook
-            .sheet(sheet)
+        let s = workbook.sheet(sheet);
+        let saved_cells = s
             .map(|s| {
                 s.cells
                     .iter()
@@ -286,10 +335,12 @@ impl DeleteRow {
                     .collect()
             })
             .unwrap_or_default();
+        let saved_row_meta = s.and_then(|s| s.row_meta.get(&row).cloned());
         DeleteRow {
             sheet,
             row,
             saved_cells,
+            saved_row_meta,
         }
     }
 }
@@ -309,8 +360,7 @@ impl Command for DeleteRow {
         for coord in row_cells {
             sheet.cells.remove(&coord);
         }
-        // Shift rows above up — must process in ascending row order so that
-        // moving row N to N-1 doesn't overwrite row N-1 before it is moved.
+        // Shift rows above up — ascending order so row N doesn't overwrite N-1.
         let mut affected: Vec<_> = sheet
             .cells
             .keys()
@@ -323,6 +373,20 @@ impl Command for DeleteRow {
                 sheet.cells.insert((r - 1, c), cell);
             }
         }
+        // Remove row_meta for this row and shift the rest up.
+        sheet.row_meta.remove(&self.row);
+        let mut meta_keys: Vec<_> = sheet
+            .row_meta
+            .keys()
+            .filter(|&&r| r > self.row)
+            .cloned()
+            .collect();
+        meta_keys.sort();
+        for r in meta_keys {
+            if let Some(meta) = sheet.row_meta.remove(&r) {
+                sheet.row_meta.insert(r - 1, meta);
+            }
+        }
         workbook.dirty = true;
         Ok(())
     }
@@ -331,8 +395,7 @@ impl Command for DeleteRow {
         let sheet = workbook
             .sheet_mut(self.sheet)
             .ok_or(CommandError::SheetOutOfRange(self.sheet))?;
-        // Shift rows back down — must process in descending row order so that
-        // moving row N to N+1 doesn't overwrite row N+1 before it is moved.
+        // Shift rows back down — descending order so row N doesn't overwrite N+1.
         let mut affected: Vec<_> = sheet
             .cells
             .keys()
@@ -349,6 +412,23 @@ impl Command for DeleteRow {
         for (col, cell) in &self.saved_cells {
             sheet.cells.insert((self.row, *col), cell.clone());
         }
+        // Shift row_meta back down.
+        let mut meta_keys: Vec<_> = sheet
+            .row_meta
+            .keys()
+            .filter(|&&r| r >= self.row)
+            .cloned()
+            .collect();
+        meta_keys.sort_by(|a, b| b.cmp(a));
+        for r in meta_keys {
+            if let Some(meta) = sheet.row_meta.remove(&r) {
+                sheet.row_meta.insert(r + 1, meta);
+            }
+        }
+        // Restore saved row meta.
+        if let Some(ref meta) = self.saved_row_meta {
+            sheet.row_meta.insert(self.row, meta.clone());
+        }
         workbook.dirty = true;
         Ok(())
     }
@@ -358,6 +438,9 @@ impl Command for DeleteRow {
     }
     fn affected_cell(&self) -> Option<(usize, u32, u32)> {
         Some((self.sheet, self.row, 0))
+    }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -387,6 +470,19 @@ impl Command for InsertCol {
                 sheet.cells.insert((r, c + 1), cell);
             }
         }
+        // Shift col_meta right.
+        let mut meta_keys: Vec<_> = sheet
+            .col_meta
+            .keys()
+            .filter(|&&c| c >= self.col)
+            .cloned()
+            .collect();
+        meta_keys.sort_by(|a, b| b.cmp(a));
+        for c in meta_keys {
+            if let Some(meta) = sheet.col_meta.remove(&c) {
+                sheet.col_meta.insert(c + 1, meta);
+            }
+        }
         workbook.dirty = true;
         Ok(())
     }
@@ -417,6 +513,20 @@ impl Command for InsertCol {
                 sheet.cells.insert((r, c - 1), cell);
             }
         }
+        // Shift col_meta back left; drop meta for inserted col.
+        sheet.col_meta.remove(&self.col);
+        let mut meta_keys: Vec<_> = sheet
+            .col_meta
+            .keys()
+            .filter(|&&c| c > self.col)
+            .cloned()
+            .collect();
+        meta_keys.sort();
+        for c in meta_keys {
+            if let Some(meta) = sheet.col_meta.remove(&c) {
+                sheet.col_meta.insert(c - 1, meta);
+            }
+        }
         workbook.dirty = true;
         Ok(())
     }
@@ -427,19 +537,23 @@ impl Command for InsertCol {
     fn affected_cell(&self) -> Option<(usize, u32, u32)> {
         Some((self.sheet, 0, self.col))
     }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct DeleteCol {
     pub sheet: usize,
     pub col: u32,
-    pub saved_cells: Vec<(u32, Cell)>, // (row, cell) for undo
+    pub saved_cells: Vec<(u32, Cell)>,    // (row, cell) for undo
+    pub saved_col_meta: Option<ColMeta>,  // col_meta entry for undo
 }
 
 impl DeleteCol {
     pub fn new(workbook: &Workbook, sheet: usize, col: u32) -> Self {
-        let saved_cells = workbook
-            .sheet(sheet)
+        let s = workbook.sheet(sheet);
+        let saved_cells = s
             .map(|s| {
                 s.cells
                     .iter()
@@ -448,10 +562,12 @@ impl DeleteCol {
                     .collect()
             })
             .unwrap_or_default();
+        let saved_col_meta = s.and_then(|s| s.col_meta.get(&col).cloned());
         DeleteCol {
             sheet,
             col,
             saved_cells,
+            saved_col_meta,
         }
     }
 }
@@ -470,7 +586,7 @@ impl Command for DeleteCol {
         for coord in col_cells {
             sheet.cells.remove(&coord);
         }
-        // Shift left — ascending col order to avoid overwrites
+        // Shift left — ascending col order to avoid overwrites.
         let mut affected: Vec<_> = sheet
             .cells
             .keys()
@@ -483,6 +599,20 @@ impl Command for DeleteCol {
                 sheet.cells.insert((r, c - 1), cell);
             }
         }
+        // Remove col_meta for this col and shift the rest left.
+        sheet.col_meta.remove(&self.col);
+        let mut meta_keys: Vec<_> = sheet
+            .col_meta
+            .keys()
+            .filter(|&&c| c > self.col)
+            .cloned()
+            .collect();
+        meta_keys.sort();
+        for c in meta_keys {
+            if let Some(meta) = sheet.col_meta.remove(&c) {
+                sheet.col_meta.insert(c - 1, meta);
+            }
+        }
         workbook.dirty = true;
         Ok(())
     }
@@ -491,7 +621,7 @@ impl Command for DeleteCol {
         let sheet = workbook
             .sheet_mut(self.sheet)
             .ok_or(CommandError::SheetOutOfRange(self.sheet))?;
-        // Shift right — descending col order to avoid overwrites
+        // Shift right — descending col order to avoid overwrites.
         let mut affected: Vec<_> = sheet
             .cells
             .keys()
@@ -507,6 +637,23 @@ impl Command for DeleteCol {
         for (row, cell) in &self.saved_cells {
             sheet.cells.insert((*row, self.col), cell.clone());
         }
+        // Shift col_meta back right.
+        let mut meta_keys: Vec<_> = sheet
+            .col_meta
+            .keys()
+            .filter(|&&c| c >= self.col)
+            .cloned()
+            .collect();
+        meta_keys.sort_by(|a, b| b.cmp(a));
+        for c in meta_keys {
+            if let Some(meta) = sheet.col_meta.remove(&c) {
+                sheet.col_meta.insert(c + 1, meta);
+            }
+        }
+        // Restore saved col meta.
+        if let Some(ref meta) = self.saved_col_meta {
+            sheet.col_meta.insert(self.col, meta.clone());
+        }
         workbook.dirty = true;
         Ok(())
     }
@@ -516,6 +663,9 @@ impl Command for DeleteCol {
     }
     fn affected_cell(&self) -> Option<(usize, u32, u32)> {
         Some((self.sheet, 0, self.col))
+    }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -546,6 +696,9 @@ impl Command for GroupedCommand {
     }
     fn affected_cell(&self) -> Option<(usize, u32, u32)> {
         self.commands.first().and_then(|c| c.affected_cell())
+    }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -681,6 +834,9 @@ impl Command for MergeCells {
     fn description(&self) -> &str {
         "merge cells"
     }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 // ── UnmergeCells ─────────────────────────────────────────────────────────────
@@ -740,5 +896,66 @@ impl Command for UnmergeCells {
 
     fn description(&self) -> &str {
         "unmerge cells"
+    }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+// ── RemoveSheet ───────────────────────────────────────────────────────────────
+
+/// Removes a sheet from the workbook. Fully undoable — the sheet is
+/// reconstructed from the saved snapshot on undo.
+#[derive(Debug, Clone)]
+pub struct RemoveSheet {
+    pub index: usize,
+    pub saved_sheet: Sheet,
+    pub saved_active: usize, // active_sheet before the remove
+}
+
+impl RemoveSheet {
+    pub fn new(workbook: &Workbook, index: usize) -> Result<Self, CommandError> {
+        let saved_sheet = workbook
+            .sheets
+            .get(index)
+            .ok_or(CommandError::SheetOutOfRange(index))?
+            .clone();
+        Ok(RemoveSheet {
+            index,
+            saved_sheet,
+            saved_active: workbook.active_sheet,
+        })
+    }
+}
+
+impl Command for RemoveSheet {
+    fn execute(&self, workbook: &mut Workbook) -> Result<(), CommandError> {
+        if workbook.sheets.len() <= 1 {
+            return Err(CommandError::Invalid(
+                "cannot close the last sheet".to_string(),
+            ));
+        }
+        workbook.sheets.remove(self.index);
+        if workbook.active_sheet >= workbook.sheets.len() {
+            workbook.active_sheet = workbook.sheets.len() - 1;
+        }
+        workbook.dirty = true;
+        Ok(())
+    }
+
+    fn undo(&self, workbook: &mut Workbook) -> Result<(), CommandError> {
+        workbook
+            .sheets
+            .insert(self.index, self.saved_sheet.clone());
+        workbook.active_sheet = self.saved_active;
+        workbook.dirty = true;
+        Ok(())
+    }
+
+    fn description(&self) -> &str {
+        "close sheet"
+    }
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }

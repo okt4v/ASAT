@@ -95,6 +95,11 @@ impl Color {
     pub const fn rgb(r: u8, g: u8, b: u8) -> Self {
         Color { r, g, b }
     }
+
+    /// Returns true when the colour is perceptually dark (luma < 128).
+    pub fn is_dark(&self) -> bool {
+        (self.r as u32 * 299 + self.g as u32 * 587 + self.b as u32 * 114) < 128_000
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]

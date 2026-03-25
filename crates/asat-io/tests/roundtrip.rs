@@ -1,6 +1,5 @@
 use asat_core::{Cell, CellValue, Workbook};
 use asat_io::{load, save};
-use std::path::PathBuf;
 
 fn sample_workbook() -> Workbook {
     let mut wb = Workbook::new();

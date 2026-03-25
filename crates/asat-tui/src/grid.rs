@@ -15,6 +15,27 @@ const ROW_GUTTER_WIDTH: u16 = 5;
 /// Minimum column width
 const MIN_COL_WIDTH: u16 = 3;
 
+/// Per-frame invariant context threaded into [`render_data_cell`].
+/// Bundles everything that is the same for every cell in a single render pass.
+struct CellRenderCtx<'a> {
+    cursor: asat_input::Cursor,
+    mode: &'a Mode,
+    visual_anchor: Option<&'a asat_input::VisualAnchor>,
+    sheet: &'a asat_core::Sheet,
+    edit_buffer: &'a str,
+    formula_origin: Option<(u32, u32)>,
+    cursor_bg: Color,
+    cell_bg: Color,
+    selection_bg: Color,
+    number_color: Color,
+    cmd_color: Color,
+    vis_color: Color,
+    insert_color: Color,
+    normal_color: Color,
+    ref_cells: &'a std::collections::HashSet<(u32, u32)>,
+    visual_command_range: Option<(u32, u32, u32, u32)>,
+}
+
 pub fn render(frame: &mut Frame, area: Rect, state: &RenderState<'_>) {
     let widget = GridWidget { state };
     frame.render_widget(widget, area);
@@ -48,6 +69,26 @@ impl<'a> Widget for GridWidget<'a> {
         let vis_color = parse_hex_color(&theme.visual_mode_color);
         let insert_color = parse_hex_color(&theme.insert_mode_color);
         let normal_color = parse_hex_color(&theme.normal_mode_color);
+
+        // Per-frame context shared across every render_data_cell call.
+        let cell_ctx = CellRenderCtx {
+            cursor,
+            mode: &input.mode,
+            visual_anchor: input.visual_anchor.as_ref(),
+            sheet,
+            edit_buffer: &input.edit_buffer,
+            formula_origin: input.formula_origin,
+            cursor_bg,
+            cell_bg,
+            selection_bg,
+            number_color,
+            cmd_color,
+            vis_color,
+            insert_color,
+            normal_color,
+            ref_cells: &self.state.ref_cells,
+            visual_command_range: input.visual_command_range,
+        };
 
         // ── Freeze pane metrics ──────────────────────────────────────────────
         let freeze_rows = sheet.freeze_rows as u16;
@@ -229,23 +270,8 @@ impl<'a> Widget for GridWidget<'a> {
                             render_width,
                             row_idx,
                             col_idx,
-                            cursor,
-                            &input.mode,
-                            input.visual_anchor.as_ref(),
                             input.search_highlight(row_idx, col_idx),
-                            sheet,
-                            &input.edit_buffer,
-                            input.formula_origin,
-                            cursor_bg,
-                            cell_bg,
-                            selection_bg,
-                            number_color,
-                            cmd_color,
-                            vis_color,
-                            insert_color,
-                            normal_color,
-                            &self.state.ref_cells,
-                            input.visual_command_range,
+                            &cell_ctx,
                         );
                         if has_note && actual_width > 1 {
                             if let Some(cell) = buf.cell_mut((x + actual_width - 1, screen_y)) {
@@ -294,23 +320,8 @@ impl<'a> Widget for GridWidget<'a> {
                         render_width,
                         row_idx,
                         col_idx,
-                        cursor,
-                        &input.mode,
-                        input.visual_anchor.as_ref(),
                         input.search_highlight(row_idx, col_idx),
-                        sheet,
-                        &input.edit_buffer,
-                        input.formula_origin,
-                        cursor_bg,
-                        cell_bg,
-                        selection_bg,
-                        number_color,
-                        cmd_color,
-                        vis_color,
-                        insert_color,
-                        normal_color,
-                        &self.state.ref_cells,
-                        input.visual_command_range,
+                        &cell_ctx,
                     );
                     if has_note && col_width > 1 {
                         if let Some(cell) = buf.cell_mut((x + col_width - 1, screen_y)) {
@@ -468,23 +479,8 @@ impl<'a> Widget for GridWidget<'a> {
                             render_width,
                             row_idx,
                             *col_idx,
-                            cursor,
-                            &input.mode,
-                            input.visual_anchor.as_ref(),
                             input.search_highlight(row_idx, *col_idx),
-                            sheet,
-                            &input.edit_buffer,
-                            input.formula_origin,
-                            cursor_bg,
-                            cell_bg,
-                            selection_bg,
-                            number_color,
-                            cmd_color,
-                            vis_color,
-                            insert_color,
-                            normal_color,
-                            &self.state.ref_cells,
-                            input.visual_command_range,
+                            &cell_ctx,
                         );
                         if has_note && actual_width > 1 {
                             if let Some(cell) = buf.cell_mut((x + actual_width - 1, screen_y)) {
@@ -564,23 +560,8 @@ impl<'a> Widget for GridWidget<'a> {
                         render_width,
                         row_idx,
                         *col_idx,
-                        cursor,
-                        &input.mode,
-                        input.visual_anchor.as_ref(),
                         input.search_highlight(row_idx, *col_idx),
-                        sheet,
-                        &input.edit_buffer,
-                        input.formula_origin,
-                        cursor_bg,
-                        cell_bg,
-                        selection_bg,
-                        number_color,
-                        cmd_color,
-                        vis_color,
-                        insert_color,
-                        normal_color,
-                        &self.state.ref_cells,
-                        input.visual_command_range,
+                        &cell_ctx,
                     );
                     if has_note && *col_width > 1 {
                         if let Some(cell) = buf.cell_mut((x + col_width - 1, screen_y)) {
@@ -700,24 +681,26 @@ fn render_data_cell(
     col_width: u16,
     row_idx: u32,
     col_idx: u32,
-    cursor: asat_input::Cursor,
-    mode: &Mode,
-    visual_anchor: Option<&asat_input::VisualAnchor>,
     search_hl: Option<bool>,
-    sheet: &asat_core::Sheet,
-    edit_buffer: &str,
-    formula_origin: Option<(u32, u32)>,
-    cursor_bg: Color,
-    cell_bg: Color,
-    selection_bg: Color,
-    number_color: Color,
-    cmd_color: Color,
-    vis_color: Color,
-    insert_color: Color,
-    normal_color: Color,
-    ref_cells: &std::collections::HashSet<(u32, u32)>,
-    visual_command_range: Option<(u32, u32, u32, u32)>,
+    ctx: &CellRenderCtx<'_>,
 ) {
+    let cursor = ctx.cursor;
+    let mode = ctx.mode;
+    let visual_anchor = ctx.visual_anchor;
+    let sheet = ctx.sheet;
+    let edit_buffer = ctx.edit_buffer;
+    let formula_origin = ctx.formula_origin;
+    let cursor_bg = ctx.cursor_bg;
+    let cell_bg = ctx.cell_bg;
+    let selection_bg = ctx.selection_bg;
+    let number_color = ctx.number_color;
+    let cmd_color = ctx.cmd_color;
+    let vis_color = ctx.vis_color;
+    let insert_color = ctx.insert_color;
+    let normal_color = ctx.normal_color;
+    let ref_cells = ctx.ref_cells;
+    let visual_command_range = ctx.visual_command_range;
+
     let is_cursor = row_idx == cursor.row && col_idx == cursor.col;
 
     let is_fref_cursor = matches!(mode, Mode::FormulaSelect { .. })

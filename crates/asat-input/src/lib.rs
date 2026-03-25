@@ -582,8 +582,10 @@ pub struct InputState {
     pub mode: Mode,
     pub cursor: Cursor,
     pub viewport: Viewport,
-    /// All cells matching the last search, in row-major order
+    /// All cells matching the last search, in row-major order (for navigation)
     pub search_matches: Vec<(u32, u32)>,
+    /// Set version of search_matches for O(1) per-cell highlight lookup
+    pub search_match_set: std::collections::HashSet<(u32, u32)>,
     /// Index into search_matches of the currently-highlighted match
     pub search_match_idx: usize,
     pub visual_anchor: Option<VisualAnchor>,
@@ -698,6 +700,7 @@ impl InputState {
             search_buffer: String::new(),
             last_search: None,
             search_matches: Vec::new(),
+            search_match_set: std::collections::HashSet::new(),
             search_match_idx: 0,
             recording_buffer: Vec::new(),
             macro_registers: std::collections::HashMap::new(),
@@ -738,11 +741,14 @@ impl InputState {
 
     /// Returns the search highlight type for a cell: Some(true) = current match, Some(false) = other match
     pub fn search_highlight(&self, row: u32, col: u32) -> Option<bool> {
-        let pos = self
+        if !self.search_match_set.contains(&(row, col)) {
+            return None;
+        }
+        let is_current = self
             .search_matches
-            .iter()
-            .position(|&(r, c)| r == row && c == col)?;
-        Some(pos == self.search_match_idx)
+            .get(self.search_match_idx)
+            .map_or(false, |&(r, c)| r == row && c == col);
+        Some(is_current)
     }
 
     pub fn count(&self) -> u32 {
